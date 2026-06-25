@@ -1,0 +1,50 @@
+{
+  "title": "设置",
+  "sections": {
+    "general": "通用",
+    "appearance": "外观",
+    "connections": "连接",
+    "keyboard": "快捷键",
+    "about": "关于"
+  },
+  "general": {
+    "language": "界面语言",
+    "languageDescription": "切换应用界面显示语言",
+    "openLocalOnStart": "启动时打开本地终端",
+    "openLocalOnStartDescription": "应用启动后自动创建本地终端标签"
+  },
+  "appearance": {
+    "uiTheme": "界面主题",
+    "uiThemeDescription": "控制侧边栏、标签栏和设置页的主题",
+    "terminalTheme": "终端主题",
+    "terminalThemeDescription": "终端配色将在 Milestone 2 中生效",
+    "fontFamily": "终端字体",
+    "fontSize": "终端字号"
+  },
+  "connections": {
+    "credentials": "凭据管理",
+    "credentialsDescription": "密码与私钥口令将存储在系统钥匙串中",
+    "hostKeys": "Host Key 管理",
+    "hostKeysDescription": "SSH 首次连接确认记录将在 Milestone 3 中实现"
+  },
+  "keyboard": {
+    "title": "快捷键",
+    "description": "以下为 MVP 计划快捷键，自定义将在后续版本支持",
+    "newTerminal": "新建本地终端",
+    "closeTab": "关闭当前标签",
+    "commandPalette": "打开命令面板",
+    "openSettings": "打开设置",
+    "search": "搜索终端或文件列表"
+  },
+  "about": {
+    "version": "版本",
+    "description": "基于 Tauri 的跨平台终端与文件传输工作台"
+  },
+  "terminalThemes": {
+    "puck-dark": "Puck Dark",
+    "puck-light": "Puck Light",
+    "solarized-dark": "Solarized Dark",
+    "solarized-light": "Solarized Light",
+    "one-dark": "One Dark"
+  }
+}

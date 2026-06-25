@@ -1,0 +1,17 @@
+{
+  "title": "Files",
+  "placeholder": "File manager will be implemented in a later milestone",
+  "columns": {
+    "name": "Name",
+    "type": "Type",
+    "size": "Size",
+    "modified": "Modified",
+    "permissions": "Permissions"
+  },
+  "actions": {
+    "upload": "Upload",
+    "download": "Download",
+    "newFolder": "New Folder",
+    "rename": "Rename"
+  }
+}

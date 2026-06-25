@@ -1,0 +1,11 @@
+{
+  "title": "终端",
+  "placeholder": "终端区域将在 Milestone 2 中集成 xterm.js",
+  "localDefault": "本地终端",
+  "actions": {
+    "clear": "清屏",
+    "search": "搜索",
+    "reconnect": "重连",
+    "disconnect": "断开"
+  }
+}

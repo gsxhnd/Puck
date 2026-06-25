@@ -1,0 +1,49 @@
+{
+  "app": {
+    "name": "Puck Terminal",
+    "tagline": "终端与文件传输工作台"
+  },
+  "actions": {
+    "newTerminal": "新建终端",
+    "newConnection": "新建连接",
+    "settings": "设置",
+    "search": "搜索",
+    "close": "关闭",
+    "save": "保存",
+    "cancel": "取消",
+    "refresh": "刷新",
+    "open": "打开",
+    "duplicate": "复制",
+    "delete": "删除",
+    "edit": "编辑"
+  },
+  "nav": {
+    "connections": "连接",
+    "sessions": "会话",
+    "transferQueue": "传输队列",
+    "commandPalette": "命令面板"
+  },
+  "status": {
+    "connected": "已连接",
+    "disconnected": "已断开",
+    "connecting": "连接中",
+    "failed": "失败"
+  },
+  "protocol": {
+    "local": "本地",
+    "ssh": "SSH",
+    "sftp": "SFTP",
+    "ftp": "FTP",
+    "ftps": "FTPS"
+  },
+  "empty": {
+    "noConnections": "暂无连接配置",
+    "noSessions": "暂无打开的标签",
+    "noSearchResults": "没有匹配的连接"
+  },
+  "theme": {
+    "light": "浅色",
+    "dark": "深色",
+    "system": "跟随系统"
+  }
+}

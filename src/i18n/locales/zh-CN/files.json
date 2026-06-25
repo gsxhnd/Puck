@@ -1,0 +1,17 @@
+{
+  "title": "文件",
+  "placeholder": "文件管理器将在后续里程碑中实现",
+  "columns": {
+    "name": "名称",
+    "type": "类型",
+    "size": "大小",
+    "modified": "修改时间",
+    "permissions": "权限"
+  },
+  "actions": {
+    "upload": "上传",
+    "download": "下载",
+    "newFolder": "新建目录",
+    "rename": "重命名"
+  }
+}

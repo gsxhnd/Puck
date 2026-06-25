@@ -1,0 +1,11 @@
+{
+  "title": "Terminal",
+  "placeholder": "Terminal pane will be integrated with xterm.js in Milestone 2",
+  "localDefault": "Local Terminal",
+  "actions": {
+    "clear": "Clear",
+    "search": "Search",
+    "reconnect": "Reconnect",
+    "disconnect": "Disconnect"
+  }
+}

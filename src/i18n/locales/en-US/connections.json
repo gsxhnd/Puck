@@ -1,0 +1,35 @@
+{
+  "title": "Connections",
+  "searchPlaceholder": "Search connections…",
+  "groups": {
+    "all": "All",
+    "local": "Local",
+    "remote": "Remote",
+    "file": "File Transfer"
+  },
+  "fields": {
+    "name": "Name",
+    "protocol": "Protocol",
+    "host": "Host",
+    "port": "Port",
+    "username": "Username",
+    "authMethod": "Auth Method",
+    "defaultDirectory": "Default Directory"
+  },
+  "auth": {
+    "none": "None",
+    "password": "Password",
+    "privateKey": "Private Key",
+    "agent": "SSH Agent"
+  },
+  "actions": {
+    "openTerminal": "Open Terminal",
+    "openSftp": "Open SFTP",
+    "openFiles": "Open File Manager"
+  },
+  "lastConnected": "Last connected: {{time}}",
+  "newDialog": {
+    "title": "New Connection",
+    "description": "Full connection editing will be available in a later milestone."
+  }
+}

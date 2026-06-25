@@ -1,0 +1,49 @@
+{
+  "app": {
+    "name": "Puck Terminal",
+    "tagline": "Terminal and file transfer workspace"
+  },
+  "actions": {
+    "newTerminal": "New Terminal",
+    "newConnection": "New Connection",
+    "settings": "Settings",
+    "search": "Search",
+    "close": "Close",
+    "save": "Save",
+    "cancel": "Cancel",
+    "refresh": "Refresh",
+    "open": "Open",
+    "duplicate": "Duplicate",
+    "delete": "Delete",
+    "edit": "Edit"
+  },
+  "nav": {
+    "connections": "Connections",
+    "sessions": "Sessions",
+    "transferQueue": "Transfer Queue",
+    "commandPalette": "Command Palette"
+  },
+  "status": {
+    "connected": "Connected",
+    "disconnected": "Disconnected",
+    "connecting": "Connecting",
+    "failed": "Failed"
+  },
+  "protocol": {
+    "local": "Local",
+    "ssh": "SSH",
+    "sftp": "SFTP",
+    "ftp": "FTP",
+    "ftps": "FTPS"
+  },
+  "empty": {
+    "noConnections": "No connection profiles yet",
+    "noSessions": "No open tabs",
+    "noSearchResults": "No matching connections"
+  },
+  "theme": {
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System"
+  }
+}

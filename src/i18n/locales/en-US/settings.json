@@ -1,0 +1,50 @@
+{
+  "title": "Settings",
+  "sections": {
+    "general": "General",
+    "appearance": "Appearance",
+    "connections": "Connections",
+    "keyboard": "Keyboard",
+    "about": "About"
+  },
+  "general": {
+    "language": "Language",
+    "languageDescription": "Switch the application UI language",
+    "openLocalOnStart": "Open local terminal on start",
+    "openLocalOnStartDescription": "Automatically create a local terminal tab when the app launches"
+  },
+  "appearance": {
+    "uiTheme": "UI Theme",
+    "uiThemeDescription": "Controls sidebar, tab bar, and settings appearance",
+    "terminalTheme": "Terminal Theme",
+    "terminalThemeDescription": "Terminal colors will take effect in Milestone 2",
+    "fontFamily": "Terminal Font",
+    "fontSize": "Terminal Font Size"
+  },
+  "connections": {
+    "credentials": "Credential Management",
+    "credentialsDescription": "Passwords and key passphrases are stored in the system keychain",
+    "hostKeys": "Host Key Management",
+    "hostKeysDescription": "SSH first-connect confirmations will be implemented in Milestone 3"
+  },
+  "keyboard": {
+    "title": "Shortcuts",
+    "description": "Planned MVP shortcuts; customization will come in a later release",
+    "newTerminal": "New local terminal",
+    "closeTab": "Close current tab",
+    "commandPalette": "Open command palette",
+    "openSettings": "Open settings",
+    "search": "Search terminal or file list"
+  },
+  "about": {
+    "version": "Version",
+    "description": "A cross-platform terminal and file transfer workspace built with Tauri"
+  },
+  "terminalThemes": {
+    "puck-dark": "Puck Dark",
+    "puck-light": "Puck Light",
+    "solarized-dark": "Solarized Dark",
+    "solarized-light": "Solarized Light",
+    "one-dark": "One Dark"
+  }
+}
