@@ -1,11 +1,20 @@
 {
   "title": "终端",
-  "placeholder": "终端区域将在 Milestone 2 中集成 xterm.js",
+  "placeholder": "终端面板将在里程碑 2 中集成 xterm.js",
   "localDefault": "本地终端",
+  "pickShell": "选择 Shell",
+  "sessionEnded": "会话已结束",
+  "openFailed": "打开本地终端失败",
+  "status": {
+    "connected": "已连接",
+    "disconnected": "已断开",
+    "failed": "连接失败",
+    "reconnecting": "正在重连"
+  },
   "actions": {
     "clear": "清屏",
     "search": "搜索",
-    "reconnect": "重连",
+    "reconnect": "重新连接",
     "disconnect": "断开"
   }
 }

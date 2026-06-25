@@ -1,6 +1,7 @@
 {
   "title": "Files",
-  "placeholder": "File manager will be implemented in a later milestone",
+  "placeholder": "Browse remote files over SFTP",
+  "loading": "Loading directory…",
   "columns": {
     "name": "Name",
     "type": "Type",
@@ -13,5 +14,28 @@
     "download": "Download",
     "newFolder": "New Folder",
     "rename": "Rename"
+  },
+  "prompts": {
+    "newFolder": "Folder name",
+    "deleteConfirm": "Delete selected item?"
+  },
+  "errors": {
+    "noProfile": "Connection profile not found",
+    "unsupportedProtocol": "{{protocol}} file transfer is not supported yet"
+  },
+  "transfer": {
+    "description": "Track upload and download progress",
+    "empty": "No transfers yet",
+    "uploading": "Uploading",
+    "downloading": "Downloading",
+    "retry": "Retry",
+    "clearCompleted": "Clear completed",
+    "status": {
+      "queued": "Queued",
+      "running": "Running",
+      "done": "Done",
+      "failed": "Failed",
+      "cancelled": "Cancelled"
+    }
   }
 }

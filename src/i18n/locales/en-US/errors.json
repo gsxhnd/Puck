@@ -1,0 +1,8 @@
+{
+  "unknown_error": "An unexpected error occurred",
+  "host_key_unknown": "Unknown SSH host key",
+  "auth_failed": "Authentication failed",
+  "network_error": "Network error",
+  "config_error": "Configuration error",
+  "protocol_error": "Protocol error"
+}

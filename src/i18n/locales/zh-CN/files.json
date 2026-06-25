@@ -1,6 +1,7 @@
 {
   "title": "文件",
-  "placeholder": "文件管理器将在后续里程碑中实现",
+  "placeholder": "通过 SFTP 浏览远程文件",
+  "loading": "正在加载目录…",
   "columns": {
     "name": "名称",
     "type": "类型",
@@ -13,5 +14,28 @@
     "download": "下载",
     "newFolder": "新建目录",
     "rename": "重命名"
+  },
+  "prompts": {
+    "newFolder": "目录名称",
+    "deleteConfirm": "确定删除所选项目？"
+  },
+  "errors": {
+    "noProfile": "未找到连接配置",
+    "unsupportedProtocol": "暂不支持 {{protocol}} 文件传输"
+  },
+  "transfer": {
+    "description": "查看上传和下载进度",
+    "empty": "暂无传输任务",
+    "uploading": "上传中",
+    "downloading": "下载中",
+    "retry": "重试",
+    "clearCompleted": "清除已完成",
+    "status": {
+      "queued": "排队中",
+      "running": "进行中",
+      "done": "已完成",
+      "failed": "失败",
+      "cancelled": "已取消"
+    }
   }
 }

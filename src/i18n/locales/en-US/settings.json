@@ -17,7 +17,7 @@
     "uiTheme": "UI Theme",
     "uiThemeDescription": "Controls sidebar, tab bar, and settings appearance",
     "terminalTheme": "Terminal Theme",
-    "terminalThemeDescription": "Terminal colors will take effect in Milestone 2",
+    "terminalThemeDescription": "Changes apply to the active terminal immediately",
     "fontFamily": "Terminal Font",
     "fontSize": "Terminal Font Size"
   },

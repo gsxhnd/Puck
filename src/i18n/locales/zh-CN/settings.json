@@ -17,7 +17,7 @@
     "uiTheme": "界面主题",
     "uiThemeDescription": "控制侧边栏、标签栏和设置页的主题",
     "terminalTheme": "终端主题",
-    "terminalThemeDescription": "终端配色将在 Milestone 2 中生效",
+    "terminalThemeDescription": "切换后当前终端立即更新配色",
     "fontFamily": "终端字体",
     "fontSize": "终端字号"
   },

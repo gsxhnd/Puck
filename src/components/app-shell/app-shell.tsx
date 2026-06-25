@@ -1,9 +1,10 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CommandIcon, PanelLeftIcon, UploadIcon } from "lucide-react";
 import { ConnectionSidebar } from "@/components/app-shell/connection-sidebar";
 import { MainWorkspace } from "@/components/app-shell/main-workspace";
 import { SessionTabs } from "@/components/app-shell/session-tabs";
+import { TransferQueue } from "@/components/files/transfer-queue";
 import { useAppSettingsStore } from "@/stores/app-settings-store";
 import { useSessionStore } from "@/stores/session-store";
 import { Button } from "@/components/ui/button";
@@ -21,6 +22,7 @@ import {
 
 export function AppShell() {
   const { t } = useTranslation("common");
+  const [transferQueueOpen, setTransferQueueOpen] = useState(false);
   const openLocalOnStart = useAppSettingsStore(
     (state) => state.openLocalTerminalOnStart,
   );
@@ -67,6 +69,7 @@ export function AppShell() {
                     variant="ghost"
                     size="icon-sm"
                     aria-label={t("nav.transferQueue")}
+                    onClick={() => setTransferQueueOpen(true)}
                   >
                     <UploadIcon />
                   </Button>
@@ -95,6 +98,10 @@ export function AppShell() {
         <main className="min-h-0 flex-1 overflow-hidden">
           <MainWorkspace />
         </main>
+        <TransferQueue
+          open={transferQueueOpen}
+          onOpenChange={setTransferQueueOpen}
+        />
       </SidebarInset>
     </SidebarProvider>
   );

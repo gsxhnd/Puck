@@ -1,0 +1,8 @@
+{
+  "unknown_error": "发生未知错误",
+  "host_key_unknown": "未知的 SSH 主机密钥",
+  "auth_failed": "认证失败",
+  "network_error": "网络错误",
+  "config_error": "配置错误",
+  "protocol_error": "协议错误"
+}

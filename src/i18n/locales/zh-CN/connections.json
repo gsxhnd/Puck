@@ -14,7 +14,11 @@
     "port": "端口",
     "username": "用户名",
     "authMethod": "认证方式",
-    "defaultDirectory": "默认目录"
+    "defaultDirectory": "默认目录",
+    "password": "密码",
+    "passwordKeep": "留空则保留现有密码",
+    "privateKey": "私钥路径",
+    "passphrase": "私钥口令"
   },
   "auth": {
     "none": "无",
@@ -27,9 +31,20 @@
     "openSftp": "打开 SFTP",
     "openFiles": "打开文件管理器"
   },
-  "lastConnected": "最近连接：{{time}}",
+  "hostKey": {
+    "title": "未知主机密钥",
+    "description": "尚未信任此服务器的主机密钥，请核对指纹后继续。",
+    "fingerprint": "指纹",
+    "trust": "信任并继续"
+  },
+  "editDialog": {
+    "title": "编辑连接",
+    "description": "更新连接配置，敏感信息保存在系统钥匙串中。"
+  },
   "newDialog": {
     "title": "新建连接",
-    "description": "连接配置将在后续里程碑中支持完整编辑。"
-  }
+    "description": "创建远程连接配置，密码和私钥口令将安全保存。",
+    "untitled": "未命名连接"
+  },
+  "lastConnected": "最近连接：{{time}}"
 }

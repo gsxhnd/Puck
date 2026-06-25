@@ -7,9 +7,12 @@ import {
   ServerIcon,
   TerminalIcon,
 } from "lucide-react";
+import { NewTerminalMenu } from "@/components/terminal/new-terminal-menu";
+import { ConnectionDialog } from "@/components/connections/connection-dialog";
 import type { ConnectionProfile, ConnectionProtocol } from "@/types/connection";
 import { useConnectionStore } from "@/stores/connection-store";
 import { useSessionStore } from "@/stores/session-store";
+import { deleteConnectionCredentials } from "@/lib/tauri-ssh";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -64,7 +67,13 @@ function matchesFilter(profile: ConnectionProfile, filter: ProtocolFilter) {
   }
 }
 
-function ConnectionItem({ profile }: { profile: ConnectionProfile }) {
+function ConnectionItem({
+  profile,
+  onEdit,
+}: {
+  profile: ConnectionProfile;
+  onEdit: (profileId: string) => void;
+}) {
   const { t } = useTranslation(["connections", "common"]);
   const addSession = useSessionStore((state) => state.addSession);
   const duplicateProfile = useConnectionStore((state) => state.duplicateProfile);
@@ -81,6 +90,7 @@ function ConnectionItem({ profile }: { profile: ConnectionProfile }) {
       title: profile.name,
       profileId: profile.id,
       protocol: profile.protocol,
+      status: profile.protocol === "ssh" ? "creating" : undefined,
     });
   };
 
@@ -90,6 +100,10 @@ function ConnectionItem({ profile }: { profile: ConnectionProfile }) {
       title: profile.name,
       profileId: profile.id,
       protocol: profile.protocol,
+      status:
+        profile.protocol === "sftp" || profile.protocol === "ssh"
+          ? "creating"
+          : undefined,
     });
   };
 
@@ -148,13 +162,21 @@ function ConnectionItem({ profile }: { profile: ConnectionProfile }) {
             </DropdownMenuItem>
           )}
           <DropdownMenuSeparator />
+          {profile.protocol !== "local" && (
+            <DropdownMenuItem onClick={() => onEdit(profile.id)}>
+              {t("common:actions.edit")}
+            </DropdownMenuItem>
+          )}
           <DropdownMenuItem onClick={() => duplicateProfile(profile.id)}>
             {t("common:actions.duplicate")}
           </DropdownMenuItem>
           {profile.protocol !== "local" && (
             <DropdownMenuItem
               variant="destructive"
-              onClick={() => removeProfile(profile.id)}
+              onClick={() => {
+                void deleteConnectionCredentials(profile.id);
+                removeProfile(profile.id);
+              }}
             >
               {t("common:actions.delete")}
             </DropdownMenuItem>
@@ -169,9 +191,20 @@ export function ConnectionSidebar() {
   const { t } = useTranslation(["connections", "common"]);
   const profiles = useConnectionStore((state) => state.profiles);
   const openSettings = useSessionStore((state) => state.openSettings);
-  const addSession = useSessionStore((state) => state.addSession);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<ProtocolFilter>("all");
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingProfileId, setEditingProfileId] = useState<string | null>(null);
+
+  const openCreateDialog = () => {
+    setEditingProfileId(null);
+    setDialogOpen(true);
+  };
+
+  const openEditDialog = (profileId: string) => {
+    setEditingProfileId(profileId);
+    setDialogOpen(true);
+  };
 
   const filters = useMemo(
     () =>
@@ -252,7 +285,11 @@ export function ConnectionSidebar() {
                   </div>
                 ) : (
                   filteredProfiles.map((profile) => (
-                    <ConnectionItem key={profile.id} profile={profile} />
+                    <ConnectionItem
+                      key={profile.id}
+                      profile={profile}
+                      onEdit={openEditDialog}
+                    />
                   ))
                 )}
               </SidebarMenu>
@@ -262,32 +299,18 @@ export function ConnectionSidebar() {
       </SidebarContent>
 
       <SidebarFooter className="gap-2 p-3">
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <Button
-                className="w-full justify-start group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-0"
-                variant="outline"
-                size="sm"
-                onClick={() =>
-                  addSession({
-                    kind: "terminal",
-                    title: "__local__",
-                    protocol: "local",
-                  })
-                }
-              >
-                <PlusIcon />
-                <span className="group-data-[collapsible=icon]:hidden">
-                  {t("common:actions.newTerminal")}
-                </span>
-              </Button>
-            }
-          />
-          <TooltipContent side="right">
-            {t("common:actions.newTerminal")}
-          </TooltipContent>
-        </Tooltip>
+        <Button
+          className="w-full justify-start group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-0"
+          variant="outline"
+          size="sm"
+          onClick={openCreateDialog}
+        >
+          <PlusIcon />
+          <span className="group-data-[collapsible=icon]:hidden">
+            {t("common:actions.newConnection")}
+          </span>
+        </Button>
+        <NewTerminalMenu className="w-full justify-start group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-0" />
         <Tooltip>
           <TooltipTrigger
             render={
@@ -309,6 +332,11 @@ export function ConnectionSidebar() {
           </TooltipContent>
         </Tooltip>
       </SidebarFooter>
+      <ConnectionDialog
+        open={dialogOpen}
+        profileId={editingProfileId}
+        onOpenChange={setDialogOpen}
+      />
       <SidebarRail />
     </Sidebar>
   );

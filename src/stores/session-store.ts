@@ -14,6 +14,7 @@ type SessionStore = {
     title: string;
     profileId?: string;
     protocol?: ConnectionProtocol;
+    shellId?: string;
     status?: SessionStatus;
   }) => Session;
   closeSession: (id: string) => void;
@@ -32,6 +33,7 @@ function createSession(
     title: partial.title,
     profileId: partial.profileId,
     protocol: partial.protocol,
+    shellId: partial.shellId,
     status: partial.status ?? "connected",
     createdAt: new Date().toISOString(),
   };

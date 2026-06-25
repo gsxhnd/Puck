@@ -1,48 +1,13 @@
 import { useTranslation } from "react-i18next";
-import { FolderOpenIcon, TerminalIcon } from "lucide-react";
 import { useSessionStore } from "@/stores/session-store";
 import { SettingsPage } from "@/components/settings/settings-page";
-import { cn } from "@/lib/utils";
-
-function TerminalPlaceholder() {
-  const { t } = useTranslation("terminal");
-
-  return (
-    <div className="flex h-full flex-col items-center justify-center gap-3 p-8 text-center">
-      <div className="flex size-14 items-center justify-center rounded-2xl bg-muted">
-        <TerminalIcon className="size-7 text-muted-foreground" />
-      </div>
-      <div className="space-y-1">
-        <h2 className="text-lg font-medium">{t("title")}</h2>
-        <p className="max-w-md text-sm text-muted-foreground">
-          {t("placeholder")}
-        </p>
-      </div>
-    </div>
-  );
-}
-
-function FilesPlaceholder() {
-  const { t } = useTranslation("files");
-
-  return (
-    <div className="flex h-full flex-col items-center justify-center gap-3 p-8 text-center">
-      <div className="flex size-14 items-center justify-center rounded-2xl bg-muted">
-        <FolderOpenIcon className="size-7 text-muted-foreground" />
-      </div>
-      <div className="space-y-1">
-        <h2 className="text-lg font-medium">{t("title")}</h2>
-        <p className="max-w-md text-sm text-muted-foreground">
-          {t("placeholder")}
-        </p>
-      </div>
-    </div>
-  );
-}
+import { TerminalPane } from "@/components/terminal/terminal-pane";
+import { SshTerminalPane } from "@/components/terminal/ssh-terminal-pane";
+import { FileManager } from "@/components/files/file-manager";
+import { NewTerminalMenu } from "@/components/terminal/new-terminal-menu";
 
 function EmptyWorkspace() {
   const { t } = useTranslation(["common", "terminal"]);
-  const addSession = useSessionStore((state) => state.addSession);
 
   return (
     <div className="flex h-full flex-col items-center justify-center gap-4 p-8 text-center">
@@ -52,21 +17,7 @@ function EmptyWorkspace() {
           {t("common:empty.noSessions")}
         </p>
       </div>
-      <button
-        type="button"
-        className={cn(
-          "inline-flex h-9 items-center rounded-lg border border-border bg-background px-4 text-sm font-medium hover:bg-muted",
-        )}
-        onClick={() =>
-          addSession({
-            kind: "terminal",
-            title: "__local__",
-            protocol: "local",
-          })
-        }
-      >
-        {t("common:actions.newTerminal")}
-      </button>
+      <NewTerminalMenu />
     </div>
   );
 }
@@ -77,17 +28,54 @@ export function MainWorkspace() {
   const activeSession =
     sessions.find((session) => session.id === activeSessionId) ?? null;
 
+  const localTerminalSessions = sessions.filter(
+    (session) =>
+      session.kind === "terminal" &&
+      (!session.protocol || session.protocol === "local"),
+  );
+  const sshTerminalSessions = sessions.filter(
+    (session) => session.kind === "terminal" && session.protocol === "ssh",
+  );
+  const fileSessions = sessions.filter((session) => session.kind === "files");
+
   if (!activeSession) {
     return <EmptyWorkspace />;
   }
 
-  switch (activeSession.kind) {
-    case "settings":
-      return <SettingsPage />;
-    case "files":
-      return <FilesPlaceholder />;
-    case "terminal":
-    default:
-      return <TerminalPlaceholder />;
-  }
+  return (
+    <div className="relative h-full min-h-0 overflow-hidden">
+      {localTerminalSessions.map((session) => (
+        <TerminalPane
+          key={session.id}
+          sessionId={session.id}
+          shellId={session.shellId}
+          active={session.id === activeSessionId}
+        />
+      ))}
+
+      {sshTerminalSessions.map((session) => (
+        <SshTerminalPane
+          key={session.id}
+          sessionId={session.id}
+          profileId={session.profileId}
+          active={session.id === activeSessionId}
+        />
+      ))}
+
+      {fileSessions.map((session) => (
+        <FileManager
+          key={session.id}
+          sessionId={session.id}
+          profileId={session.profileId}
+          active={session.id === activeSessionId}
+        />
+      ))}
+
+      {activeSession.kind === "settings" ? (
+        <div className="absolute inset-0 min-h-0 overflow-hidden">
+          <SettingsPage />
+        </div>
+      ) : null}
+    </div>
+  );
 }

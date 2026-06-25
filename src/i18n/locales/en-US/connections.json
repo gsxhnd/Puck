@@ -14,7 +14,11 @@
     "port": "Port",
     "username": "Username",
     "authMethod": "Auth Method",
-    "defaultDirectory": "Default Directory"
+    "defaultDirectory": "Default Directory",
+    "password": "Password",
+    "passwordKeep": "Leave blank to keep existing",
+    "privateKey": "Private Key Path",
+    "passphrase": "Key Passphrase"
   },
   "auth": {
     "none": "None",
@@ -27,9 +31,20 @@
     "openSftp": "Open SFTP",
     "openFiles": "Open File Manager"
   },
-  "lastConnected": "Last connected: {{time}}",
+  "hostKey": {
+    "title": "Unknown Host Key",
+    "description": "This server's host key is not trusted yet. Verify the fingerprint before continuing.",
+    "fingerprint": "Fingerprint",
+    "trust": "Trust and Continue"
+  },
+  "editDialog": {
+    "title": "Edit Connection",
+    "description": "Update connection settings. Secrets are stored in the system keychain."
+  },
   "newDialog": {
     "title": "New Connection",
-    "description": "Full connection editing will be available in a later milestone."
-  }
+    "description": "Create a remote connection profile. Passwords and passphrases are stored securely.",
+    "untitled": "Untitled Connection"
+  },
+  "lastConnected": "Last connected: {{time}}"
 }

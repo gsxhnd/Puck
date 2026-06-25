@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
-import { PlusIcon, SettingsIcon, XIcon } from "lucide-react";
+import { SettingsIcon, XIcon } from "lucide-react";
 import { useSessionStore } from "@/stores/session-store";
+import { NewTerminalMenu } from "@/components/terminal/new-terminal-menu";
 import { Button } from "@/components/ui/button";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import {
@@ -16,7 +17,6 @@ export function SessionTabs() {
   const activeSessionId = useSessionStore((state) => state.activeSessionId);
   const setActiveSession = useSessionStore((state) => state.setActiveSession);
   const closeSession = useSessionStore((state) => state.closeSession);
-  const addSession = useSessionStore((state) => state.addSession);
   const openSettings = useSessionStore((state) => state.openSettings);
 
   const resolveTitle = (session: (typeof sessions)[number]) => {
@@ -76,27 +76,12 @@ export function SessionTabs() {
       </ScrollArea>
 
       <div className="ml-auto flex items-center gap-1">
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <Button
-                variant="ghost"
-                size="icon-xs"
-                aria-label={t("common:actions.newTerminal")}
-                onClick={() =>
-                  addSession({
-                    kind: "terminal",
-                    title: "__local__",
-                    protocol: "local",
-                  })
-                }
-              >
-                <PlusIcon />
-              </Button>
-            }
-          />
-          <TooltipContent>{t("common:actions.newTerminal")}</TooltipContent>
-        </Tooltip>
+        <NewTerminalMenu
+          variant="ghost"
+          size="icon-xs"
+          showLabel={false}
+          className="size-7"
+        />
         <Tooltip>
           <TooltipTrigger
             render={
