@@ -124,12 +124,12 @@
 }
 
 [data-app-shell] {
-  --titlebar-height: 2rem;
+  --titlebar-height: calc(2rem + 2px);
   --window-radius: 10px;
 }
 
 [data-app-shell][data-platform="macos"] {
-  --titlebar-height: 1.75rem;
+  --titlebar-height: calc(1.75rem + 2px);
 }
 
 html[data-window-chrome="macos-tauri"],

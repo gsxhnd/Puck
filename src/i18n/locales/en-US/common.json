@@ -21,7 +21,11 @@
     "connections": "Connections",
     "sessions": "Sessions",
     "transferQueue": "Transfer Queue",
-    "commandPalette": "Command Palette"
+    "commandPalette": "Command Palette",
+    "primaryPanel": "Primary Panel",
+    "secondaryPanel": "Secondary Panel",
+    "togglePrimaryPanel": "Toggle Primary Panel",
+    "toggleSecondaryPanel": "Toggle Secondary Panel"
   },
   "status": {
     "connected": "Connected",

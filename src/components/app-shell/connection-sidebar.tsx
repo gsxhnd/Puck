@@ -36,7 +36,6 @@ import {
   SidebarMenuAction,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarRail,
 } from "@/components/ui/sidebar";
 import {
   Tooltip,
@@ -236,7 +235,7 @@ export function ConnectionSidebar() {
   }, [profiles, filter, query]);
 
   return (
-    <Sidebar collapsible="icon" className="border-r">
+    <Sidebar collapsible="none" className="h-full w-full border-r">
       <SidebarHeader className="gap-2 p-3">
         <Input
           value={query}
@@ -324,7 +323,6 @@ export function ConnectionSidebar() {
         profileId={editingProfileId}
         onOpenChange={setDialogOpen}
       />
-      <SidebarRail />
     </Sidebar>
   );
 }

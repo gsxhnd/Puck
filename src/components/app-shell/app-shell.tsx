@@ -1,16 +1,44 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import type { PanelImperativeHandle } from "react-resizable-panels";
 import { ConnectionSidebar } from "@/components/app-shell/connection-sidebar";
 import { MainWorkspace } from "@/components/app-shell/main-workspace";
+import { SecondarySidebar } from "@/components/app-shell/secondary-sidebar";
 import { WindowTitleBar } from "@/components/app-shell/window-title-bar";
-import { TransferQueue } from "@/components/files/transfer-queue";
 import { openSettingsWindow } from "@/lib/open-settings-window";
 import { getPlatform } from "@/lib/platform";
 import { useAppSettingsStore } from "@/stores/app-settings-store";
 import { useSessionStore } from "@/stores/session-store";
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+import {
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
+} from "@/components/ui/resizable";
+import { SidebarProvider } from "@/components/ui/sidebar";
+
+const SHELL_LAYOUT_KEY = "puck-shell-layout";
+
+/** Sidebar width constraints (px), aligned with shadcn default 16rem ≈ 256px */
+const SHELL_PANEL_SIZES = {
+  left: { default: 256, min: 200, max: 360 },
+  right: { default: 300, min: 240, max: 450 },
+  main: { min: 480 },
+} as const;
+
+function readStoredLayout(): Record<string, number> | undefined {
+  try {
+    const raw = localStorage.getItem(SHELL_LAYOUT_KEY);
+    if (!raw) return undefined;
+    return JSON.parse(raw) as Record<string, number>;
+  } catch {
+    return undefined;
+  }
+}
 
 export function AppShell() {
-  const [transferQueueOpen, setTransferQueueOpen] = useState(false);
+  const [leftSidebarOpen, setLeftSidebarOpen] = useState(true);
+  const [rightSidebarOpen, setRightSidebarOpen] = useState(false);
+  const leftPanelRef = useRef<PanelImperativeHandle>(null);
+  const rightPanelRef = useRef<PanelImperativeHandle>(null);
   const openLocalOnStart = useAppSettingsStore(
     (state) => state.openLocalTerminalOnStart,
   );
@@ -37,26 +65,101 @@ export function AppShell() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
 
+  useEffect(() => {
+    if (leftSidebarOpen) {
+      leftPanelRef.current?.expand();
+    } else {
+      leftPanelRef.current?.collapse();
+    }
+  }, [leftSidebarOpen]);
+
+  useEffect(() => {
+    if (rightSidebarOpen) {
+      rightPanelRef.current?.expand();
+    } else {
+      rightPanelRef.current?.collapse();
+    }
+  }, [rightSidebarOpen]);
+
   return (
     <div
       data-app-shell
       data-platform={getPlatform()}
       className="flex h-svh flex-col overflow-hidden"
     >
-      <WindowTitleBar />
-      <SidebarProvider className="flex min-h-0 flex-1 flex-col overflow-hidden">
-        <div className="flex min-h-0 flex-1 overflow-hidden">
-          <ConnectionSidebar />
-          <SidebarInset className="min-h-0 overflow-hidden">
-            <div className="min-h-0 flex-1 overflow-hidden">
+      <WindowTitleBar
+        leftSidebarOpen={leftSidebarOpen}
+        rightSidebarOpen={rightSidebarOpen}
+        onToggleLeftSidebar={() => setLeftSidebarOpen((v) => !v)}
+        onToggleRightSidebar={() => setRightSidebarOpen((v) => !v)}
+      />
+      <SidebarProvider
+        open={leftSidebarOpen}
+        onOpenChange={setLeftSidebarOpen}
+        className="flex min-h-0 flex-1 flex-col overflow-hidden"
+      >
+        <ResizablePanelGroup
+          id="app-shell"
+          orientation="horizontal"
+          className="min-h-0 flex-1"
+          defaultLayout={
+            readStoredLayout() ?? { left: 18, main: 82, right: 0 }
+          }
+          onLayoutChanged={(layout) => {
+            try {
+              localStorage.setItem(SHELL_LAYOUT_KEY, JSON.stringify(layout));
+            } catch {
+              // Ignore quota or private browsing errors.
+            }
+
+            const leftSize = layout.left ?? 0;
+            const rightSize = layout.right ?? 0;
+
+            if (leftSize === 0 && leftSidebarOpen) {
+              setLeftSidebarOpen(false);
+            } else if (leftSize > 0 && !leftSidebarOpen) {
+              setLeftSidebarOpen(true);
+            }
+
+            if (rightSize === 0 && rightSidebarOpen) {
+              setRightSidebarOpen(false);
+            } else if (rightSize > 0 && !rightSidebarOpen) {
+              setRightSidebarOpen(true);
+            }
+          }}
+        >
+          <ResizablePanel
+            id="left"
+            panelRef={leftPanelRef}
+            defaultSize={SHELL_PANEL_SIZES.left.default}
+            minSize={SHELL_PANEL_SIZES.left.min}
+            maxSize={SHELL_PANEL_SIZES.left.max}
+            collapsible
+            collapsedSize={0}
+            className="min-w-0"
+          >
+            <ConnectionSidebar />
+          </ResizablePanel>
+          {leftSidebarOpen ? <ResizableHandle withHandle /> : null}
+          <ResizablePanel id="main" minSize={SHELL_PANEL_SIZES.main.min}>
+            <div className="h-full min-h-0 overflow-hidden bg-background">
               <MainWorkspace />
             </div>
-            <TransferQueue
-              open={transferQueueOpen}
-              onOpenChange={setTransferQueueOpen}
-            />
-          </SidebarInset>
-        </div>
+          </ResizablePanel>
+          {rightSidebarOpen ? <ResizableHandle withHandle /> : null}
+          <ResizablePanel
+            id="right"
+            panelRef={rightPanelRef}
+            defaultSize={SHELL_PANEL_SIZES.right.default}
+            minSize={SHELL_PANEL_SIZES.right.min}
+            maxSize={SHELL_PANEL_SIZES.right.max}
+            collapsible
+            collapsedSize={0}
+            className="min-w-0"
+          >
+            <SecondarySidebar />
+          </ResizablePanel>
+        </ResizablePanelGroup>
       </SidebarProvider>
     </div>
   );

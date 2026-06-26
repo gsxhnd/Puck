@@ -1,9 +1,30 @@
 import { useCallback } from "react";
+import { useTranslation } from "react-i18next";
+import { PanelLeftIcon, PanelRightIcon } from "lucide-react";
 import { WindowControls } from "@/components/app-shell/window-controls";
+import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { getPlatform, isTauri } from "@/lib/platform";
 import { cn } from "@/lib/utils";
 
-export function WindowTitleBar() {
+type WindowTitleBarProps = {
+  leftSidebarOpen?: boolean;
+  rightSidebarOpen?: boolean;
+  onToggleLeftSidebar?: () => void;
+  onToggleRightSidebar?: () => void;
+};
+
+export function WindowTitleBar({
+  leftSidebarOpen = true,
+  rightSidebarOpen = false,
+  onToggleLeftSidebar,
+  onToggleRightSidebar,
+}: WindowTitleBarProps) {
+  const { t } = useTranslation("common");
   const platform = getPlatform();
 
   const handleDragRegionMouseDown = useCallback(
@@ -43,7 +64,55 @@ export function WindowTitleBar() {
         />
       ) : null}
 
+      {onToggleLeftSidebar ? (
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                className={cn(
+                  "ml-1 my-auto",
+                  !leftSidebarOpen && "text-muted-foreground",
+                )}
+                aria-label={t("nav.togglePrimaryPanel")}
+                onClick={onToggleLeftSidebar}
+              >
+                <PanelLeftIcon />
+              </Button>
+            }
+          />
+          <TooltipContent side="bottom">
+            {t("nav.togglePrimaryPanel")}
+          </TooltipContent>
+        </Tooltip>
+      ) : null}
+
       <div className="min-w-0 flex-1" />
+
+      {onToggleRightSidebar ? (
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                className={cn(
+                  "mr-1 my-auto",
+                  !rightSidebarOpen && "text-muted-foreground",
+                )}
+                aria-label={t("nav.toggleSecondaryPanel")}
+                onClick={onToggleRightSidebar}
+              >
+                <PanelRightIcon />
+              </Button>
+            }
+          />
+          <TooltipContent side="bottom">
+            {t("nav.toggleSecondaryPanel")}
+          </TooltipContent>
+        </Tooltip>
+      ) : null}
 
       {platform !== "macos" ? <WindowControls /> : null}
     </header>

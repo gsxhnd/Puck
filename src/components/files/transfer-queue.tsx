@@ -40,7 +40,7 @@ function progressLabel(task: TransferTask) {
   return formatBytes(task.bytesTransferred);
 }
 
-export function TransferQueue({ open, onOpenChange }: TransferQueueProps) {
+export function TransferQueueContent() {
   const { t } = useTranslation(["files", "common"]);
   const tasks = useTransferStore((state) => state.tasks);
   const markFailed = useTransferStore((state) => state.markFailed);
@@ -61,20 +61,14 @@ export function TransferQueue({ open, onOpenChange }: TransferQueueProps) {
   };
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full sm:max-w-md">
-        <SheetHeader>
-          <SheetTitle>{t("common:nav.transferQueue")}</SheetTitle>
-          <SheetDescription>{t("files:transfer.description")}</SheetDescription>
-        </SheetHeader>
+    <>
+      <div className="flex items-center justify-end gap-2 px-3 py-2">
+        <Button size="sm" variant="outline" onClick={clearCompleted}>
+          {t("files:transfer.clearCompleted")}
+        </Button>
+      </div>
 
-        <div className="flex items-center justify-end gap-2 px-4">
-          <Button size="sm" variant="outline" onClick={clearCompleted}>
-            {t("files:transfer.clearCompleted")}
-          </Button>
-        </div>
-
-        <ScrollArea className="h-[calc(100vh-8rem)] px-4">
+      <ScrollArea className="min-h-0 flex-1 px-3">
           {tasks.length === 0 ? (
             <div className="py-8 text-center text-sm text-muted-foreground">
               {t("files:transfer.empty")}
@@ -156,6 +150,21 @@ export function TransferQueue({ open, onOpenChange }: TransferQueueProps) {
             </div>
           )}
         </ScrollArea>
+    </>
+  );
+}
+
+export function TransferQueue({ open, onOpenChange }: TransferQueueProps) {
+  const { t } = useTranslation(["files", "common"]);
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent className="w-full sm:max-w-md">
+        <SheetHeader>
+          <SheetTitle>{t("common:nav.transferQueue")}</SheetTitle>
+          <SheetDescription>{t("files:transfer.description")}</SheetDescription>
+        </SheetHeader>
+        <TransferQueueContent />
       </SheetContent>
     </Sheet>
   );
