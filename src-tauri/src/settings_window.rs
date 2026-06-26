@@ -1,4 +1,4 @@
-use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
+use tauri::{Manager, TitleBarStyle, WebviewUrl, WebviewWindowBuilder};
 
 pub const SETTINGS_WINDOW_LABEL: &str = "settings";
 
@@ -18,7 +18,9 @@ pub fn ensure_settings_window(app: &tauri::AppHandle) -> Result<(), String> {
     .inner_size(800.0, 640.0)
     .min_inner_size(560.0, 480.0)
     .center()
-    .decorations(false)
+    .decorations(true)
+    .title_bar_style(TitleBarStyle::Overlay)
+    .hidden_title(true)
     .transparent(true)
     .shadow(true)
     .resizable(true)

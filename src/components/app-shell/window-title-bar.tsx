@@ -1,6 +1,5 @@
 import { useCallback } from "react";
 import { WindowControls } from "@/components/app-shell/window-controls";
-import { MacTrafficLights } from "@/components/app-shell/mac-traffic-lights";
 import { getPlatform, isTauri } from "@/lib/platform";
 import { cn } from "@/lib/utils";
 
@@ -37,7 +36,12 @@ export function WindowTitleBar() {
       )}
       onMouseDown={handleDragRegionMouseDown}
     >
-      {platform === "macos" ? <MacTrafficLights /> : null}
+      {platform === "macos" ? (
+        <div
+          className="shrink-0"
+          style={{ width: "var(--titlebar-macos-inset)" }}
+        />
+      ) : null}
 
       <div className="min-w-0 flex-1" />
 
