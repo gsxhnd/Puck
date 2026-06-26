@@ -78,7 +78,7 @@ export function TransferQueueContent() {
               {tasks.map((task) => (
                 <div
                   key={task.id}
-                  className="rounded-lg border bg-card p-3 text-sm shadow-xs"
+                  className="rounded-lg bg-muted/40 p-3 text-sm"
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">

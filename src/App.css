@@ -201,6 +201,22 @@ html[data-window-chrome="macos-tauri"] [data-app-shell] {
   filter: brightness(0.92);
 }
 
+[data-shell="main"] [data-slot="dropdown-menu-content"] {
+  @apply ring-0;
+}
+
+[data-shell="main"] [data-slot="resizable-handle"] {
+  @apply bg-border/30;
+}
+
+[data-shell="main"] [data-slot="resizable-handle"] > div {
+  @apply bg-border/50;
+}
+
+[data-shell="settings"] .window-title-bar {
+  @apply border-b border-border/80;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

@@ -99,6 +99,7 @@ export function TerminalPane({ sessionId, shellId, active }: TerminalPaneProps) 
         const osc7 = extractOsc7Cwd(event.data);
         if (osc7) {
           updateSessionMeta(sessionId, {
+            cwd: osc7.cwd,
             tabLabel: buildTabLabel(
               identity.username,
               osc7.hostname || identity.hostname,
@@ -194,7 +195,7 @@ export function TerminalPane({ sessionId, shellId, active }: TerminalPaneProps) 
   return (
     <div
       className={cn(
-        "absolute inset-0 min-h-0 p-1",
+        "absolute inset-0 min-h-0",
         !active && "pointer-events-none invisible",
       )}
     >

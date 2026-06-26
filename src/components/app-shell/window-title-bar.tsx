@@ -53,7 +53,7 @@ export function WindowTitleBar({
     <header
       data-platform={platform}
       className={cn(
-        "window-title-bar relative flex h-[var(--titlebar-height)] shrink-0 items-stretch border-b border-border/80 bg-background select-none",
+        "window-title-bar relative flex h-[var(--titlebar-height)] shrink-0 items-stretch bg-background select-none",
       )}
       onMouseDown={handleDragRegionMouseDown}
     >

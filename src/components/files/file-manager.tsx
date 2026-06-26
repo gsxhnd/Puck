@@ -290,7 +290,7 @@ export function FileManager({ sessionId, profileId, active }: FileManagerProps) 
         !active && "pointer-events-none invisible",
       )}
     >
-      <div className="flex flex-wrap items-center gap-2 border-b px-3 py-2">
+      <div className="flex flex-wrap items-center gap-2 px-3 py-2">
         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1 text-sm">
           {breadcrumbs.map((segment, index) => {
             const path =
@@ -350,13 +350,13 @@ export function FileManager({ sessionId, profileId, active }: FileManagerProps) 
       </div>
 
       {error ? (
-        <div className="border-b bg-destructive/10 px-3 py-2 text-sm text-destructive">
+        <div className="bg-destructive/10 px-3 py-2 text-sm text-destructive">
           {error}
         </div>
       ) : null}
 
       {renaming ? (
-        <div className="flex items-center gap-2 border-b px-3 py-2">
+        <div className="flex items-center gap-2 px-3 py-2">
           <Input
             value={renameValue}
             onChange={(event) => setRenameValue(event.target.value)}
@@ -387,7 +387,7 @@ export function FileManager({ sessionId, profileId, active }: FileManagerProps) 
           <tbody>
             {cwd !== "/" ? (
               <tr
-                className="cursor-pointer border-b hover:bg-muted/40"
+                className="cursor-pointer hover:bg-muted/40"
                 onClick={() => {
                   const parent =
                     cwd === "/" ? "/" : cwd.replace(/\/[^/]+$/, "") || "/";
@@ -410,7 +410,7 @@ export function FileManager({ sessionId, profileId, active }: FileManagerProps) 
                 <tr
                   key={entry.path}
                   className={cn(
-                    "cursor-pointer border-b hover:bg-muted/40",
+                    "cursor-pointer hover:bg-muted/40",
                     selectedPath === entry.path && "bg-muted/60",
                   )}
                   onClick={() => handleEntryOpen(entry)}

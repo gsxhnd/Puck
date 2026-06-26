@@ -1,0 +1,11 @@
+{
+  "title": "Info",
+  "transfers": "Transfers",
+  "workingDirectory": "Working Directory",
+  "copyPath": "Copy Path",
+  "revealInFinder": "Reveal in Finder",
+  "process": "Process",
+  "ports": "Ports",
+  "noListeningPorts": "No listening ports",
+  "noActiveTerminal": "No active terminal session"
+}

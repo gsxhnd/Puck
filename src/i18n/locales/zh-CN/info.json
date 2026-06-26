@@ -1,0 +1,11 @@
+{
+  "title": "Info",
+  "transfers": "传输",
+  "workingDirectory": "工作目录",
+  "copyPath": "复制路径",
+  "revealInFinder": "在 Finder 中显示",
+  "process": "进程",
+  "ports": "端口",
+  "noListeningPorts": "无监听端口",
+  "noActiveTerminal": "无活动终端会话"
+}

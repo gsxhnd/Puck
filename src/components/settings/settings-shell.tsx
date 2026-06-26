@@ -6,6 +6,7 @@ export function SettingsShell() {
   return (
     <div
       data-app-shell
+      data-shell="settings"
       data-platform={getPlatform()}
       className="flex h-svh flex-col overflow-hidden bg-background"
     >

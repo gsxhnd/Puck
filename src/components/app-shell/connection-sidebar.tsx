@@ -2,9 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ArrowUpDownIcon,
-  MoreHorizontalIcon,
+  ChevronRightIcon,
   PlusIcon,
-  XIcon,
 } from "lucide-react";
 import { ConnectionDialog } from "@/components/connections/connection-dialog";
 import type { ConnectionProfile, Session } from "@/types/connection";
@@ -14,6 +13,7 @@ import { listShells } from "@/lib/tauri-terminal";
 import {
   formatSidebarLabel,
   getShellBadge,
+  groupSessionsByDirectory,
   profileTabLabel,
 } from "@/lib/session-display";
 import type { ShellInfo } from "@/types/shell";
@@ -30,16 +30,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarHeader,
-  SidebarMenu,
-  SidebarMenuAction,
-  SidebarMenuItem,
-} from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
 
 type SessionSort = "nameAsc" | "nameDesc" | "recent";
@@ -68,57 +58,67 @@ function sortSessions(sessions: Session[], sort: SessionSort): Session[] {
 }
 
 function SessionTabItem({ session }: { session: Session }) {
-  const { t } = useTranslation(["connections", "common"]);
   const activeSessionId = useSessionStore((state) => state.activeSessionId);
   const setActiveSession = useSessionStore((state) => state.setActiveSession);
-  const closeSession = useSessionStore((state) => state.closeSession);
-  const profile = useConnectionStore((state) =>
-    session.profileId ? state.getProfile(session.profileId) : undefined,
-  );
 
   const isActive = session.id === activeSessionId;
-  const label = formatSidebarLabel(session, profile, isActive);
+  const label = formatSidebarLabel(session);
   const shellBadge = getShellBadge(session);
 
   return (
-    <SidebarMenuItem>
+    <button
+      type="button"
+      title={label}
+      onClick={() => setActiveSession(session.id)}
+      className={cn(
+        "flex h-7 w-full items-center gap-2 rounded-md px-2 text-left text-[13px] transition-colors",
+        isActive
+          ? "bg-muted/80 text-foreground"
+          : "text-muted-foreground hover:bg-muted/40 hover:text-foreground",
+      )}
+    >
+      <span className="min-w-0 flex-1 truncate font-mono">{label}</span>
+      <span className="shrink-0 text-[11px] text-muted-foreground/80">
+        {shellBadge}
+      </span>
+    </button>
+  );
+}
+
+function SessionGroup({
+  groupKey,
+  sessions,
+  collapsed,
+  onToggle,
+}: {
+  groupKey: string;
+  sessions: Session[];
+  collapsed: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <div className="space-y-0.5">
       <button
         type="button"
-        title={label}
-        onClick={() => setActiveSession(session.id)}
-        className={cn(
-          "flex h-8 w-full items-center gap-2 rounded-md px-2 text-left text-sm transition-colors",
-          isActive
-            ? "bg-muted text-foreground"
-            : "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
-        )}
+        onClick={onToggle}
+        className="flex h-7 w-full items-center gap-1 rounded-md px-1.5 text-left text-[12px] text-muted-foreground transition-colors hover:text-foreground"
       >
-        <span className="min-w-0 flex-1 truncate">{label}</span>
-        <span
+        <ChevronRightIcon
           className={cn(
-            "shrink-0 text-xs",
-            isActive ? "text-muted-foreground" : "text-muted-foreground/70",
+            "size-3.5 shrink-0 transition-transform",
+            !collapsed && "rotate-90",
           )}
-        >
-          {shellBadge}
-        </span>
-      </button>
-      <DropdownMenu>
-        <DropdownMenuTrigger
-          render={
-            <SidebarMenuAction showOnHover aria-label={t("common:actions.close")}>
-              <MoreHorizontalIcon />
-            </SidebarMenuAction>
-          }
         />
-        <DropdownMenuContent side="right" align="start">
-          <DropdownMenuItem onClick={() => closeSession(session.id)}>
-            <XIcon />
-            {t("common:actions.close")}
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </SidebarMenuItem>
+        <span className="truncate font-mono">{groupKey}</span>
+      </button>
+      {!collapsed ? (
+        <div className="space-y-0.5 pl-1">
+          {sessions.map((session) => (
+            <SessionTabItem key={session.id} session={session} />
+          ))}
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -134,6 +134,9 @@ export function ConnectionSidebar() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingProfileId, setEditingProfileId] = useState<string | null>(null);
   const [shells, setShells] = useState<ShellInfo[]>([]);
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(
+    () => new Set(),
+  );
 
   const terminalSessions = useMemo(
     () => sessions.filter((session) => session.kind === "terminal"),
@@ -143,6 +146,11 @@ export function ConnectionSidebar() {
   const sortedSessions = useMemo(
     () => sortSessions(terminalSessions, sort),
     [terminalSessions, sort],
+  );
+
+  const groupedSessions = useMemo(
+    () => groupSessionsByDirectory(sortedSessions),
+    [sortedSessions],
   );
 
   const terminalProfiles = useMemo(
@@ -194,9 +202,21 @@ export function ConnectionSidebar() {
     });
   };
 
+  const toggleGroup = (groupKey: string) => {
+    setCollapsedGroups((current) => {
+      const next = new Set(current);
+      if (next.has(groupKey)) {
+        next.delete(groupKey);
+      } else {
+        next.add(groupKey);
+      }
+      return next;
+    });
+  };
+
   return (
-    <Sidebar collapsible="none" className="h-full w-full border-r">
-      <SidebarHeader className="flex h-10 flex-row items-center justify-between gap-2 border-b px-3 py-0">
+    <div className="flex h-full w-full flex-col bg-background">
+      <div className="flex h-10 shrink-0 items-center justify-between gap-2 px-3">
         <span className="text-xs font-semibold tracking-wide text-muted-foreground">
           {t("connections:tabsTitle")}
         </span>
@@ -287,33 +307,33 @@ export function ConnectionSidebar() {
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
-      </SidebarHeader>
+      </div>
 
-      <SidebarContent>
-        <SidebarGroup className="min-h-0 flex-1">
-          <SidebarGroupContent className="min-h-0 flex-1 px-1 pt-1">
-            <ScrollArea className="h-full min-h-0">
-              <SidebarMenu className="gap-0.5">
-                {sortedSessions.length === 0 ? (
-                  <div className="px-3 py-6 text-center text-xs text-muted-foreground">
-                    {t("common:empty.noSessions")}
-                  </div>
-                ) : (
-                  sortedSessions.map((session) => (
-                    <SessionTabItem key={session.id} session={session} />
-                  ))
-                )}
-              </SidebarMenu>
-            </ScrollArea>
-          </SidebarGroupContent>
-        </SidebarGroup>
-      </SidebarContent>
+      <ScrollArea className="min-h-0 flex-1 px-2 py-1">
+        {groupedSessions.length === 0 ? (
+          <div className="px-2 py-6 text-center text-xs text-muted-foreground">
+            {t("common:empty.noSessions")}
+          </div>
+        ) : (
+          <div className="space-y-2 pb-2">
+            {groupedSessions.map((group) => (
+              <SessionGroup
+                key={group.key}
+                groupKey={group.key}
+                sessions={group.sessions}
+                collapsed={collapsedGroups.has(group.key)}
+                onToggle={() => toggleGroup(group.key)}
+              />
+            ))}
+          </div>
+        )}
+      </ScrollArea>
 
       <ConnectionDialog
         open={dialogOpen}
         profileId={editingProfileId}
         onOpenChange={setDialogOpen}
       />
-    </Sidebar>
+    </div>
   );
 }

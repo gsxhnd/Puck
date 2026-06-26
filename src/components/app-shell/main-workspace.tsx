@@ -2,6 +2,7 @@ import { useTranslation } from "react-i18next";
 import { useSessionStore } from "@/stores/session-store";
 import { TerminalPane } from "@/components/terminal/terminal-pane";
 import { SshTerminalPane } from "@/components/terminal/ssh-terminal-pane";
+import { TerminalPathBar } from "@/components/terminal/terminal-path-bar";
 import { FileManager } from "@/components/files/file-manager";
 import { NewTerminalMenu } from "@/components/terminal/new-terminal-menu";
 
@@ -41,34 +42,39 @@ export function MainWorkspace() {
     return <EmptyWorkspace />;
   }
 
+  const showPathBar = activeSession.kind === "terminal";
+
   return (
-    <div className="relative h-full min-h-0 overflow-hidden">
-      {localTerminalSessions.map((session) => (
-        <TerminalPane
-          key={session.id}
-          sessionId={session.id}
-          shellId={session.shellId}
-          active={session.id === activeSessionId}
-        />
-      ))}
+    <div className="flex h-full min-h-0 flex-col overflow-hidden bg-background">
+      {showPathBar ? <TerminalPathBar session={activeSession} /> : null}
+      <div className="relative min-h-0 flex-1 overflow-hidden">
+        {localTerminalSessions.map((session) => (
+          <TerminalPane
+            key={session.id}
+            sessionId={session.id}
+            shellId={session.shellId}
+            active={session.id === activeSessionId}
+          />
+        ))}
 
-      {sshTerminalSessions.map((session) => (
-        <SshTerminalPane
-          key={session.id}
-          sessionId={session.id}
-          profileId={session.profileId}
-          active={session.id === activeSessionId}
-        />
-      ))}
+        {sshTerminalSessions.map((session) => (
+          <SshTerminalPane
+            key={session.id}
+            sessionId={session.id}
+            profileId={session.profileId}
+            active={session.id === activeSessionId}
+          />
+        ))}
 
-      {fileSessions.map((session) => (
-        <FileManager
-          key={session.id}
-          sessionId={session.id}
-          profileId={session.profileId}
-          active={session.id === activeSessionId}
-        />
-      ))}
+        {fileSessions.map((session) => (
+          <FileManager
+            key={session.id}
+            sessionId={session.id}
+            profileId={session.profileId}
+            active={session.id === activeSessionId}
+          />
+        ))}
+      </div>
     </div>
   );
 }

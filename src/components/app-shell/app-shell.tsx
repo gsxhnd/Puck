@@ -36,7 +36,7 @@ function readStoredLayout(): Record<string, number> | undefined {
 
 export function AppShell() {
   const [leftSidebarOpen, setLeftSidebarOpen] = useState(true);
-  const [rightSidebarOpen, setRightSidebarOpen] = useState(false);
+  const [rightSidebarOpen, setRightSidebarOpen] = useState(true);
   const leftPanelRef = useRef<PanelImperativeHandle>(null);
   const rightPanelRef = useRef<PanelImperativeHandle>(null);
   const openLocalOnStart = useAppSettingsStore(
@@ -84,6 +84,7 @@ export function AppShell() {
   return (
     <div
       data-app-shell
+      data-shell="main"
       data-platform={getPlatform()}
       className="flex h-svh flex-col overflow-hidden"
     >
@@ -103,7 +104,7 @@ export function AppShell() {
           orientation="horizontal"
           className="min-h-0 flex-1"
           defaultLayout={
-            readStoredLayout() ?? { left: 18, main: 82, right: 0 }
+            readStoredLayout() ?? { left: 20, main: 55, right: 25 }
           }
           onLayoutChanged={(layout) => {
             try {

@@ -150,6 +150,7 @@ export function SshTerminalPane({
         const osc7 = extractOsc7Cwd(event.data);
         if (osc7 && profile) {
           updateSessionMeta(sessionId, {
+            cwd: osc7.cwd,
             tabLabel: buildTabLabel(
               profile.username || "user",
               osc7.hostname || profile.host || "host",
@@ -256,7 +257,7 @@ export function SshTerminalPane({
       )}
     >
       {(sessionStatus === "disconnected" || sessionStatus === "failed") && (
-        <div className="flex items-center justify-between gap-3 border-b bg-muted/40 px-3 py-2 text-sm">
+        <div className="flex items-center justify-between gap-3 bg-muted/40 px-3 py-2 text-sm">
           <span className="text-muted-foreground">
             {sessionStatus === "failed"
               ? t("terminal:status.failed")
@@ -267,7 +268,7 @@ export function SshTerminalPane({
           </Button>
         </div>
       )}
-      <div ref={containerRef} className="min-h-0 flex-1 p-1" />
+      <div ref={containerRef} className="min-h-0 flex-1" />
       <HostKeyDialog
         open={Boolean(hostKeyPrompt)}
         prompt={hostKeyPrompt}

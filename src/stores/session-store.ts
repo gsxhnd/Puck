@@ -17,6 +17,7 @@ type SessionStore = {
     shellId?: string;
     shellName?: string;
     tabLabel?: string;
+    cwd?: string;
     status?: SessionStatus;
   }) => Session;
   openOrFocusSession: (partial: {
@@ -27,6 +28,7 @@ type SessionStore = {
     shellId?: string;
     shellName?: string;
     tabLabel?: string;
+    cwd?: string;
     status?: SessionStatus;
   }) => Session;
   closeSession: (id: string) => void;
@@ -35,7 +37,7 @@ type SessionStore = {
   updateSessionStatus: (id: string, status: SessionStatus) => void;
   updateSessionMeta: (
     id: string,
-    meta: { shellName?: string; tabLabel?: string },
+    meta: { shellName?: string; tabLabel?: string; cwd?: string },
   ) => void;
 };
 
@@ -51,6 +53,7 @@ function createSession(
     shellId: partial.shellId,
     shellName: partial.shellName,
     tabLabel: partial.tabLabel,
+    cwd: partial.cwd,
     status: partial.status ?? "connected",
     createdAt: new Date().toISOString(),
   };

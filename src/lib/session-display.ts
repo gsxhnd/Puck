@@ -46,21 +46,60 @@ export function profileTabLabel(profile: ConnectionProfile): string {
   return `${user}@${host}:~`;
 }
 
-export function formatSidebarLabel(
-  session: Session,
-  profile: ConnectionProfile | undefined,
-  isActive: boolean,
-): string {
-  const base =
-    session.tabLabel ??
-    (profile ? profileTabLabel(profile) : undefined) ??
-    resolveFallbackTitle(session.title);
-
-  if (!isActive && profile?.name && profile.protocol !== "local") {
-    return `${profile.name} ${base}`;
+export function getSessionCwd(session: Session): string {
+  if (session.cwd) {
+    return shortenPath(session.cwd);
   }
 
-  return base;
+  const label = session.tabLabel;
+  if (label?.includes(":")) {
+    const pathPart = label.split(":").slice(1).join(":");
+    if (pathPart) {
+      return pathPart;
+    }
+  }
+
+  return "~";
+}
+
+export function getSessionPathDisplay(session: Session): string {
+  if (session.cwd) {
+    return session.cwd;
+  }
+
+  const label = session.tabLabel;
+  if (label?.includes(":")) {
+    const pathPart = label.split(":").slice(1).join(":");
+    if (pathPart.startsWith("~")) {
+      return pathPart;
+    }
+    if (pathPart) {
+      return pathPart;
+    }
+  }
+
+  return "~";
+}
+
+export function getSessionGroupKey(session: Session): string {
+  const cwd = getSessionCwd(session);
+  if (cwd === "~") {
+    return "~";
+  }
+
+  const lastSlash = cwd.lastIndexOf("/");
+  if (lastSlash <= 0) {
+    return cwd;
+  }
+
+  return cwd.slice(0, lastSlash) || "~";
+}
+
+export function formatSidebarLabel(session: Session): string {
+  return (
+    session.tabLabel ??
+    resolveFallbackTitle(session.title)
+  );
 }
 
 export function getShellBadge(session: Session): string {
@@ -76,4 +115,24 @@ function resolveFallbackTitle(title: string): string {
     return "local:~";
   }
   return title;
+}
+
+export function groupSessionsByDirectory(
+  sessions: Session[],
+): Array<{ key: string; sessions: Session[] }> {
+  const groups = new Map<string, Session[]>();
+
+  for (const session of sessions) {
+    const key = getSessionGroupKey(session);
+    const list = groups.get(key) ?? [];
+    list.push(session);
+    groups.set(key, list);
+  }
+
+  return [...groups.entries()]
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([key, groupedSessions]) => ({
+      key,
+      sessions: groupedSessions,
+    }));
 }
