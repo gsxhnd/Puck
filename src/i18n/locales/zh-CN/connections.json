@@ -36,12 +36,25 @@
     "label": "排序",
     "nameAsc": "名称 (A–Z)",
     "nameDesc": "名称 (Z–A)",
-    "recent": "最近"
+    "recent": "最近",
+    "custom": "自定义"
+  },
+  "dragHandle": "拖拽排序",
+  "sidebarGroups": {
+    "new": "新建分组",
+    "newDescription": "为标签页创建一个自定义分组。",
+    "create": "创建",
+    "rename": "重命名分组",
+    "renameDescription": "输入新的分组名称。",
+    "delete": "删除分组",
+    "dropHere": "拖放到此处"
   },
   "contextMenu": {
     "close": "关闭标签页",
     "closeOthers": "关闭其他标签页",
-    "duplicate": "复制标签页"
+    "duplicate": "复制标签页",
+    "rename": "重命名标签页",
+    "renameDescription": "输入新的标签页名称。"
   },
   "hostKey": {
     "title": "未知主机密钥",

@@ -1,5 +1,4 @@
 import type { ITheme } from "@xterm/xterm";
-import type { TerminalThemeId } from "@/types/settings";
 
 const puckDark: ITheme = {
   background: "#1e1e2e",
@@ -51,89 +50,87 @@ const puckLight: ITheme = {
   brightWhite: "#bcc0cc",
 };
 
-const solarizedDark: ITheme = {
-  background: "#002b36",
-  foreground: "#839496",
-  cursor: "#839496",
-  cursorAccent: "#002b36",
-  selectionBackground: "#073642",
-  selectionForeground: "#93a1a1",
-  black: "#073642",
-  red: "#dc322f",
-  green: "#859900",
-  yellow: "#b58900",
-  blue: "#268bd2",
-  magenta: "#d33682",
-  cyan: "#2aa198",
-  white: "#eee8d5",
-  brightBlack: "#002b36",
-  brightRed: "#cb4b16",
-  brightGreen: "#586e75",
-  brightYellow: "#657b83",
-  brightBlue: "#839496",
-  brightMagenta: "#6c71c4",
-  brightCyan: "#93a1a1",
-  brightWhite: "#fdf6e3",
-};
+function isValidComputedColor(color: string | undefined): color is string {
+  if (!color) return false;
+  const normalized = color.trim().toLowerCase();
+  return (
+    normalized !== "transparent" &&
+    normalized !== "rgba(0, 0, 0, 0)" &&
+    normalized !== "initial"
+  );
+}
 
-const solarizedLight: ITheme = {
-  background: "#fdf6e3",
-  foreground: "#657b83",
-  cursor: "#657b83",
-  cursorAccent: "#fdf6e3",
-  selectionBackground: "#eee8d5",
-  selectionForeground: "#586e75",
-  black: "#073642",
-  red: "#dc322f",
-  green: "#859900",
-  yellow: "#b58900",
-  blue: "#268bd2",
-  magenta: "#d33682",
-  cyan: "#2aa198",
-  white: "#eee8d5",
-  brightBlack: "#002b36",
-  brightRed: "#cb4b16",
-  brightGreen: "#586e75",
-  brightYellow: "#657b83",
-  brightBlue: "#839496",
-  brightMagenta: "#6c71c4",
-  brightCyan: "#93a1a1",
-  brightWhite: "#fdf6e3",
-};
+function readCssVariableColor(
+  variable: string,
+  property: "backgroundColor" | "color",
+  fallback: string,
+): string {
+  if (typeof document === "undefined") {
+    return fallback;
+  }
 
-const oneDark: ITheme = {
-  background: "#282c34",
-  foreground: "#abb2bf",
-  cursor: "#abb2bf",
-  cursorAccent: "#282c34",
-  selectionBackground: "#3e4451",
-  selectionForeground: "#abb2bf",
-  black: "#282c34",
-  red: "#e06c75",
-  green: "#98c379",
-  yellow: "#e5c07b",
-  blue: "#61afef",
-  magenta: "#c678dd",
-  cyan: "#56b6c2",
-  white: "#abb2bf",
-  brightBlack: "#5c6370",
-  brightRed: "#e06c75",
-  brightGreen: "#98c379",
-  brightYellow: "#e5c07b",
-  brightBlue: "#61afef",
-  brightMagenta: "#c678dd",
-  brightCyan: "#56b6c2",
-  brightWhite: "#ffffff",
-};
+  const probe = document.createElement("div");
+  probe.style.position = "absolute";
+  probe.style.left = "-9999px";
+  probe.style.width = "1px";
+  probe.style.height = "1px";
+  probe.style.opacity = "0";
+  probe.style.pointerEvents = "none";
+  if (property === "backgroundColor") {
+    probe.style.backgroundColor = `var(${variable})`;
+  } else {
+    probe.style.color = `var(${variable})`;
+  }
 
-export const TERMINAL_THEMES: Record<TerminalThemeId, ITheme> = {
-  "puck-dark": puckDark,
-  "puck-light": puckLight,
-  "solarized-dark": solarizedDark,
-  "solarized-light": solarizedLight,
-  "one-dark": oneDark,
-};
+  document.documentElement.appendChild(probe);
+  const color = getComputedStyle(probe)[property];
+  probe.remove();
 
-export function getTerminalTheme(id: TerminalThemeId): ITheme {
-  return TERMINAL_THEMES[id] ?? puckDark;
+  return isValidComputedColor(color) ? color : fallback;
+}
+
+function isDarkColor(color: string): boolean {
+  const match = color.match(
+    /rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)/i,
+  );
+  if (!match) {
+    return color.startsWith("#")
+      ? Number.parseInt(color.slice(1, 3), 16) < 128
+      : true;
+  }
+
+  const r = Number(match[1]);
+  const g = Number(match[2]);
+  const b = Number(match[3]);
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return luminance < 0.5;
+}
+
+export function getUiSyncedTerminalTheme(): ITheme {
+  const background = readCssVariableColor(
+    "--background",
+    "backgroundColor",
+    puckDark.background ?? "#000000",
+  );
+  const foreground = readCssVariableColor(
+    "--foreground",
+    "color",
+    puckDark.foreground ?? "#ffffff",
+  );
+  const selectionBackground = readCssVariableColor(
+    "--muted",
+    "backgroundColor",
+    background,
+  );
+  const ansiBase = isDarkColor(background) ? puckDark : puckLight;
+
+  return {
+    ...ansiBase,
+    background,
+    foreground,
+    cursor: foreground,
+    cursorAccent: background,
+    selectionBackground,
+    selectionForeground: foreground,
+  };
 }

@@ -11,10 +11,8 @@ export function TerminalPathBar({ session }: TerminalPathBarProps) {
   const path = getSessionPathDisplay(session);
 
   return (
-    <div className="flex h-7 shrink-0 items-center bg-muted/20 px-3">
-      <span className="truncate font-mono text-xs text-muted-foreground">
-        {path || t("pathUnknown", { defaultValue: "~" })}
-      </span>
-    </div>
+    <span className="pointer-events-none truncate font-mono text-xs text-muted-foreground">
+      {path || t("pathUnknown", { defaultValue: "~" })}
+    </span>
   );
 }

@@ -37,6 +37,7 @@ export type Session = {
   shellId?: string;
   shellName?: string;
   tabLabel?: string;
+  customTitle?: string;
   cwd?: string;
   status: SessionStatus;
   createdAt: string;

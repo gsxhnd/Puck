@@ -6,7 +6,7 @@ import {
   FolderOpenIcon,
   InfoIcon,
   ListIcon,
-  RefreshCwIcon,
+  PanelRightIcon,
 } from "lucide-react";
 import { TransferQueueContent } from "@/components/files/transfer-queue";
 import { useSessionStore } from "@/stores/session-store";
@@ -14,7 +14,15 @@ import { getSessionPathDisplay, getShellBadge } from "@/lib/session-display";
 import { isTauri } from "@/lib/platform";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { PanelHeader } from "@/layout/app-shell/panel-header";
+import { WindowControls } from "@/layout/app-shell/window-controls";
+import { getPlatform } from "@/lib/platform";
 
 type PanelView = "info" | "transfers";
 
@@ -127,7 +135,13 @@ function SessionInfoPanel() {
   );
 }
 
-export function SessionInfoSidebar() {
+export function SessionInfoSidebar({
+  rightSidebarOpen = true,
+  onToggleRightSidebar,
+}: {
+  rightSidebarOpen?: boolean;
+  onToggleRightSidebar?: () => void;
+}) {
   const { t } = useTranslation(["info", "common"]);
   const [view, setView] = useState<PanelView>("info");
 
@@ -141,34 +155,53 @@ export function SessionInfoSidebar() {
   );
 
   return (
-    <div className="flex h-full w-full flex-col bg-background">
-      <div className="flex h-10 shrink-0 items-center justify-between gap-2 px-3">
-        <span className="text-xs font-semibold tracking-wide text-muted-foreground">
-          {view === "info" ? t("info:title") : t("info:transfers")}
-        </span>
-        <div className="flex items-center gap-0.5">
-          {headerActions.map((action) => (
-            <Button
-              key={action.id}
-              variant="ghost"
-              size="icon-sm"
-              aria-label={action.label}
-              className={cn(view === action.id && "bg-muted text-foreground")}
-              onClick={() => setView(action.id)}
-            >
-              <action.icon />
-            </Button>
-          ))}
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            aria-label={t("common:actions.refresh")}
-            onClick={() => setView("info")}
-          >
-            <RefreshCwIcon />
-          </Button>
-        </div>
-      </div>
+    <div className="flex h-full w-full flex-col bg-shell-secondary">
+      <PanelHeader
+        leading={
+          <span className="text-xs font-semibold tracking-wide text-muted-foreground">
+            {view === "info" ? t("info:title") : t("info:transfers")}
+          </span>
+        }
+        trailing={
+          <>
+            {headerActions.map((action) => (
+              <Button
+                key={action.id}
+                variant="ghost"
+                size="icon-sm"
+                aria-label={action.label}
+                className={cn(view === action.id && "bg-muted text-foreground")}
+                onClick={() => setView(action.id)}
+              >
+                <action.icon />
+              </Button>
+            ))}
+            {onToggleRightSidebar ? (
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      className={cn(
+                        !rightSidebarOpen && "text-muted-foreground",
+                      )}
+                      aria-label={t("common:nav.toggleSecondaryPanel")}
+                      onClick={onToggleRightSidebar}
+                    >
+                      <PanelRightIcon />
+                    </Button>
+                  }
+                />
+                <TooltipContent side="bottom">
+                  {t("common:nav.toggleSecondaryPanel")}
+                </TooltipContent>
+              </Tooltip>
+            ) : null}
+            {getPlatform() !== "macos" ? <WindowControls /> : null}
+          </>
+        }
+      />
 
       {view === "info" ? (
         <SessionInfoPanel />

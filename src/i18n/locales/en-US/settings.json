@@ -14,10 +14,10 @@
     "openLocalOnStartDescription": "Automatically create a local terminal tab when the app launches"
   },
   "appearance": {
-    "uiTheme": "UI Theme",
-    "uiThemeDescription": "Controls sidebar, tab bar, and settings appearance",
-    "terminalTheme": "Terminal Theme",
-    "terminalThemeDescription": "Changes apply to the active terminal immediately",
+    "colorTheme": "Color theme",
+    "colorThemeDescription": "Choose the overall palette for the UI and terminal",
+    "themeMode": "Appearance",
+    "themeModeDescription": "Use light, dark, or system mode with the selected palette",
     "fontFamily": "Terminal Font",
     "fontSize": "Terminal Font Size"
   },
@@ -40,11 +40,16 @@
     "version": "Version",
     "description": "A cross-platform terminal and file transfer workspace built with Tauri"
   },
-  "terminalThemes": {
-    "puck-dark": "Puck Dark",
-    "puck-light": "Puck Light",
-    "solarized-dark": "Solarized Dark",
-    "solarized-light": "Solarized Light",
-    "one-dark": "One Dark"
+  "colorThemes": {
+    "default": "Default",
+    "zinc": "Zinc",
+    "slate": "Slate",
+    "stone": "Stone",
+    "rose": "Rose",
+    "blue": "Blue",
+    "green": "Green",
+    "violet": "Violet",
+    "catppuccin": "Catppuccin",
+    "nord": "Nord"
   }
 }

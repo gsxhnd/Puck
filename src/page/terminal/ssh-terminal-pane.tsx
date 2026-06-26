@@ -13,7 +13,7 @@ import { useAppSettingsStore } from "@/stores/app-settings-store";
 import { useConnectionStore } from "@/stores/connection-store";
 import { useSessionStore } from "@/stores/session-store";
 import {
-  closeSession,
+  closeSession as closeBackendSession,
   onTerminalData,
   onTerminalExit,
   resizeTerminal,
@@ -26,7 +26,7 @@ import {
   reconnectSshTerminal,
   trustSshHostKey,
 } from "@/lib/tauri-ssh";
-import { getTerminalTheme } from "@/lib/terminal-themes";
+import { useTerminalTheme } from "@/hooks/use-terminal-theme";
 import {
   buildTabLabel,
   extractOsc7Cwd,
@@ -66,11 +66,12 @@ export function SshTerminalPane({
   );
   const fontFamily = useAppSettingsStore((state) => state.fontFamily);
   const fontSize = useAppSettingsStore((state) => state.fontSize);
-  const terminalThemeId = useAppSettingsStore((state) => state.terminalThemeId);
+  const terminalTheme = useTerminalTheme();
   const updateSessionStatus = useSessionStore(
     (state) => state.updateSessionStatus,
   );
   const updateSessionMeta = useSessionStore((state) => state.updateSessionMeta);
+  const removeSession = useSessionStore((state) => state.closeSession);
   const sessionStatus = useSessionStore((state) =>
     state.sessions.find((item) => item.id === sessionId)?.status,
   );
@@ -112,7 +113,7 @@ export function SshTerminalPane({
     const terminal = new Terminal({
       fontFamily,
       fontSize,
-      theme: getTerminalTheme(terminalThemeId),
+      theme: terminalTheme,
       cursorBlink: true,
       allowProposedApi: true,
       scrollback: 5000,
@@ -161,8 +162,10 @@ export function SshTerminalPane({
       });
       unlistenExit = await onTerminalExit((event) => {
         if (event.sessionId !== sessionId || disposed) return;
-        updateSessionStatus(sessionId, "disconnected");
-        terminal.write(`\r\n\r\n[${t("sessionEnded")}]\r\n`);
+        disposed = true;
+        openedRef.current = false;
+        removeSession(sessionId);
+        void closeBackendSession(sessionId);
       });
       unlistenStatus = await onSessionStatus((event) => {
         if (event.sessionId !== sessionId || disposed) return;
@@ -198,7 +201,9 @@ export function SshTerminalPane({
       unlistenData?.();
       unlistenExit?.();
       unlistenStatus?.();
-      void closeSession(sessionId);
+      if (!disposed) {
+        void closeBackendSession(sessionId);
+      }
       terminal.dispose();
       terminalRef.current = null;
       fitAddonRef.current = null;
@@ -208,19 +213,27 @@ export function SshTerminalPane({
     profile,
     profileId,
     sessionId,
+    removeSession,
     t,
-    terminalThemeId,
     updateSessionMeta,
     updateSessionStatus,
   ]);
 
   useEffect(() => {
     const terminal = terminalRef.current;
+    const fitAddon = fitAddonRef.current;
     if (!terminal) return;
-    terminal.options.theme = getTerminalTheme(terminalThemeId);
+    terminal.options.theme = { ...terminalTheme };
     terminal.options.fontFamily = fontFamily;
     terminal.options.fontSize = fontSize;
-  }, [fontFamily, fontSize, terminalThemeId]);
+    terminal.refresh(0, terminal.rows - 1);
+    if (fitAddon && openedRef.current) {
+      requestAnimationFrame(() => {
+        fitAddon.fit();
+        void resizeTerminal(sessionId, terminal.cols, terminal.rows);
+      });
+    }
+  }, [fontFamily, fontSize, terminalTheme, sessionId]);
 
   useEffect(() => {
     if (!active || !openedRef.current) return;

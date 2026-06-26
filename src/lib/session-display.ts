@@ -96,10 +96,10 @@ export function getSessionGroupKey(session: Session): string {
 }
 
 export function formatSidebarLabel(session: Session): string {
-  return (
-    session.tabLabel ??
-    resolveFallbackTitle(session.title)
-  );
+  if (session.customTitle) {
+    return session.customTitle;
+  }
+  return session.tabLabel ?? resolveFallbackTitle(session.title);
 }
 
 export function getShellBadge(session: Session): string {

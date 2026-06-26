@@ -14,10 +14,10 @@
     "openLocalOnStartDescription": "应用启动后自动创建本地终端标签"
   },
   "appearance": {
-    "uiTheme": "界面主题",
-    "uiThemeDescription": "控制侧边栏、标签栏和设置页的主题",
-    "terminalTheme": "终端主题",
-    "terminalThemeDescription": "切换后当前终端立即更新配色",
+    "colorTheme": "配色方案",
+    "colorThemeDescription": "选择界面与终端的整体配色风格",
+    "themeMode": "外观模式",
+    "themeModeDescription": "在所选配色下使用浅色、深色或跟随系统",
     "fontFamily": "终端字体",
     "fontSize": "终端字号"
   },
@@ -40,11 +40,16 @@
     "version": "版本",
     "description": "基于 Tauri 的跨平台终端与文件传输工作台"
   },
-  "terminalThemes": {
-    "puck-dark": "Puck Dark",
-    "puck-light": "Puck Light",
-    "solarized-dark": "Solarized Dark",
-    "solarized-light": "Solarized Light",
-    "one-dark": "One Dark"
+  "colorThemes": {
+    "default": "默认",
+    "zinc": "Zinc",
+    "slate": "Slate",
+    "stone": "Stone",
+    "rose": "Rose",
+    "blue": "Blue",
+    "green": "Green",
+    "violet": "Violet",
+    "catppuccin": "Catppuccin",
+    "nord": "Nord"
   }
 }

@@ -12,7 +12,7 @@ import "@xterm/xterm/css/xterm.css";
 import { useAppSettingsStore } from "@/stores/app-settings-store";
 import { useSessionStore } from "@/stores/session-store";
 import {
-  closeSession,
+  closeSession as closeBackendSession,
   getSystemIdentity,
   onTerminalData,
   onTerminalExit,
@@ -21,7 +21,7 @@ import {
   writeTerminal,
 } from "@/lib/tauri-terminal";
 import { buildTabLabel, extractOsc7Cwd } from "@/lib/session-display";
-import { getTerminalTheme } from "@/lib/terminal-themes";
+import { useTerminalTheme } from "@/hooks/use-terminal-theme";
 import { cn } from "@/lib/utils";
 
 type TerminalPaneProps = {
@@ -38,11 +38,12 @@ export function TerminalPane({ sessionId, shellId, active }: TerminalPaneProps) 
   const openedRef = useRef(false);
   const fontFamily = useAppSettingsStore((state) => state.fontFamily);
   const fontSize = useAppSettingsStore((state) => state.fontSize);
-  const terminalThemeId = useAppSettingsStore((state) => state.terminalThemeId);
+  const terminalTheme = useTerminalTheme();
   const updateSessionStatus = useSessionStore(
     (state) => state.updateSessionStatus,
   );
   const updateSessionMeta = useSessionStore((state) => state.updateSessionMeta);
+  const removeSession = useSessionStore((state) => state.closeSession);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -51,7 +52,7 @@ export function TerminalPane({ sessionId, shellId, active }: TerminalPaneProps) 
     const terminal = new Terminal({
       fontFamily,
       fontSize,
-      theme: getTerminalTheme(terminalThemeId),
+      theme: terminalTheme,
       cursorBlink: true,
       allowProposedApi: true,
       scrollback: 5000,
@@ -110,8 +111,10 @@ export function TerminalPane({ sessionId, shellId, active }: TerminalPaneProps) 
       });
       const unlistenExitFn = await onTerminalExit((event) => {
         if (event.sessionId !== sessionId || disposed) return;
-        updateSessionStatus(sessionId, "disconnected");
-        terminal.write(`\r\n\r\n[${t("sessionEnded")}]\r\n`);
+        disposed = true;
+        openedRef.current = false;
+        removeSession(sessionId);
+        void closeBackendSession(sessionId);
       });
 
       if (disposed) {
@@ -158,7 +161,9 @@ export function TerminalPane({ sessionId, shellId, active }: TerminalPaneProps) 
       resizeDisposable.dispose();
       unlistenData?.();
       unlistenExit?.();
-      void closeSession(sessionId);
+      if (!disposed) {
+        void closeBackendSession(sessionId);
+      }
       terminal.dispose();
       terminalRef.current = null;
       fitAddonRef.current = null;
@@ -168,17 +173,26 @@ export function TerminalPane({ sessionId, shellId, active }: TerminalPaneProps) 
     sessionId,
     shellId,
     t,
+    removeSession,
     updateSessionMeta,
     updateSessionStatus,
   ]);
 
   useEffect(() => {
     const terminal = terminalRef.current;
+    const fitAddon = fitAddonRef.current;
     if (!terminal) return;
-    terminal.options.theme = getTerminalTheme(terminalThemeId);
+    terminal.options.theme = { ...terminalTheme };
     terminal.options.fontFamily = fontFamily;
     terminal.options.fontSize = fontSize;
-  }, [fontFamily, fontSize, terminalThemeId]);
+    terminal.refresh(0, terminal.rows - 1);
+    if (fitAddon && openedRef.current) {
+      requestAnimationFrame(() => {
+        fitAddon.fit();
+        void resizeTerminal(sessionId, terminal.cols, terminal.rows);
+      });
+    }
+  }, [fontFamily, fontSize, terminalTheme, sessionId]);
 
   useEffect(() => {
     if (!active || !openedRef.current) return;

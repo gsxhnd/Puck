@@ -1,5 +1,18 @@
 import { SessionInfoSidebar } from "@/layout/app-shell/session-info-sidebar";
 
-export function SecondarySidebar() {
-  return <SessionInfoSidebar />;
+type SecondarySidebarProps = {
+  rightSidebarOpen?: boolean;
+  onToggleRightSidebar?: () => void;
+};
+
+export function SecondarySidebar({
+  rightSidebarOpen,
+  onToggleRightSidebar,
+}: SecondarySidebarProps) {
+  return (
+    <SessionInfoSidebar
+      rightSidebarOpen={rightSidebarOpen}
+      onToggleRightSidebar={onToggleRightSidebar}
+    />
+  );
 }

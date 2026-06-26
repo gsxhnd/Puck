@@ -13,8 +13,10 @@ export function SettingsSync() {
       if (event.key !== SETTINGS_STORAGE_KEY) return;
       void (async () => {
         await useAppSettingsStore.persist.rehydrate();
-        const { uiTheme, language } = useAppSettingsStore.getState();
-        setTheme(uiTheme);
+        const { themeMode, colorTheme, language } =
+          useAppSettingsStore.getState();
+        setTheme(themeMode);
+        document.documentElement.dataset.colorTheme = colorTheme;
         const { default: i18n } = await import("@/i18n");
         await i18n.changeLanguage(language);
       })();

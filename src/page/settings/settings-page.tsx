@@ -1,9 +1,14 @@
-import { useEffect } from "react";
 import { useTheme } from "next-themes";
 import { useTranslation } from "react-i18next";
 import packageJson from "../../../package.json";
 import { useAppSettingsStore } from "@/stores/app-settings-store";
-import type { AppLanguage, TerminalThemeId, UiTheme } from "@/types/settings";
+import { COLOR_THEME_IDS } from "@/lib/color-themes";
+import type { ColorThemeId } from "@/lib/color-themes";
+import {
+  DEFAULT_TERMINAL_FONT_FAMILY,
+  type AppLanguage,
+  type ThemeMode,
+} from "@/types/settings";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -29,15 +34,7 @@ const SECTIONS: SettingsSection[] = [
   "about",
 ];
 
-const TERMINAL_THEMES: TerminalThemeId[] = [
-  "puck-dark",
-  "puck-light",
-  "solarized-dark",
-  "solarized-light",
-  "one-dark",
-];
-
-const UI_THEMES: UiTheme[] = ["light", "dark", "system"];
+const THEME_MODES: ThemeMode[] = ["light", "dark", "system"];
 
 const LANGUAGES: AppLanguage[] = ["zh-CN", "en-US"];
 
@@ -106,34 +103,26 @@ function SettingsSelect<T extends string>({
 
 export function SettingsPage() {
   const { t } = useTranslation(["settings", "common"]);
-  const { theme, setTheme } = useTheme();
+  const { setTheme } = useTheme();
   const language = useAppSettingsStore((state) => state.language);
-  const uiTheme = useAppSettingsStore((state) => state.uiTheme);
-  const terminalThemeId = useAppSettingsStore((state) => state.terminalThemeId);
+  const colorTheme = useAppSettingsStore((state) => state.colorTheme);
+  const themeMode = useAppSettingsStore((state) => state.themeMode);
   const fontFamily = useAppSettingsStore((state) => state.fontFamily);
   const fontSize = useAppSettingsStore((state) => state.fontSize);
   const openLocalOnStart = useAppSettingsStore(
     (state) => state.openLocalTerminalOnStart,
   );
   const setLanguage = useAppSettingsStore((state) => state.setLanguage);
-  const setUiTheme = useAppSettingsStore((state) => state.setUiTheme);
-  const setTerminalThemeId = useAppSettingsStore(
-    (state) => state.setTerminalThemeId,
-  );
+  const setColorTheme = useAppSettingsStore((state) => state.setColorTheme);
+  const setThemeMode = useAppSettingsStore((state) => state.setThemeMode);
   const setFontFamily = useAppSettingsStore((state) => state.setFontFamily);
   const setFontSize = useAppSettingsStore((state) => state.setFontSize);
   const setOpenLocalOnStart = useAppSettingsStore(
     (state) => state.setOpenLocalTerminalOnStart,
   );
 
-  useEffect(() => {
-    if (theme && theme !== uiTheme) {
-      setUiTheme(theme as UiTheme);
-    }
-  }, [theme, uiTheme, setUiTheme]);
-
-  const handleUiThemeChange = (next: UiTheme) => {
-    setUiTheme(next);
+  const handleThemeModeChange = (next: ThemeMode) => {
+    setThemeMode(next);
     setTheme(next);
   };
 
@@ -144,16 +133,16 @@ export function SettingsPage() {
     ]),
   ) as Record<AppLanguage, string>;
 
-  const uiThemeLabels = Object.fromEntries(
-    UI_THEMES.map((item) => [item, t(`common:theme.${item}`)]),
-  ) as Record<UiTheme, string>;
+  const themeModeLabels = Object.fromEntries(
+    THEME_MODES.map((item) => [item, t(`common:theme.${item}`)]),
+  ) as Record<ThemeMode, string>;
 
-  const terminalThemeLabels = Object.fromEntries(
-    TERMINAL_THEMES.map((item) => [
+  const colorThemeLabels = Object.fromEntries(
+    COLOR_THEME_IDS.map((item) => [
       item,
-      t(`settings:terminalThemes.${item}`),
+      t(`settings:colorThemes.${item}`),
     ]),
-  ) as Record<TerminalThemeId, string>;
+  ) as Record<ColorThemeId, string>;
 
   return (
     <div className="flex h-full min-h-0">
@@ -208,26 +197,26 @@ export function SettingsPage() {
             </h2>
             <div className="mt-2 divide-y rounded-xl border bg-card px-4">
               <SettingsRow
-                title={t("settings:appearance.uiTheme")}
-                description={t("settings:appearance.uiThemeDescription")}
+                title={t("settings:appearance.colorTheme")}
+                description={t("settings:appearance.colorThemeDescription")}
               >
                 <SettingsSelect
-                  value={uiTheme}
-                  options={UI_THEMES}
-                  labels={uiThemeLabels}
-                  onChange={handleUiThemeChange}
+                  value={colorTheme}
+                  options={[...COLOR_THEME_IDS]}
+                  labels={colorThemeLabels}
+                  onChange={setColorTheme}
+                  className="w-56"
                 />
               </SettingsRow>
               <SettingsRow
-                title={t("settings:appearance.terminalTheme")}
-                description={t("settings:appearance.terminalThemeDescription")}
+                title={t("settings:appearance.themeMode")}
+                description={t("settings:appearance.themeModeDescription")}
               >
                 <SettingsSelect
-                  value={terminalThemeId}
-                  options={TERMINAL_THEMES}
-                  labels={terminalThemeLabels}
-                  onChange={setTerminalThemeId}
-                  className="w-56"
+                  value={themeMode}
+                  options={THEME_MODES}
+                  labels={themeModeLabels}
+                  onChange={handleThemeModeChange}
                 />
               </SettingsRow>
               <SettingsRow
@@ -236,7 +225,8 @@ export function SettingsPage() {
                 <Input
                   value={fontFamily}
                   onChange={(event) => setFontFamily(event.target.value)}
-                  className="w-56"
+                  placeholder={DEFAULT_TERMINAL_FONT_FAMILY}
+                  className="w-56 font-mono text-xs"
                 />
               </SettingsRow>
               <SettingsRow title={t("settings:appearance.fontSize")}>

@@ -36,12 +36,25 @@
     "label": "Sort",
     "nameAsc": "Name (A–Z)",
     "nameDesc": "Name (Z–A)",
-    "recent": "Recent"
+    "recent": "Recent",
+    "custom": "Custom"
+  },
+  "dragHandle": "Drag to reorder",
+  "sidebarGroups": {
+    "new": "New Group",
+    "newDescription": "Create a custom group for your tabs.",
+    "create": "Create",
+    "rename": "Rename Group",
+    "renameDescription": "Enter a new name for this group.",
+    "delete": "Delete Group",
+    "dropHere": "Drop tabs here"
   },
   "contextMenu": {
     "close": "Close Tab",
     "closeOthers": "Close Other Tabs",
-    "duplicate": "Duplicate Tab"
+    "duplicate": "Duplicate Tab",
+    "rename": "Rename Tab",
+    "renameDescription": "Enter a new name for this tab."
   },
   "hostKey": {
     "title": "Unknown Host Key",
