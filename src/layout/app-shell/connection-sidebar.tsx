@@ -3,7 +3,9 @@ import { useTranslation } from "react-i18next";
 import {
   ArrowUpDownIcon,
   ChevronRightIcon,
+  CopyIcon,
   PlusIcon,
+  XIcon,
 } from "lucide-react";
 import { ConnectionDialog } from "@/components/connections/connection-dialog";
 import type { ConnectionProfile, Session } from "@/types/connection";
@@ -30,6 +32,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
 import { cn } from "@/lib/utils";
 
 type SessionSort = "nameAsc" | "nameDesc" | "recent";
@@ -58,30 +67,87 @@ function sortSessions(sessions: Session[], sort: SessionSort): Session[] {
 }
 
 function SessionTabItem({ session }: { session: Session }) {
+  const { t } = useTranslation(["connections", "common"]);
+  const sessions = useSessionStore((state) => state.sessions);
   const activeSessionId = useSessionStore((state) => state.activeSessionId);
   const setActiveSession = useSessionStore((state) => state.setActiveSession);
+  const closeSession = useSessionStore((state) => state.closeSession);
+  const addSession = useSessionStore((state) => state.addSession);
 
   const isActive = session.id === activeSessionId;
   const label = formatSidebarLabel(session);
   const shellBadge = getShellBadge(session);
+  const otherTerminalCount = sessions.filter(
+    (item) => item.kind === "terminal" && item.id !== session.id,
+  ).length;
+
+  const handleClose = () => {
+    closeSession(session.id);
+  };
+
+  const handleCloseOthers = () => {
+    setActiveSession(session.id);
+    const otherIds = sessions
+      .filter((item) => item.kind === "terminal" && item.id !== session.id)
+      .map((item) => item.id);
+    for (const id of otherIds) {
+      closeSession(id);
+    }
+  };
+
+  const handleDuplicate = () => {
+    addSession({
+      kind: session.kind,
+      title: session.title,
+      profileId: session.profileId,
+      protocol: session.protocol,
+      shellId: session.shellId,
+      shellName: session.shellName,
+      tabLabel: session.tabLabel,
+      status: session.protocol === "ssh" ? "creating" : undefined,
+    });
+  };
 
   return (
-    <button
-      type="button"
-      title={label}
-      onClick={() => setActiveSession(session.id)}
-      className={cn(
-        "flex h-7 w-full items-center gap-2 rounded-md px-2 text-left text-[13px] transition-colors",
-        isActive
-          ? "bg-muted/80 text-foreground"
-          : "text-muted-foreground hover:bg-muted/40 hover:text-foreground",
-      )}
-    >
-      <span className="min-w-0 flex-1 truncate font-mono">{label}</span>
-      <span className="shrink-0 text-[11px] text-muted-foreground/80">
-        {shellBadge}
-      </span>
-    </button>
+    <ContextMenu>
+      <ContextMenuTrigger
+        render={
+          <button
+            type="button"
+            title={label}
+            onClick={() => setActiveSession(session.id)}
+            className={cn(
+              "flex h-7 w-full items-center gap-2 rounded-md px-2 text-left text-[13px] transition-colors",
+              isActive
+                ? "bg-muted/80 text-foreground"
+                : "text-muted-foreground hover:bg-muted/40 hover:text-foreground",
+            )}
+          />
+        }
+      >
+        <span className="min-w-0 flex-1 truncate font-mono">{label}</span>
+        <span className="shrink-0 text-[11px] text-muted-foreground/80">
+          {shellBadge}
+        </span>
+      </ContextMenuTrigger>
+      <ContextMenuContent className="w-48">
+        <ContextMenuItem onClick={handleDuplicate}>
+          <CopyIcon />
+          {t("connections:contextMenu.duplicate")}
+        </ContextMenuItem>
+        <ContextMenuSeparator />
+        <ContextMenuItem onClick={handleClose}>
+          <XIcon />
+          {t("connections:contextMenu.close")}
+        </ContextMenuItem>
+        <ContextMenuItem
+          onClick={handleCloseOthers}
+          disabled={otherTerminalCount === 0}
+        >
+          {t("connections:contextMenu.closeOthers")}
+        </ContextMenuItem>
+      </ContextMenuContent>
+    </ContextMenu>
   );
 }
 

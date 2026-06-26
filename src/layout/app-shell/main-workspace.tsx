@@ -1,10 +1,10 @@
 import { useTranslation } from "react-i18next";
 import { useSessionStore } from "@/stores/session-store";
-import { TerminalPane } from "@/components/terminal/terminal-pane";
-import { SshTerminalPane } from "@/components/terminal/ssh-terminal-pane";
-import { TerminalPathBar } from "@/components/terminal/terminal-path-bar";
-import { FileManager } from "@/components/files/file-manager";
-import { NewTerminalMenu } from "@/components/terminal/new-terminal-menu";
+import { TerminalPane } from "@/page/terminal/terminal-pane";
+import { SshTerminalPane } from "@/page/terminal/ssh-terminal-pane";
+import { TerminalPathBar } from "@/page/terminal/terminal-path-bar";
+import { FileManager } from "@/page/files/file-manager";
+import { NewTerminalMenu } from "@/page/terminal/new-terminal-menu";
 
 function EmptyWorkspace() {
   const { t } = useTranslation(["common", "terminal"]);

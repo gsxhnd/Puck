@@ -1,5 +1,5 @@
-import { SettingsPage } from "@/components/settings/settings-page";
-import { WindowTitleBar } from "@/components/app-shell/window-title-bar";
+import { SettingsPage } from "@/page/settings/settings-page";
+import { WindowTitleBar } from "@/layout/app-shell/window-title-bar";
 import { getPlatform } from "@/lib/platform";
 
 export function SettingsShell() {

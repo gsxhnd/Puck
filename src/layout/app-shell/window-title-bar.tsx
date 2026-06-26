@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { PanelLeftIcon, PanelRightIcon } from "lucide-react";
-import { WindowControls } from "@/components/app-shell/window-controls";
+import { WindowControls } from "@/layout/app-shell/window-controls";
 import { Button } from "@/components/ui/button";
 import {
   Tooltip,

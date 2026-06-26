@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import type { PanelImperativeHandle } from "react-resizable-panels";
-import { ConnectionSidebar } from "@/components/app-shell/connection-sidebar";
-import { MainWorkspace } from "@/components/app-shell/main-workspace";
-import { SecondarySidebar } from "@/components/app-shell/secondary-sidebar";
-import { WindowTitleBar } from "@/components/app-shell/window-title-bar";
+import { ConnectionSidebar } from "@/layout/app-shell/connection-sidebar";
+import { MainWorkspace } from "@/layout/app-shell/main-workspace";
+import { SecondarySidebar } from "@/layout/app-shell/secondary-sidebar";
+import { WindowTitleBar } from "@/layout/app-shell/window-title-bar";
 import { openSettingsWindow } from "@/lib/open-settings-window";
 import { getPlatform } from "@/lib/platform";
 import { useAppSettingsStore } from "@/stores/app-settings-store";

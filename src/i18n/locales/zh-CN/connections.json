@@ -38,6 +38,11 @@
     "nameDesc": "名称 (Z–A)",
     "recent": "最近"
   },
+  "contextMenu": {
+    "close": "关闭标签页",
+    "closeOthers": "关闭其他标签页",
+    "duplicate": "复制标签页"
+  },
   "hostKey": {
     "title": "未知主机密钥",
     "description": "尚未信任此服务器的主机密钥，请核对指纹后继续。",

@@ -213,6 +213,14 @@ html[data-window-chrome="macos-tauri"] [data-app-shell] {
   @apply bg-border/50;
 }
 
+[data-shell="main"] [data-slot="resizable-handle"][data-separator="active"] {
+  @apply bg-primary;
+}
+
+[data-shell="main"] [data-slot="resizable-handle"][data-separator="active"] > div {
+  @apply bg-primary;
+}
+
 [data-shell="settings"] .window-title-bar {
   @apply border-b border-border/80;
 }
