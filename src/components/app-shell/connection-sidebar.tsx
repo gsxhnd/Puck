@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { NewTerminalMenu } from "@/components/terminal/new-terminal-menu";
 import { ConnectionDialog } from "@/components/connections/connection-dialog";
+import { openSettingsWindow } from "@/lib/open-settings-window";
 import type { ConnectionProfile, ConnectionProtocol } from "@/types/connection";
 import { useConnectionStore } from "@/stores/connection-store";
 import { useSessionStore } from "@/stores/session-store";
@@ -190,7 +191,6 @@ function ConnectionItem({
 export function ConnectionSidebar() {
   const { t } = useTranslation(["connections", "common"]);
   const profiles = useConnectionStore((state) => state.profiles);
-  const openSettings = useSessionStore((state) => state.openSettings);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<ProtocolFilter>("all");
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -237,20 +237,7 @@ export function ConnectionSidebar() {
 
   return (
     <Sidebar collapsible="icon" className="border-r">
-      <SidebarHeader className="gap-3 p-3">
-        <div className="flex items-center gap-2 px-1 group-data-[collapsible=icon]:hidden">
-          <div className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <TerminalIcon className="size-4" />
-          </div>
-          <div className="min-w-0">
-            <div className="truncate text-sm font-semibold">
-              {t("common:app.name")}
-            </div>
-            <div className="truncate text-xs text-muted-foreground">
-              {t("common:app.tagline")}
-            </div>
-          </div>
-        </div>
+      <SidebarHeader className="gap-2 p-3">
         <Input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
@@ -272,10 +259,10 @@ export function ConnectionSidebar() {
       </SidebarHeader>
 
       <SidebarContent>
-        <SidebarGroup>
+        <SidebarGroup className="min-h-0 flex-1">
           <SidebarGroupLabel>{t("connections:title")}</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <ScrollArea className="h-[calc(100vh-16rem)]">
+          <SidebarGroupContent className="min-h-0 flex-1">
+            <ScrollArea className="h-full min-h-0">
               <SidebarMenu>
                 {filteredProfiles.length === 0 ? (
                   <div className="px-3 py-6 text-center text-xs text-muted-foreground group-data-[collapsible=icon]:hidden">
@@ -318,7 +305,7 @@ export function ConnectionSidebar() {
                 className="w-full justify-start group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-0"
                 variant="ghost"
                 size="sm"
-                onClick={openSettings}
+                onClick={() => void openSettingsWindow()}
               >
                 <ServerIcon />
                 <span className="group-data-[collapsible=icon]:hidden">

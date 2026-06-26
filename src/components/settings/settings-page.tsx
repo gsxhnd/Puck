@@ -7,6 +7,13 @@ import type { AppLanguage, TerminalThemeId, UiTheme } from "@/types/settings";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { Kbd } from "@/components/ui/kbd";
@@ -56,30 +63,44 @@ function SettingsRow({
   );
 }
 
-function OptionGroup<T extends string>({
+function SettingsSelect<T extends string>({
   value,
   options,
   labels,
   onChange,
+  className,
 }: {
   value: T;
   options: T[];
   labels: Record<T, string>;
   onChange: (value: T) => void;
+  className?: string;
 }) {
+  const items = Object.fromEntries(
+    options.map((option) => [option, labels[option]]),
+  ) as Record<T, string>;
+
   return (
-    <div className="flex flex-wrap justify-end gap-1">
-      {options.map((option) => (
-        <Button
-          key={option}
-          size="sm"
-          variant={value === option ? "secondary" : "outline"}
-          onClick={() => onChange(option)}
-        >
-          {labels[option]}
-        </Button>
-      ))}
-    </div>
+    <Select
+      value={value}
+      items={items}
+      onValueChange={(next) => {
+        if (next !== null) {
+          onChange(next as T);
+        }
+      }}
+    >
+      <SelectTrigger size="sm" className={cn("w-48", className)}>
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        {options.map((option) => (
+          <SelectItem key={option} value={option}>
+            {labels[option]}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }
 
@@ -162,7 +183,7 @@ export function SettingsPage() {
                 title={t("settings:general.language")}
                 description={t("settings:general.languageDescription")}
               >
-                <OptionGroup
+                <SettingsSelect
                   value={language}
                   options={LANGUAGES}
                   labels={languageLabels}
@@ -190,7 +211,7 @@ export function SettingsPage() {
                 title={t("settings:appearance.uiTheme")}
                 description={t("settings:appearance.uiThemeDescription")}
               >
-                <OptionGroup
+                <SettingsSelect
                   value={uiTheme}
                   options={UI_THEMES}
                   labels={uiThemeLabels}
@@ -201,11 +222,12 @@ export function SettingsPage() {
                 title={t("settings:appearance.terminalTheme")}
                 description={t("settings:appearance.terminalThemeDescription")}
               >
-                <OptionGroup
+                <SettingsSelect
                   value={terminalThemeId}
                   options={TERMINAL_THEMES}
                   labels={terminalThemeLabels}
                   onChange={setTerminalThemeId}
+                  className="w-56"
                 />
               </SettingsRow>
               <SettingsRow

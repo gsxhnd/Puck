@@ -45,5 +45,11 @@
     "light": "Light",
     "dark": "Dark",
     "system": "System"
+  },
+  "window": {
+    "minimize": "Minimize",
+    "maximize": "Maximize",
+    "restore": "Restore",
+    "close": "Close"
   }
 }

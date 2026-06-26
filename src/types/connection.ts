@@ -26,7 +26,7 @@ export type SessionStatus =
   | "failed"
   | "closing";
 
-export type SessionKind = "terminal" | "files" | "settings";
+export type SessionKind = "terminal" | "files";
 
 export type Session = {
   id: string;

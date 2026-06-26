@@ -1,26 +1,17 @@
 import { useTranslation } from "react-i18next";
-import { SettingsIcon, XIcon } from "lucide-react";
+import { XIcon } from "lucide-react";
 import { useSessionStore } from "@/stores/session-store";
-import { NewTerminalMenu } from "@/components/terminal/new-terminal-menu";
-import { Button } from "@/components/ui/button";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
-export function SessionTabs() {
-  const { t } = useTranslation(["common", "terminal", "settings"]);
+export function SessionTabStrip() {
+  const { t } = useTranslation(["common", "terminal"]);
   const sessions = useSessionStore((state) => state.sessions);
   const activeSessionId = useSessionStore((state) => state.activeSessionId);
   const setActiveSession = useSessionStore((state) => state.setActiveSession);
   const closeSession = useSessionStore((state) => state.closeSession);
-  const openSettings = useSessionStore((state) => state.openSettings);
 
   const resolveTitle = (session: (typeof sessions)[number]) => {
-    if (session.kind === "settings") return t("settings:title");
     if (
       session.title === "__local__" ||
       session.title === "Local Terminal" ||
@@ -32,72 +23,46 @@ export function SessionTabs() {
   };
 
   return (
-    <div className="flex h-10 shrink-0 items-center gap-1 border-b bg-background px-2">
-      <ScrollArea className="max-w-[calc(100%-5rem)] whitespace-nowrap">
-        <div className="flex items-center gap-1 pr-2">
-          {sessions.length === 0 ? (
-            <span className="px-2 text-xs text-muted-foreground">
-              {t("common:empty.noSessions")}
-            </span>
-          ) : (
-            sessions.map((session) => {
-              const active = session.id === activeSessionId;
-              return (
-                <div
-                  key={session.id}
-                  className={cn(
-                    "group inline-flex h-8 max-w-56 items-center rounded-md border text-sm transition-colors",
-                    active
-                      ? "border-border bg-muted text-foreground"
-                      : "border-transparent text-muted-foreground hover:bg-muted/60 hover:text-foreground",
-                  )}
-                >
-                  <button
-                    type="button"
-                    className="min-w-0 flex-1 truncate px-3 py-1 text-left"
-                    onClick={() => setActiveSession(session.id)}
-                  >
-                    {resolveTitle(session)}
-                  </button>
-                  <button
-                    type="button"
-                    className="mr-1 inline-flex size-6 items-center justify-center rounded-sm opacity-0 transition-opacity group-hover:opacity-100 hover:bg-background/80"
-                    aria-label={t("common:actions.close")}
-                    onClick={() => closeSession(session.id)}
-                  >
-                    <XIcon className="size-3.5" />
-                  </button>
-                </div>
-              );
-            })
-          )}
-        </div>
-        <ScrollBar orientation="horizontal" />
-      </ScrollArea>
-
-      <div className="ml-auto flex items-center gap-1">
-        <NewTerminalMenu
-          variant="ghost"
-          size="icon-xs"
-          showLabel={false}
-          className="size-7"
-        />
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <Button
-                variant="ghost"
-                size="icon-xs"
-                aria-label={t("common:actions.settings")}
-                onClick={openSettings}
+    <ScrollArea className="min-w-0 flex-1 whitespace-nowrap">
+      <div className="flex items-center gap-1 px-1">
+        {sessions.length === 0 ? (
+          <span className="px-2 text-xs text-muted-foreground">
+            {t("common:empty.noSessions")}
+          </span>
+        ) : (
+          sessions.map((session) => {
+            const active = session.id === activeSessionId;
+            return (
+              <div
+                key={session.id}
+                className={cn(
+                  "group inline-flex h-7 max-w-56 shrink-0 items-center rounded-md border text-sm transition-colors",
+                  active
+                    ? "border-border bg-muted text-foreground"
+                    : "border-transparent text-muted-foreground hover:bg-muted/60 hover:text-foreground",
+                )}
               >
-                <SettingsIcon />
-              </Button>
-            }
-          />
-          <TooltipContent>{t("common:actions.settings")}</TooltipContent>
-        </Tooltip>
+                <button
+                  type="button"
+                  className="min-w-0 flex-1 truncate px-2.5 py-1 text-left"
+                  onClick={() => setActiveSession(session.id)}
+                >
+                  {resolveTitle(session)}
+                </button>
+                <button
+                  type="button"
+                  className="mr-0.5 inline-flex size-5 items-center justify-center rounded-sm opacity-0 transition-opacity group-hover:opacity-100 hover:bg-background/80"
+                  aria-label={t("common:actions.close")}
+                  onClick={() => closeSession(session.id)}
+                >
+                  <XIcon className="size-3.5" />
+                </button>
+              </div>
+            );
+          })
+        )}
       </div>
-    </div>
+      <ScrollBar orientation="horizontal" />
+    </ScrollArea>
   );
 }

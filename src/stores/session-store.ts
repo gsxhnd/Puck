@@ -21,7 +21,6 @@ type SessionStore = {
   setActiveSession: (id: string) => void;
   renameSession: (id: string, title: string) => void;
   updateSessionStatus: (id: string, status: SessionStatus) => void;
-  openSettings: () => void;
 };
 
 function createSession(
@@ -78,15 +77,5 @@ export const useSessionStore = create<SessionStore>()((set, get) => ({
         session.id === id ? { ...session, status } : session,
       ),
     }));
-  },
-  openSettings: () => {
-    const existing = get().sessions.find(
-      (session) => session.kind === "settings",
-    );
-    if (existing) {
-      set({ activeSessionId: existing.id });
-      return;
-    }
-    get().addSession({ kind: "settings", title: "__settings__" });
   },
 }));

@@ -1,6 +1,5 @@
 import { useTranslation } from "react-i18next";
 import { useSessionStore } from "@/stores/session-store";
-import { SettingsPage } from "@/components/settings/settings-page";
 import { TerminalPane } from "@/components/terminal/terminal-pane";
 import { SshTerminalPane } from "@/components/terminal/ssh-terminal-pane";
 import { FileManager } from "@/components/files/file-manager";
@@ -70,12 +69,6 @@ export function MainWorkspace() {
           active={session.id === activeSessionId}
         />
       ))}
-
-      {activeSession.kind === "settings" ? (
-        <div className="absolute inset-0 min-h-0 overflow-hidden">
-          <SettingsPage />
-        </div>
-      ) : null}
     </div>
   );
 }

@@ -45,5 +45,11 @@
     "light": "浅色",
     "dark": "深色",
     "system": "跟随系统"
+  },
+  "window": {
+    "minimize": "最小化",
+    "maximize": "最大化",
+    "restore": "还原",
+    "close": "关闭"
   }
 }
