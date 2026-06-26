@@ -31,6 +31,13 @@
     "openSftp": "Open SFTP",
     "openFiles": "Open File Manager"
   },
+  "tabsTitle": "TABS",
+  "sort": {
+    "label": "Sort",
+    "nameAsc": "Name (A–Z)",
+    "nameDesc": "Name (Z–A)",
+    "recent": "Recent"
+  },
   "hostKey": {
     "title": "Unknown Host Key",
     "description": "This server's host key is not trusted yet. Verify the fingerprint before continuing.",

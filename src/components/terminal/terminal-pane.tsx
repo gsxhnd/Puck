@@ -13,12 +13,14 @@ import { useAppSettingsStore } from "@/stores/app-settings-store";
 import { useSessionStore } from "@/stores/session-store";
 import {
   closeSession,
+  getSystemIdentity,
   onTerminalData,
   onTerminalExit,
   openLocalTerminal,
   resizeTerminal,
   writeTerminal,
 } from "@/lib/tauri-terminal";
+import { buildTabLabel, extractOsc7Cwd } from "@/lib/session-display";
 import { getTerminalTheme } from "@/lib/terminal-themes";
 import { cn } from "@/lib/utils";
 
@@ -40,7 +42,7 @@ export function TerminalPane({ sessionId, shellId, active }: TerminalPaneProps) 
   const updateSessionStatus = useSessionStore(
     (state) => state.updateSessionStatus,
   );
-  const renameSession = useSessionStore((state) => state.renameSession);
+  const updateSessionMeta = useSessionStore((state) => state.updateSessionMeta);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -88,10 +90,22 @@ export function TerminalPane({ sessionId, shellId, active }: TerminalPaneProps) 
 
     void (async () => {
       updateSessionStatus(sessionId, "creating");
+      const identity = await getSystemIdentity();
 
       const unlistenDataFn = await onTerminalData((event) => {
         if (event.sessionId !== sessionId || disposed) return;
         terminal.write(event.data);
+
+        const osc7 = extractOsc7Cwd(event.data);
+        if (osc7) {
+          updateSessionMeta(sessionId, {
+            tabLabel: buildTabLabel(
+              identity.username,
+              osc7.hostname || identity.hostname,
+              osc7.cwd,
+            ),
+          });
+        }
       });
       const unlistenExitFn = await onTerminalExit((event) => {
         if (event.sessionId !== sessionId || disposed) return;
@@ -119,15 +133,10 @@ export function TerminalPane({ sessionId, shellId, active }: TerminalPaneProps) 
         });
         openedRef.current = true;
         updateSessionStatus(sessionId, "connected");
-        if (
-          !shellId &&
-          (result.shell.name.includes("default") ||
-            result.shell.kind.length > 0)
-        ) {
-          renameSession(sessionId, result.shell.name);
-        } else if (shellId) {
-          renameSession(sessionId, result.shell.name);
-        }
+        updateSessionMeta(sessionId, {
+          shellName: result.shell.kind,
+          tabLabel: buildTabLabel(identity.username, identity.hostname, "~"),
+        });
       } catch {
         updateSessionStatus(sessionId, "failed");
         terminal.writeln(`\r\n${t("openFailed")}\r\n`);
@@ -155,10 +164,10 @@ export function TerminalPane({ sessionId, shellId, active }: TerminalPaneProps) 
       openedRef.current = false;
     };
   }, [
-    renameSession,
     sessionId,
     shellId,
     t,
+    updateSessionMeta,
     updateSessionStatus,
   ]);
 

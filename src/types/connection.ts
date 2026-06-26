@@ -35,6 +35,8 @@ export type Session = {
   profileId?: string;
   protocol?: ConnectionProtocol;
   shellId?: string;
+  shellName?: string;
+  tabLabel?: string;
   status: SessionStatus;
   createdAt: string;
 };

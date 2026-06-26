@@ -8,9 +8,9 @@ import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
@@ -70,19 +70,20 @@ export function NewTerminalMenu({
         }
       />
       <DropdownMenuContent align="start" className="w-64">
-        <DropdownMenuLabel>{t("terminal:pickShell")}</DropdownMenuLabel>
-        <DropdownMenuItem onClick={openDefault}>
-          {t("terminal:localDefault")}
-        </DropdownMenuItem>
-        {shells.length > 0 ? <DropdownMenuSeparator /> : null}
-        {shells.map((shell) => (
-          <DropdownMenuItem key={shell.id} onClick={() => openShell(shell)}>
-            <span className="truncate">{shell.name}</span>
-            <span className="ml-auto text-xs text-muted-foreground uppercase">
-              {shell.kind}
-            </span>
+        <DropdownMenuGroup>
+          <DropdownMenuLabel>{t("terminal:pickShell")}</DropdownMenuLabel>
+          <DropdownMenuItem onClick={openDefault}>
+            {t("terminal:localDefault")}
           </DropdownMenuItem>
-        ))}
+          {shells.map((shell) => (
+            <DropdownMenuItem key={shell.id} onClick={() => openShell(shell)}>
+              <span className="truncate">{shell.name}</span>
+              <span className="ml-auto text-xs text-muted-foreground uppercase">
+                {shell.kind}
+              </span>
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuGroup>
       </DropdownMenuContent>
     </DropdownMenu>
   );

@@ -31,6 +31,13 @@
     "openSftp": "打开 SFTP",
     "openFiles": "打开文件管理器"
   },
+  "tabsTitle": "TABS",
+  "sort": {
+    "label": "排序",
+    "nameAsc": "名称 (A–Z)",
+    "nameDesc": "名称 (Z–A)",
+    "recent": "最近"
+  },
   "hostKey": {
     "title": "未知主机密钥",
     "description": "尚未信任此服务器的主机密钥，请核对指纹后继续。",

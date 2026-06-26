@@ -67,6 +67,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             terminal::list_shells,
+            terminal::get_system_identity,
             terminal::open_local_terminal,
             terminal::write_terminal,
             terminal::resize_terminal,

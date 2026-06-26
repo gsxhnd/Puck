@@ -15,12 +15,28 @@ type SessionStore = {
     profileId?: string;
     protocol?: ConnectionProtocol;
     shellId?: string;
+    shellName?: string;
+    tabLabel?: string;
+    status?: SessionStatus;
+  }) => Session;
+  openOrFocusSession: (partial: {
+    kind: SessionKind;
+    title: string;
+    profileId?: string;
+    protocol?: ConnectionProtocol;
+    shellId?: string;
+    shellName?: string;
+    tabLabel?: string;
     status?: SessionStatus;
   }) => Session;
   closeSession: (id: string) => void;
   setActiveSession: (id: string) => void;
   renameSession: (id: string, title: string) => void;
   updateSessionStatus: (id: string, status: SessionStatus) => void;
+  updateSessionMeta: (
+    id: string,
+    meta: { shellName?: string; tabLabel?: string },
+  ) => void;
 };
 
 function createSession(
@@ -33,6 +49,8 @@ function createSession(
     profileId: partial.profileId,
     protocol: partial.protocol,
     shellId: partial.shellId,
+    shellName: partial.shellName,
+    tabLabel: partial.tabLabel,
     status: partial.status ?? "connected",
     createdAt: new Date().toISOString(),
   };
@@ -48,6 +66,21 @@ export const useSessionStore = create<SessionStore>()((set, get) => ({
       activeSessionId: session.id,
     }));
     return session;
+  },
+  openOrFocusSession: (partial) => {
+    const state = get();
+    if (partial.profileId) {
+      const existing = state.sessions.find(
+        (session) =>
+          session.profileId === partial.profileId &&
+          session.kind === partial.kind,
+      );
+      if (existing) {
+        set({ activeSessionId: existing.id });
+        return existing;
+      }
+    }
+    return get().addSession(partial);
   },
   closeSession: (id) => {
     set((state) => {
@@ -75,6 +108,13 @@ export const useSessionStore = create<SessionStore>()((set, get) => ({
     set((state) => ({
       sessions: state.sessions.map((session) =>
         session.id === id ? { ...session, status } : session,
+      ),
+    }));
+  },
+  updateSessionMeta: (id, meta) => {
+    set((state) => ({
+      sessions: state.sessions.map((session) =>
+        session.id === id ? { ...session, ...meta } : session,
       ),
     }));
   },

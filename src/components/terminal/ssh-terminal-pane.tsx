@@ -27,6 +27,11 @@ import {
   trustSshHostKey,
 } from "@/lib/tauri-ssh";
 import { getTerminalTheme } from "@/lib/terminal-themes";
+import {
+  buildTabLabel,
+  extractOsc7Cwd,
+  profileTabLabel,
+} from "@/lib/session-display";
 import { isHostKeyError, parsePuckError } from "@/lib/puck-error";
 import { HostKeyDialog } from "@/components/ssh/host-key-dialog";
 import { Button } from "@/components/ui/button";
@@ -65,6 +70,7 @@ export function SshTerminalPane({
   const updateSessionStatus = useSessionStore(
     (state) => state.updateSessionStatus,
   );
+  const updateSessionMeta = useSessionStore((state) => state.updateSessionMeta);
   const sessionStatus = useSessionStore((state) =>
     state.sessions.find((item) => item.id === sessionId)?.status,
   );
@@ -79,6 +85,10 @@ export function SshTerminalPane({
       await openSshTerminal(profileToSshRequest(sessionId, profile, cols, rows));
       openedRef.current = true;
       updateSessionStatus(sessionId, "connected");
+      updateSessionMeta(sessionId, {
+        shellName: "ssh",
+        tabLabel: profileTabLabel(profile),
+      });
     } catch (error) {
       const hostKey = isHostKeyError(error);
       if (hostKey) {
@@ -136,6 +146,17 @@ export function SshTerminalPane({
       unlistenData = await onTerminalData((event) => {
         if (event.sessionId !== sessionId || disposed) return;
         terminal.write(event.data);
+
+        const osc7 = extractOsc7Cwd(event.data);
+        if (osc7 && profile) {
+          updateSessionMeta(sessionId, {
+            tabLabel: buildTabLabel(
+              profile.username || "user",
+              osc7.hostname || profile.host || "host",
+              osc7.cwd,
+            ),
+          });
+        }
       });
       unlistenExit = await onTerminalExit((event) => {
         if (event.sessionId !== sessionId || disposed) return;
@@ -188,6 +209,7 @@ export function SshTerminalPane({
     sessionId,
     t,
     terminalThemeId,
+    updateSessionMeta,
     updateSessionStatus,
   ]);
 

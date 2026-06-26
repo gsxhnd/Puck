@@ -3,12 +3,17 @@ import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import type {
   OpenLocalTerminalResult,
   ShellInfo,
+  SystemIdentity,
   TerminalDataEvent,
   TerminalExitEvent,
 } from "@/types/shell";
 
 export function listShells(): Promise<ShellInfo[]> {
   return invoke<ShellInfo[]>("list_shells");
+}
+
+export function getSystemIdentity(): Promise<SystemIdentity> {
+  return invoke<SystemIdentity>("get_system_identity");
 }
 
 export function openLocalTerminal(args: {

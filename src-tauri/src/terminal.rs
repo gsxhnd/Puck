@@ -29,6 +29,42 @@ pub struct OpenLocalTerminalResult {
     pub shell: ShellInfo,
 }
 
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SystemIdentity {
+    pub username: String,
+    pub hostname: String,
+}
+
+#[tauri::command]
+pub fn get_system_identity() -> SystemIdentity {
+    let username = std::env::var("USER")
+        .or_else(|_| std::env::var("USERNAME"))
+        .unwrap_or_else(|_| "user".into());
+
+    let hostname = std::env::var("HOSTNAME")
+        .or_else(|_| std::env::var("COMPUTERNAME"))
+        .unwrap_or_else(|_| read_hostname().unwrap_or_else(|| "localhost".into()));
+
+    SystemIdentity { username, hostname }
+}
+
+fn read_hostname() -> Option<String> {
+    #[cfg(unix)]
+    {
+        std::process::Command::new("hostname")
+            .output()
+            .ok()
+            .and_then(|output| String::from_utf8(output.stdout).ok())
+            .map(|value| value.trim().to_string())
+            .filter(|value| !value.is_empty())
+    }
+    #[cfg(not(unix))]
+    {
+        None
+    }
+}
+
 #[tauri::command]
 pub fn list_shells() -> Vec<ShellInfo> {
     crate::shell::list_shells()

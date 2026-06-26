@@ -20,3 +20,8 @@ export type OpenLocalTerminalResult = {
   sessionId: string;
   shell: ShellInfo;
 };
+
+export type SystemIdentity = {
+  username: string;
+  hostname: string;
+};
