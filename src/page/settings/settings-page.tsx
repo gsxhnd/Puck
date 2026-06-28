@@ -1,6 +1,7 @@
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import packageJson from "../../../package.json";
 import { useAppSettingsStore } from "@/stores/app-settings-store";
+import { useAppVersion } from "@/lib/use-app-version";
 import { COLOR_THEME_IDS } from "@/lib/color-themes";
 import type { ColorThemeId } from "@/lib/color-themes";
 import {
@@ -102,6 +103,8 @@ function SettingsSelect<T extends string>({
 
 export function SettingsPage() {
   const { t } = useTranslation(["settings", "common"]);
+  const [activeSection, setActiveSection] = useState<SettingsSection>("general");
+  const appVersion = useAppVersion();
   const language = useAppSettingsStore((state) => state.language);
   const colorTheme = useAppSettingsStore((state) => state.colorTheme);
   const themeMode = useAppSettingsStore((state) => state.themeMode);
@@ -137,26 +140,47 @@ export function SettingsPage() {
     ]),
   ) as Record<ColorThemeId, string>;
 
+  const sectionLabels = Object.fromEntries(
+    SECTIONS.map((section) => [section, t(`settings:sections.${section}`)]),
+  ) as Record<SettingsSection, string>;
+
   return (
     <div className="flex h-full min-h-0">
       <aside className="hidden w-52 shrink-0 border-r bg-muted/20 p-3 md:block">
         <div className="px-2 py-1 text-sm font-semibold">{t("settings:title")}</div>
         <nav className="mt-2 space-y-1">
           {SECTIONS.map((section) => (
-            <a
+            <button
               key={section}
-              href={`#settings-${section}`}
-              className="block rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
+              type="button"
+              onClick={() => setActiveSection(section)}
+              className={cn(
+                "block w-full rounded-md px-2 py-1.5 text-left text-sm transition-colors",
+                activeSection === section
+                  ? "bg-muted font-medium text-foreground"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground",
+              )}
             >
-              {t(`settings:sections.${section}`)}
-            </a>
+              {sectionLabels[section]}
+            </button>
           ))}
         </nav>
       </aside>
 
       <ScrollArea className="min-h-0 flex-1">
-        <div className="mx-auto max-w-3xl space-y-8 p-6">
-          <section id="settings-general">
+        <div className="mx-auto max-w-3xl space-y-6 p-6">
+          <div className="md:hidden">
+            <SettingsSelect
+              value={activeSection}
+              options={[...SECTIONS]}
+              labels={sectionLabels}
+              onChange={setActiveSection}
+              className="w-full"
+            />
+          </div>
+
+          {activeSection === "general" ? (
+          <section>
             <h2 className="text-base font-semibold">
               {t("settings:sections.general")}
             </h2>
@@ -183,8 +207,10 @@ export function SettingsPage() {
               </SettingsRow>
             </div>
           </section>
+          ) : null}
 
-          <section id="settings-appearance">
+          {activeSection === "appearance" ? (
+          <section>
             <h2 className="text-base font-semibold">
               {t("settings:sections.appearance")}
             </h2>
@@ -236,8 +262,10 @@ export function SettingsPage() {
               </SettingsRow>
             </div>
           </section>
+          ) : null}
 
-          <section id="settings-connections">
+          {activeSection === "connections" ? (
+          <section>
             <h2 className="text-base font-semibold">
               {t("settings:sections.connections")}
             </h2>
@@ -260,8 +288,10 @@ export function SettingsPage() {
               </SettingsRow>
             </div>
           </section>
+          ) : null}
 
-          <section id="settings-keyboard">
+          {activeSection === "keyboard" ? (
+          <section>
             <h2 className="text-base font-semibold">
               {t("settings:sections.keyboard")}
             </h2>
@@ -286,8 +316,10 @@ export function SettingsPage() {
               ))}
             </div>
           </section>
+          ) : null}
 
-          <section id="settings-about">
+          {activeSection === "about" ? (
+          <section>
             <h2 className="text-base font-semibold">
               {t("settings:sections.about")}
             </h2>
@@ -301,10 +333,11 @@ export function SettingsPage() {
               </div>
               <p className="mt-1">{t("settings:about.description")}</p>
               <p className="mt-3">
-                {t("settings:about.version")}: {packageJson.version}
+                {t("settings:about.version")}: {appVersion}
               </p>
             </div>
           </section>
+          ) : null}
         </div>
       </ScrollArea>
     </div>
