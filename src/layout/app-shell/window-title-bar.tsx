@@ -4,8 +4,8 @@ import { PanelHeader } from "@/layout/app-shell/panel-header";
 import { getPlatform } from "@/lib/platform";
 
 /** Title bar for standalone windows (e.g. settings) that use a single full-width header. */
-export function WindowTitleBar() {
-  const { t } = useTranslation("common");
+export function WindowTitleBar({ titleKey }: { titleKey: string }) {
+  const { t } = useTranslation();
   const platform = getPlatform();
 
   return (
@@ -13,7 +13,7 @@ export function WindowTitleBar() {
       macosInset
       leading={
         <span className="text-xs font-semibold tracking-wide text-muted-foreground">
-          {t("actions.settings")}
+          {t(titleKey)}
         </span>
       }
       trailing={platform !== "macos" ? <WindowControls /> : null}

@@ -80,7 +80,7 @@
 
 .dark [data-app-shell] {
   --shell-main-bg: var(--background);
-  --shell-primary-bg: color-mix(in oklch, var(--background) 90%, var(--card));
+  --shell-primary-bg: color-mix(in oklch, var(--background) 84%, var(--muted));
   --shell-secondary-bg: color-mix(in oklch, var(--background) 84%, var(--muted));
 }
 
@@ -200,11 +200,6 @@ html[data-window-chrome="macos-tauri"] [data-app-shell] {
 
 [data-shell="main"] [data-slot="dropdown-menu-content"] {
   @apply ring-0;
-}
-
-
-[data-shell="settings"] .window-title-bar {
-  @apply border-b border-border/80;
 }
 
 .xterm {

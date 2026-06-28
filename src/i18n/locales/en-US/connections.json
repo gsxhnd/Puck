@@ -71,5 +71,16 @@
     "description": "Create a remote connection profile. Passwords and passphrases are stored securely.",
     "untitled": "Untitled Connection"
   },
-  "lastConnected": "Last connected: {{time}}"
+  "lastConnected": "Last connected: {{time}}",
+  "newMenu": {
+    "localTerminal": "Local Terminal",
+    "savedConnections": "Saved Connections"
+  },
+  "manager": {
+    "title": "Saved Connections",
+    "description": "Manage connection profiles and connect from the main window.",
+    "connect": "Connect",
+    "empty": "No connection profiles yet. Use New Connection to add one.",
+    "deleteConfirm": "Delete this connection? Saved credentials will also be removed."
+  }
 }

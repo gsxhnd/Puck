@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
+import { AnimatePresence, LayoutGroup, motion } from "motion/react";
 import {
   CopyIcon,
   FolderOpenIcon,
@@ -25,6 +26,9 @@ import { WindowControls } from "@/layout/app-shell/window-controls";
 import { getPlatform } from "@/lib/platform";
 
 type PanelView = "info" | "transfers";
+
+const tabTransition = { duration: 0.2, ease: [0.25, 0.1, 0.25, 1] } as const;
+const panelTransition = { duration: 0.22, ease: [0.25, 0.1, 0.25, 1] } as const;
 
 function formatElapsed(createdAt: string): string {
   const elapsedMs = Date.now() - new Date(createdAt).getTime();
@@ -155,27 +159,64 @@ export function SessionInfoSidebar({
   );
 
   return (
-    <div className="flex h-full w-full flex-col bg-shell-secondary">
+    <div className="flex h-full w-full flex-col overflow-hidden bg-shell-secondary">
       <PanelHeader
         leading={
-          <span className="text-xs font-semibold tracking-wide text-muted-foreground">
-            {view === "info" ? t("info:title") : t("info:transfers")}
-          </span>
+          <LayoutGroup id="session-info-tabs">
+            <div className="flex items-center gap-0.5">
+              {headerActions.map((action) => {
+                const isSelected = view === action.id;
+                const tabButton = (
+                  <motion.div layout transition={tabTransition}>
+                    <Button
+                      variant="ghost"
+                      size={isSelected ? "sm" : "icon-sm"}
+                      aria-label={action.label}
+                      aria-pressed={isSelected}
+                      className={cn(
+                        "overflow-hidden",
+                        isSelected
+                          ? "bg-muted text-foreground"
+                          : "text-muted-foreground",
+                      )}
+                      onClick={() => setView(action.id)}
+                    >
+                      <action.icon />
+                      <AnimatePresence initial={false} mode="popLayout">
+                        {isSelected ? (
+                          <motion.span
+                            key={`${action.id}-label`}
+                            layout
+                            initial={{ opacity: 0, width: 0 }}
+                            animate={{ opacity: 1, width: "auto" }}
+                            exit={{ opacity: 0, width: 0 }}
+                            transition={tabTransition}
+                            className="overflow-hidden text-xs font-semibold tracking-wide whitespace-nowrap"
+                          >
+                            {action.label}
+                          </motion.span>
+                        ) : null}
+                      </AnimatePresence>
+                    </Button>
+                  </motion.div>
+                );
+
+                if (isSelected) {
+                  return <div key={action.id}>{tabButton}</div>;
+                }
+
+                return (
+                  <Tooltip key={action.id}>
+                    <TooltipTrigger render={tabButton} />
+                    <TooltipContent side="bottom">{action.label}</TooltipContent>
+                  </Tooltip>
+                );
+              })}
+            </div>
+          </LayoutGroup>
         }
         trailing={
           <>
-            {headerActions.map((action) => (
-              <Button
-                key={action.id}
-                variant="ghost"
-                size="icon-sm"
-                aria-label={action.label}
-                className={cn(view === action.id && "bg-muted text-foreground")}
-                onClick={() => setView(action.id)}
-              >
-                <action.icon />
-              </Button>
-            ))}
             {onToggleRightSidebar ? (
               <Tooltip>
                 <TooltipTrigger
@@ -203,13 +244,35 @@ export function SessionInfoSidebar({
         }
       />
 
-      {view === "info" ? (
-        <SessionInfoPanel />
-      ) : (
-        <div className="flex min-h-0 flex-1 flex-col">
-          <TransferQueueContent />
+      {rightSidebarOpen ? (
+        <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
+          <AnimatePresence mode="wait" initial={false}>
+            {view === "info" ? (
+              <motion.div
+                key="info"
+                initial={{ opacity: 0, x: 12 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -12 }}
+                transition={panelTransition}
+                className="flex min-h-0 flex-1 flex-col"
+              >
+                <SessionInfoPanel />
+              </motion.div>
+            ) : (
+              <motion.div
+                key="transfers"
+                initial={{ opacity: 0, x: 12 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -12 }}
+                transition={panelTransition}
+                className="flex min-h-0 flex-1 flex-col"
+              >
+                <TransferQueueContent />
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

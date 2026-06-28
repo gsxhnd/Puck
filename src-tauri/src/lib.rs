@@ -1,3 +1,4 @@
+mod connections_window;
 mod credential;
 mod error;
 mod known_hosts;
@@ -87,6 +88,7 @@ pub fn run() {
             known_hosts::trust_ssh_host_key,
             apply_macos_window_chrome,
             settings_window::open_settings_window,
+            connections_window::open_connections_window,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

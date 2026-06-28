@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
-import { PanelLeftIcon, PanelRightIcon } from "lucide-react";
+import { PanelRightIcon } from "lucide-react";
 import { PanelHeader } from "@/layout/app-shell/panel-header";
+import { MAIN_SIDEBAR_TOOLBAR_SLOT_ID } from "@/layout/app-shell/sidebar-toolbar-slot";
 import { useSessionStore } from "@/stores/session-store";
 import { TerminalPane } from "@/page/terminal/terminal-pane";
 import { SshTerminalPane } from "@/page/terminal/ssh-terminal-pane";
@@ -18,7 +19,6 @@ import { cn } from "@/lib/utils";
 type MainWorkspaceProps = {
   leftSidebarOpen?: boolean;
   rightSidebarOpen?: boolean;
-  onToggleLeftSidebar?: () => void;
   onToggleRightSidebar?: () => void;
 };
 
@@ -41,7 +41,6 @@ function EmptyWorkspace() {
 function MainPanelHeader({
   leftSidebarOpen = true,
   rightSidebarOpen = true,
-  onToggleLeftSidebar,
   onToggleRightSidebar,
 }: MainWorkspaceProps) {
   const { t } = useTranslation("common");
@@ -55,28 +54,10 @@ function MainPanelHeader({
       layout="balanced"
       macosInset={!leftSidebarOpen}
       leading={
-        onToggleLeftSidebar ? (
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  className={cn(
-                    !leftSidebarOpen && "text-muted-foreground",
-                  )}
-                  aria-label={t("nav.togglePrimaryPanel")}
-                  onClick={onToggleLeftSidebar}
-                >
-                  <PanelLeftIcon />
-                </Button>
-              }
-            />
-            <TooltipContent side="bottom">
-              {t("nav.togglePrimaryPanel")}
-            </TooltipContent>
-          </Tooltip>
-        ) : null
+        <div
+          id={MAIN_SIDEBAR_TOOLBAR_SLOT_ID}
+          className="flex min-h-7 items-center gap-0.5"
+        />
       }
       center={
         activeSession?.kind === "terminal" ? (
@@ -114,7 +95,6 @@ function MainPanelHeader({
 export function MainWorkspace({
   leftSidebarOpen,
   rightSidebarOpen,
-  onToggleLeftSidebar,
   onToggleRightSidebar,
 }: MainWorkspaceProps) {
   const sessions = useSessionStore((state) => state.sessions);
@@ -138,7 +118,6 @@ export function MainWorkspace({
         <MainPanelHeader
           leftSidebarOpen={leftSidebarOpen}
           rightSidebarOpen={rightSidebarOpen}
-          onToggleLeftSidebar={onToggleLeftSidebar}
           onToggleRightSidebar={onToggleRightSidebar}
         />
         <EmptyWorkspace />
@@ -151,7 +130,6 @@ export function MainWorkspace({
       <MainPanelHeader
         leftSidebarOpen={leftSidebarOpen}
         rightSidebarOpen={rightSidebarOpen}
-        onToggleLeftSidebar={onToggleLeftSidebar}
         onToggleRightSidebar={onToggleRightSidebar}
       />
       <div className="relative min-h-0 flex-1 overflow-hidden">

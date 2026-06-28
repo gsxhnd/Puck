@@ -1,4 +1,3 @@
-import { useTheme } from "next-themes";
 import { useTranslation } from "react-i18next";
 import packageJson from "../../../package.json";
 import { useAppSettingsStore } from "@/stores/app-settings-store";
@@ -103,7 +102,6 @@ function SettingsSelect<T extends string>({
 
 export function SettingsPage() {
   const { t } = useTranslation(["settings", "common"]);
-  const { setTheme } = useTheme();
   const language = useAppSettingsStore((state) => state.language);
   const colorTheme = useAppSettingsStore((state) => state.colorTheme);
   const themeMode = useAppSettingsStore((state) => state.themeMode);
@@ -120,11 +118,6 @@ export function SettingsPage() {
   const setOpenLocalOnStart = useAppSettingsStore(
     (state) => state.setOpenLocalTerminalOnStart,
   );
-
-  const handleThemeModeChange = (next: ThemeMode) => {
-    setThemeMode(next);
-    setTheme(next);
-  };
 
   const languageLabels = Object.fromEntries(
     LANGUAGES.map((lng) => [
@@ -216,7 +209,7 @@ export function SettingsPage() {
                   value={themeMode}
                   options={THEME_MODES}
                   labels={themeModeLabels}
-                  onChange={handleThemeModeChange}
+                  onChange={setThemeMode}
                 />
               </SettingsRow>
               <SettingsRow

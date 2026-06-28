@@ -20,7 +20,10 @@ function ScrollArea({
         {children}
       </ScrollAreaPrimitive.Viewport>
       <ScrollBar />
-      <ScrollAreaPrimitive.Corner />
+      <ScrollAreaPrimitive.Corner
+        data-slot="scroll-area-corner"
+        className="bg-transparent"
+      />
     </ScrollAreaPrimitive.Root>
   )
 }

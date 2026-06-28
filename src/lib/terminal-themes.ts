@@ -60,6 +60,28 @@ function isValidComputedColor(color: string | undefined): color is string {
   );
 }
 
+function normalizeTerminalColor(color: string, fallback: string): string {
+  if (!isValidComputedColor(color)) return fallback;
+  if (
+    color.startsWith("#") ||
+    color.startsWith("rgb(") ||
+    color.startsWith("rgba(")
+  ) {
+    return color;
+  }
+
+  if (typeof document === "undefined") return fallback;
+
+  const canvas = document.createElement("canvas");
+  canvas.width = 1;
+  canvas.height = 1;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return fallback;
+
+  ctx.fillStyle = color;
+  return ctx.fillStyle || fallback;
+}
+
 function readCssVariableColor(
   variable: string,
   property: "backgroundColor" | "color",
@@ -86,7 +108,7 @@ function readCssVariableColor(
   const color = getComputedStyle(probe)[property];
   probe.remove();
 
-  return isValidComputedColor(color) ? color : fallback;
+  return normalizeTerminalColor(color, fallback);
 }
 
 function isDarkColor(color: string): boolean {

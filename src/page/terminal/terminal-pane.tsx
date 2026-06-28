@@ -21,6 +21,7 @@ import {
   writeTerminal,
 } from "@/lib/tauri-terminal";
 import { buildTabLabel, extractOsc7Cwd } from "@/lib/session-display";
+import { applyTerminalFont, applyTerminalTheme } from "@/lib/apply-terminal-appearance";
 import { useTerminalTheme } from "@/hooks/use-terminal-theme";
 import { cn } from "@/lib/utils";
 
@@ -44,6 +45,9 @@ export function TerminalPane({ sessionId, shellId, active }: TerminalPaneProps) 
   );
   const updateSessionMeta = useSessionStore((state) => state.updateSessionMeta);
   const removeSession = useSessionStore((state) => state.closeSession);
+
+  const tRef = useRef(t);
+  tRef.current = t;
 
   useEffect(() => {
     const container = containerRef.current;
@@ -143,7 +147,7 @@ export function TerminalPane({ sessionId, shellId, active }: TerminalPaneProps) 
         });
       } catch {
         updateSessionStatus(sessionId, "failed");
-        terminal.writeln(`\r\n${t("openFailed")}\r\n`);
+        terminal.writeln(`\r\n${tRef.current("openFailed")}\r\n`);
       }
     })();
 
@@ -169,30 +173,29 @@ export function TerminalPane({ sessionId, shellId, active }: TerminalPaneProps) 
       fitAddonRef.current = null;
       openedRef.current = false;
     };
-  }, [
-    sessionId,
-    shellId,
-    t,
-    removeSession,
-    updateSessionMeta,
-    updateSessionStatus,
-  ]);
+  }, [sessionId, shellId, removeSession, updateSessionMeta, updateSessionStatus]);
 
   useEffect(() => {
+    if (!active || !openedRef.current) return;
     const terminal = terminalRef.current;
-    const fitAddon = fitAddonRef.current;
     if (!terminal) return;
-    terminal.options.theme = { ...terminalTheme };
-    terminal.options.fontFamily = fontFamily;
-    terminal.options.fontSize = fontSize;
-    terminal.refresh(0, terminal.rows - 1);
-    if (fitAddon && openedRef.current) {
-      requestAnimationFrame(() => {
-        fitAddon.fit();
-        void resizeTerminal(sessionId, terminal.cols, terminal.rows);
-      });
-    }
-  }, [fontFamily, fontSize, terminalTheme, sessionId]);
+    applyTerminalTheme({ terminal, theme: terminalTheme });
+  }, [active, terminalTheme]);
+
+  useEffect(() => {
+    if (!active || !openedRef.current) return;
+    const terminal = terminalRef.current;
+    if (!terminal) return;
+    applyTerminalFont({
+      terminal,
+      fitAddon: fitAddonRef.current,
+      fontFamily,
+      fontSize,
+      onResize: (cols, rows) => {
+        void resizeTerminal(sessionId, cols, rows);
+      },
+    });
+  }, [active, fontFamily, fontSize, sessionId]);
 
   useEffect(() => {
     if (!active || !openedRef.current) return;
@@ -201,6 +204,7 @@ export function TerminalPane({ sessionId, shellId, active }: TerminalPaneProps) 
     if (!fitAddon || !terminal) return;
 
     requestAnimationFrame(() => {
+      if (terminal.rows <= 0) return;
       fitAddon.fit();
       void resizeTerminal(sessionId, terminal.cols, terminal.rows);
     });

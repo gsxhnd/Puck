@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { DragDropProvider, useDroppable } from "@dnd-kit/react";
 import type { DragEndEvent } from "@dnd-kit/dom";
@@ -7,22 +8,18 @@ import {
   ArrowUpDownIcon,
   ChevronRightIcon,
   CopyIcon,
-  FolderPlusIcon,
+  PanelLeftIcon,
   PencilIcon,
   PlusIcon,
   XIcon,
 } from "lucide-react";
 import { ConnectionDialog } from "@/components/connections/connection-dialog";
-import type { ConnectionProfile, Session } from "@/types/connection";
-import { useConnectionStore } from "@/stores/connection-store";
+import type { Session } from "@/types/connection";
 import { useSessionStore } from "@/stores/session-store";
 import { useSidebarLayoutStore } from "@/stores/sidebar-layout-store";
 import { listShells } from "@/lib/tauri-terminal";
-import {
-  formatSidebarLabel,
-  getShellBadge,
-  profileTabLabel,
-} from "@/lib/session-display";
+import { openConnectionsWindow } from "@/lib/open-connections-window";
+import { formatSidebarLabel, getShellBadge } from "@/lib/session-display";
 import {
   type SessionSort,
   type SidebarDisplayGroup,
@@ -47,12 +44,14 @@ import { Input } from "@/components/ui/input";
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -64,6 +63,234 @@ import {
 } from "@/components/ui/context-menu";
 import { cn } from "@/lib/utils";
 import { PanelHeader } from "@/layout/app-shell/panel-header";
+import { MAIN_SIDEBAR_TOOLBAR_SLOT_ID } from "@/layout/app-shell/sidebar-toolbar-slot";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+
+const sidebarHeaderIconClass =
+  "text-muted-foreground/50 hover:bg-muted/30 hover:text-muted-foreground/75";
+
+function SidebarCollapseToggle({
+  collapsed,
+  onToggle,
+}: {
+  collapsed: boolean;
+  onToggle?: () => void;
+}) {
+  const { t } = useTranslation("common");
+
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className={cn(sidebarHeaderIconClass, collapsed && "text-muted-foreground")}
+            aria-label={t("nav.togglePrimaryPanel")}
+            onClick={onToggle}
+          >
+            <PanelLeftIcon />
+          </Button>
+        }
+      />
+      <TooltipContent side="bottom">
+        {t("nav.togglePrimaryPanel")}
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
+type SidebarHeaderActionsProps = {
+  sort: SessionSort;
+  setSort: (sort: SessionSort) => void;
+  shells: ShellInfo[];
+  showSort?: boolean;
+  showToggle?: boolean;
+  collapsed?: boolean;
+  menuAlign?: "start" | "end";
+  onToggleCollapsed?: () => void;
+  onCreateConnection: () => void;
+  onCreateGroup: () => void;
+  onOpenDefaultTerminal: () => void;
+  onOpenShellTerminal: (shell: ShellInfo) => void;
+  onOpenConnectionsWindow: () => void;
+};
+
+function SidebarHeaderActions({
+  sort,
+  setSort,
+  shells,
+  showSort = true,
+  showToggle = false,
+  collapsed = false,
+  menuAlign = "end",
+  onToggleCollapsed,
+  onCreateConnection,
+  onCreateGroup,
+  onOpenDefaultTerminal,
+  onOpenShellTerminal,
+  onOpenConnectionsWindow,
+}: SidebarHeaderActionsProps) {
+  const { t } = useTranslation(["connections", "common", "terminal"]);
+
+  const sortMenu = showSort ? (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className={sidebarHeaderIconClass}
+            aria-label={t("connections:sort.label")}
+          >
+            <ArrowUpDownIcon />
+          </Button>
+        }
+      />
+      <DropdownMenuContent align={menuAlign} className="w-44">
+        <DropdownMenuRadioGroup
+          value={sort}
+          onValueChange={(value) => setSort(value as SessionSort)}
+        >
+          <DropdownMenuLabel>{t("connections:sort.label")}</DropdownMenuLabel>
+          <DropdownMenuRadioItem value="recent">
+            {t("connections:sort.recent")}
+          </DropdownMenuRadioItem>
+          <DropdownMenuRadioItem value="nameAsc">
+            {t("connections:sort.nameAsc")}
+          </DropdownMenuRadioItem>
+          <DropdownMenuRadioItem value="nameDesc">
+            {t("connections:sort.nameDesc")}
+          </DropdownMenuRadioItem>
+          {sort === "custom" ? (
+            <DropdownMenuRadioItem value="custom">
+              {t("connections:sort.custom")}
+            </DropdownMenuRadioItem>
+          ) : null}
+        </DropdownMenuRadioGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  ) : null;
+
+  const newMenu = (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className={sidebarHeaderIconClass}
+            aria-label={t("common:actions.newConnection")}
+          >
+            <PlusIcon />
+          </Button>
+        }
+      />
+      <DropdownMenuContent align={menuAlign} className="w-56">
+        <DropdownMenuItem onClick={onCreateConnection}>
+          {t("common:actions.newConnection")}
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={onCreateGroup}>
+          {t("connections:sidebarGroups.new")}
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger>
+            {t("connections:newMenu.localTerminal")}
+          </DropdownMenuSubTrigger>
+          <DropdownMenuSubContent className="w-56">
+            <DropdownMenuItem onClick={onOpenDefaultTerminal}>
+              {t("terminal:localDefault")}
+            </DropdownMenuItem>
+            {shells.map((shell) => (
+              <DropdownMenuItem
+                key={shell.id}
+                onClick={() => onOpenShellTerminal(shell)}
+              >
+                <span className="truncate">{shell.name}</span>
+                <span className="ml-auto text-xs text-muted-foreground uppercase">
+                  {shell.kind}
+                </span>
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuSubContent>
+        </DropdownMenuSub>
+        <DropdownMenuItem onClick={onOpenConnectionsWindow}>
+          {t("connections:newMenu.savedConnections")}
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+
+  const toggle = showToggle ? (
+    <SidebarCollapseToggle
+      collapsed={collapsed}
+      onToggle={onToggleCollapsed}
+    />
+  ) : null;
+
+  if (collapsed) {
+    return (
+      <>
+        {newMenu}
+        {toggle}
+      </>
+    );
+  }
+
+  return (
+    <>
+      {sortMenu}
+      {newMenu}
+      {toggle}
+    </>
+  );
+}
+
+function ConnectionSidebarHeader({
+  collapsed,
+  onToggleCollapsed,
+  ...actions
+}: SidebarHeaderActionsProps & {
+  collapsed: boolean;
+  onToggleCollapsed?: () => void;
+}) {
+  const [toolbarSlot, setToolbarSlot] = useState<HTMLElement | null>(null);
+
+  useEffect(() => {
+    if (!collapsed) {
+      setToolbarSlot(null);
+      return;
+    }
+    setToolbarSlot(document.getElementById(MAIN_SIDEBAR_TOOLBAR_SLOT_ID));
+  }, [collapsed]);
+
+  const toolbar = (
+    <div className="flex items-center gap-0.5">
+      <SidebarHeaderActions
+        {...actions}
+        collapsed={collapsed}
+        showSort={!collapsed}
+        showToggle
+        onToggleCollapsed={onToggleCollapsed}
+        menuAlign={collapsed ? "start" : "end"}
+      />
+    </div>
+  );
+
+  return (
+    <>
+      {!collapsed ? (
+        <PanelHeader macosInset trailing={toolbar} />
+      ) : null}
+      {collapsed && toolbarSlot ? createPortal(toolbar, toolbarSlot) : null}
+    </>
+  );
+}
 
 function SortableSessionTabItem({
   session,
@@ -126,13 +353,11 @@ function SortableSessionTabItem({
     <ContextMenu>
       <ContextMenuTrigger
         render={
-          <button
-            type="button"
+          <div
             ref={ref}
             title={label}
-            onClick={() => setActiveSession(session.id)}
             className={cn(
-              "flex h-7 w-full cursor-grab items-center gap-2 rounded-md px-2 text-left text-[13px] transition-colors active:cursor-grabbing",
+              "group/session-tab flex h-7 w-full cursor-grab items-center gap-1 rounded-md px-1 text-left text-[13px] transition-colors active:cursor-grabbing",
               isActive
                 ? "bg-muted/80 text-foreground"
                 : "text-muted-foreground hover:bg-muted/40 hover:text-foreground",
@@ -140,11 +365,33 @@ function SortableSessionTabItem({
               isDropTarget && "bg-muted/30",
             )}
           >
-            <span className="min-w-0 flex-1 truncate font-mono">{label}</span>
-            <span className="shrink-0 text-[11px] text-muted-foreground/80">
-              {shellBadge}
-            </span>
-          </button>
+            <button
+              type="button"
+              onClick={() => setActiveSession(session.id)}
+              className="flex min-w-0 flex-1 items-center px-1 text-left"
+            >
+              <span className="truncate font-mono">{label}</span>
+            </button>
+            <div className="relative flex h-6 w-7 shrink-0 items-center justify-center">
+              <span className="text-[11px] text-muted-foreground/80 transition-opacity group-hover/session-tab:opacity-0">
+                {shellBadge}
+              </span>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                aria-label={t("connections:contextMenu.close")}
+                className="absolute inset-0 size-6 text-muted-foreground/50 opacity-0 transition-opacity hover:bg-muted/30 hover:text-muted-foreground/75 group-hover/session-tab:opacity-100"
+                onPointerDown={(event) => event.stopPropagation()}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  handleClose();
+                }}
+              >
+                <XIcon className="size-3.5" />
+              </Button>
+            </div>
+          </div>
         }
       />
       <ContextMenuContent className="w-48">
@@ -228,7 +475,7 @@ function SessionGroup({
     >
       <ChevronRightIcon
         className={cn(
-          "size-3.5 shrink-0 transition-transform",
+          "size-3.5 shrink-0 text-muted-foreground/50 transition-transform",
           !collapsed && "rotate-90",
         )}
       />
@@ -356,13 +603,15 @@ function GroupNameDialog({
   );
 }
 
-export function ConnectionSidebar() {
+export function ConnectionSidebar({
+  collapsed = false,
+  onToggleCollapsed,
+}: {
+  collapsed?: boolean;
+  onToggleCollapsed?: () => void;
+}) {
   const { t } = useTranslation(["connections", "common", "terminal"]);
-  const profiles = useConnectionStore((state) => state.profiles);
   const sessions = useSessionStore((state) => state.sessions);
-  const openOrFocusSession = useSessionStore(
-    (state) => state.openOrFocusSession,
-  );
   const addSession = useSessionStore((state) => state.addSession);
   const renameSession = useSessionStore((state) => state.renameSession);
   const customGroups = useSidebarLayoutStore((state) => state.customGroups);
@@ -415,14 +664,6 @@ export function ConnectionSidebar() {
     ],
   );
 
-  const terminalProfiles = useMemo(
-    () =>
-      profiles.filter(
-        (profile) => profile.protocol === "local" || profile.protocol === "ssh",
-      ),
-    [profiles],
-  );
-
   useEffect(() => {
     void listShells()
       .then(setShells)
@@ -436,18 +677,6 @@ export function ConnectionSidebar() {
   const openCreateDialog = () => {
     setEditingProfileId(null);
     setDialogOpen(true);
-  };
-
-  const openConnection = (profile: ConnectionProfile) => {
-    openOrFocusSession({
-      kind: "terminal",
-      title: profile.name,
-      profileId: profile.id,
-      protocol: profile.protocol,
-      shellName: profile.protocol === "ssh" ? "ssh" : undefined,
-      tabLabel: profileTabLabel(profile),
-      status: profile.protocol === "ssh" ? "creating" : undefined,
-    });
   };
 
   const openDefaultTerminal = () => {
@@ -520,112 +749,21 @@ export function ConnectionSidebar() {
   const renamingSession = sessions.find((session) => session.id === renameSessionId);
 
   return (
-    <div className="flex h-full w-full flex-col bg-shell-primary">
-      <PanelHeader macosInset trailing={
-          <>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label={t("connections:sidebarGroups.new")}
-              onClick={() => setCreateGroupOpen(true)}
-            >
-              <FolderPlusIcon />
-            </Button>
-
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                render={
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label={t("connections:sort.label")}
-                  >
-                    <ArrowUpDownIcon />
-                  </Button>
-                }
-              />
-              <DropdownMenuContent align="end" className="w-44">
-                <DropdownMenuRadioGroup
-                  value={sort}
-                  onValueChange={(value) => setSort(value as SessionSort)}
-                >
-                  <DropdownMenuLabel>{t("connections:sort.label")}</DropdownMenuLabel>
-                  <DropdownMenuRadioItem value="recent">
-                    {t("connections:sort.recent")}
-                  </DropdownMenuRadioItem>
-                  <DropdownMenuRadioItem value="nameAsc">
-                    {t("connections:sort.nameAsc")}
-                  </DropdownMenuRadioItem>
-                  <DropdownMenuRadioItem value="nameDesc">
-                    {t("connections:sort.nameDesc")}
-                  </DropdownMenuRadioItem>
-                  {sort === "custom" ? (
-                    <DropdownMenuRadioItem value="custom">
-                      {t("connections:sort.custom")}
-                    </DropdownMenuRadioItem>
-                  ) : null}
-                </DropdownMenuRadioGroup>
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                render={
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label={t("common:actions.newConnection")}
-                  >
-                    <PlusIcon />
-                  </Button>
-                }
-              />
-              <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuItem onClick={openCreateDialog}>
-                  {t("common:actions.newConnection")}
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuGroup>
-                  <DropdownMenuLabel>{t("terminal:pickShell")}</DropdownMenuLabel>
-                  <DropdownMenuItem onClick={openDefaultTerminal}>
-                    {t("terminal:localDefault")}
-                  </DropdownMenuItem>
-                  {shells.map((shell) => (
-                    <DropdownMenuItem
-                      key={shell.id}
-                      onClick={() => openShellTerminal(shell)}
-                    >
-                      <span className="truncate">{shell.name}</span>
-                      <span className="ml-auto text-xs text-muted-foreground uppercase">
-                        {shell.kind}
-                      </span>
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuGroup>
-                {terminalProfiles.length > 0 ? (
-                  <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuGroup>
-                      <DropdownMenuLabel>
-                        {t("connections:title")}
-                      </DropdownMenuLabel>
-                      {terminalProfiles.map((profile) => (
-                        <DropdownMenuItem
-                          key={profile.id}
-                          onClick={() => openConnection(profile)}
-                        >
-                          {profile.name}
-                        </DropdownMenuItem>
-                      ))}
-                    </DropdownMenuGroup>
-                  </>
-                ) : null}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </>
-        }
+    <div className="flex h-full w-full flex-col bg-shell-secondary">
+      <ConnectionSidebarHeader
+        collapsed={collapsed}
+        onToggleCollapsed={onToggleCollapsed}
+        sort={sort}
+        setSort={setSort}
+        shells={shells}
+        onCreateConnection={openCreateDialog}
+        onCreateGroup={() => setCreateGroupOpen(true)}
+        onOpenDefaultTerminal={openDefaultTerminal}
+        onOpenShellTerminal={openShellTerminal}
+        onOpenConnectionsWindow={() => void openConnectionsWindow()}
       />
 
+      {!collapsed ? (
       <ScrollArea className="min-h-0 flex-1 px-2 py-1">
         <DragDropProvider onDragEnd={handleDragEnd}>
           {displayGroups.length === 0 ? (
@@ -654,6 +792,7 @@ export function ConnectionSidebar() {
           )}
         </DragDropProvider>
       </ScrollArea>
+      ) : null}
 
       <ConnectionDialog
         open={dialogOpen}

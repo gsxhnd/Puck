@@ -124,16 +124,18 @@ export function AppShell() {
           maxSize={SHELL_PANEL_SIZES.left.max}
           collapsible
           collapsedSize={0}
-          className="min-w-0"
+          className="min-w-0 overflow-hidden"
         >
-          <ConnectionSidebar />
+          <ConnectionSidebar
+            collapsed={!leftSidebarOpen}
+            onToggleCollapsed={() => setLeftSidebarOpen((open) => !open)}
+          />
         </ResizablePanel>
         {leftSidebarOpen ? <ResizableHandle /> : null}
         <ResizablePanel id="main" minSize={SHELL_PANEL_SIZES.main.min}>
           <MainWorkspace
             leftSidebarOpen={leftSidebarOpen}
             rightSidebarOpen={rightSidebarOpen}
-            onToggleLeftSidebar={() => setLeftSidebarOpen((v) => !v)}
             onToggleRightSidebar={() => setRightSidebarOpen((v) => !v)}
           />
         </ResizablePanel>
@@ -146,7 +148,7 @@ export function AppShell() {
           maxSize={SHELL_PANEL_SIZES.right.max}
           collapsible
           collapsedSize={0}
-          className="min-w-0"
+          className="min-w-0 overflow-hidden"
         >
           <SecondarySidebar
             rightSidebarOpen={rightSidebarOpen}

@@ -33,6 +33,7 @@ import {
   profileTabLabel,
 } from "@/lib/session-display";
 import { isHostKeyError, parsePuckError } from "@/lib/puck-error";
+import { applyTerminalFont, applyTerminalTheme } from "@/lib/apply-terminal-appearance";
 import { HostKeyDialog } from "@/components/ssh/host-key-dialog";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -76,6 +77,9 @@ export function SshTerminalPane({
     state.sessions.find((item) => item.id === sessionId)?.status,
   );
 
+  const tRef = useRef(t);
+  tRef.current = t;
+
   const connect = async (cols: number, rows: number) => {
     if (!profile) {
       updateSessionStatus(sessionId, "failed");
@@ -101,7 +105,7 @@ export function SshTerminalPane({
       updateSessionStatus(sessionId, "failed");
       const payload = parsePuckError(error);
       terminalRef.current?.writeln(
-        `\r\n${t(`errors:${payload.code}`, { defaultValue: payload.message })}\r\n`,
+        `\r\n${tRef.current(`errors:${payload.code}`, { defaultValue: payload.message })}\r\n`,
       );
     }
   };
@@ -214,26 +218,31 @@ export function SshTerminalPane({
     profileId,
     sessionId,
     removeSession,
-    t,
     updateSessionMeta,
     updateSessionStatus,
   ]);
 
   useEffect(() => {
+    if (!active || !openedRef.current) return;
     const terminal = terminalRef.current;
-    const fitAddon = fitAddonRef.current;
     if (!terminal) return;
-    terminal.options.theme = { ...terminalTheme };
-    terminal.options.fontFamily = fontFamily;
-    terminal.options.fontSize = fontSize;
-    terminal.refresh(0, terminal.rows - 1);
-    if (fitAddon && openedRef.current) {
-      requestAnimationFrame(() => {
-        fitAddon.fit();
-        void resizeTerminal(sessionId, terminal.cols, terminal.rows);
-      });
-    }
-  }, [fontFamily, fontSize, terminalTheme, sessionId]);
+    applyTerminalTheme({ terminal, theme: terminalTheme });
+  }, [active, terminalTheme]);
+
+  useEffect(() => {
+    if (!active || !openedRef.current) return;
+    const terminal = terminalRef.current;
+    if (!terminal) return;
+    applyTerminalFont({
+      terminal,
+      fitAddon: fitAddonRef.current,
+      fontFamily,
+      fontSize,
+      onResize: (cols, rows) => {
+        void resizeTerminal(sessionId, cols, rows);
+      },
+    });
+  }, [active, fontFamily, fontSize, sessionId]);
 
   useEffect(() => {
     if (!active || !openedRef.current) return;
@@ -241,6 +250,7 @@ export function SshTerminalPane({
     const terminal = terminalRef.current;
     if (!fitAddon || !terminal) return;
     requestAnimationFrame(() => {
+      if (terminal.rows <= 0) return;
       fitAddon.fit();
       void resizeTerminal(sessionId, terminal.cols, terminal.rows);
     });

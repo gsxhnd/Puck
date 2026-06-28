@@ -38,7 +38,7 @@ export function PanelHeader({
       <header
         data-platform={platform}
         className={cn(
-          "window-title-bar grid h-[var(--titlebar-height)] shrink-0 grid-cols-[1fr_auto_1fr] items-center border-b border-border/60 bg-inherit select-none",
+          "window-title-bar grid h-[var(--titlebar-height)] shrink-0 grid-cols-[1fr_auto_1fr] items-center bg-inherit select-none",
           className,
         )}
         onMouseDown={onMouseDown}
@@ -61,7 +61,7 @@ export function PanelHeader({
     <header
       data-platform={platform}
       className={cn(
-        "window-title-bar flex h-[var(--titlebar-height)] shrink-0 items-center gap-2 border-b border-border/60 bg-inherit px-3 select-none",
+        "window-title-bar flex h-[var(--titlebar-height)] shrink-0 items-center gap-2 bg-inherit px-3 select-none",
         className,
       )}
       onMouseDown={onMouseDown}
