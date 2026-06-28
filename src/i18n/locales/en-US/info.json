@@ -1,5 +1,7 @@
 {
   "title": "Info",
+  "files": "Files",
+  "git": "Git",
   "transfers": "Transfers",
   "workingDirectory": "Working Directory",
   "copyPath": "Copy Path",
@@ -7,5 +9,15 @@
   "process": "Process",
   "ports": "Ports",
   "noListeningPorts": "No listening ports",
-  "noActiveTerminal": "No active terminal session"
+  "noActiveTerminal": "No active terminal session",
+  "filesLocalOnly": "File explorer is only available for local terminals",
+  "gitLocalOnly": "Git status is only available for local terminals",
+  "notAGitRepo": "Not a git repository",
+  "gitStaged": "Staged Changes",
+  "gitUnstaged": "Changes",
+  "gitUntracked": "Untracked",
+  "gitClean": "Working tree clean",
+  "detachedHead": "Detached HEAD",
+  "refresh": "Refresh",
+  "emptyDirectory": "Empty directory"
 }

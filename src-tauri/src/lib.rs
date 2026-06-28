@@ -10,6 +10,7 @@ mod shell;
 mod ssh;
 mod terminal;
 mod transfer;
+mod workspace;
 
 use std::sync::Arc;
 
@@ -89,6 +90,8 @@ pub fn run() {
             apply_macos_window_chrome,
             settings_window::open_settings_window,
             connections_window::open_connections_window,
+            workspace::list_local_dir,
+            workspace::git_status,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

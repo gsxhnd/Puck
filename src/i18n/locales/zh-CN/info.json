@@ -1,5 +1,7 @@
 {
-  "title": "Info",
+  "title": "信息",
+  "files": "文件",
+  "git": "Git",
   "transfers": "传输",
   "workingDirectory": "工作目录",
   "copyPath": "复制路径",
@@ -7,5 +9,15 @@
   "process": "进程",
   "ports": "端口",
   "noListeningPorts": "无监听端口",
-  "noActiveTerminal": "无活动终端会话"
+  "noActiveTerminal": "无活动终端会话",
+  "filesLocalOnly": "文件浏览仅支持本地终端",
+  "gitLocalOnly": "Git 状态仅支持本地终端",
+  "notAGitRepo": "不是 Git 仓库",
+  "gitStaged": "已暂存",
+  "gitUnstaged": "未暂存",
+  "gitUntracked": "未跟踪",
+  "gitClean": "工作区干净",
+  "detachedHead": "游离 HEAD",
+  "refresh": "刷新",
+  "emptyDirectory": "空目录"
 }

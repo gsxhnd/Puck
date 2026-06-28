@@ -5,11 +5,15 @@ import { AnimatePresence, LayoutGroup, motion } from "motion/react";
 import {
   CopyIcon,
   FolderOpenIcon,
+  FolderTreeIcon,
+  GitBranchIcon,
   InfoIcon,
   ListIcon,
   PanelRightIcon,
 } from "lucide-react";
 import { TransferQueueContent } from "@/components/files/transfer-queue";
+import { GitPanel } from "@/components/workspace/git-panel";
+import { LocalFileExplorerPanel } from "@/components/workspace/local-file-explorer";
 import { useSessionStore } from "@/stores/session-store";
 import { getSessionPathDisplay, getShellBadge } from "@/lib/session-display";
 import { isTauri } from "@/lib/platform";
@@ -25,7 +29,7 @@ import { PanelHeader } from "@/layout/app-shell/panel-header";
 import { WindowControls } from "@/layout/app-shell/window-controls";
 import { getPlatform } from "@/lib/platform";
 
-type PanelView = "info" | "transfers";
+type PanelView = "info" | "files" | "git" | "transfers";
 
 const tabTransition = { duration: 0.2, ease: [0.25, 0.1, 0.25, 1] } as const;
 const panelTransition = { duration: 0.22, ease: [0.25, 0.1, 0.25, 1] } as const;
@@ -153,6 +157,8 @@ export function SecondPanel({
     () =>
       [
         { id: "info" as const, icon: InfoIcon, label: t("info:title") },
+        { id: "files" as const, icon: FolderTreeIcon, label: t("info:files") },
+        { id: "git" as const, icon: GitBranchIcon, label: t("info:git") },
         { id: "transfers" as const, icon: ListIcon, label: t("info:transfers") },
       ] as const,
     [t],
@@ -170,7 +176,7 @@ export function SecondPanel({
                   <motion.div layout transition={tabTransition}>
                     <Button
                       variant="ghost"
-                      size={isSelected ? "sm" : "icon-sm"}
+                      size={isSelected ? "xs" : "icon-xs"}
                       aria-label={action.label}
                       aria-pressed={isSelected}
                       className={cn(
@@ -191,7 +197,7 @@ export function SecondPanel({
                             animate={{ opacity: 1, width: "auto" }}
                             exit={{ opacity: 0, width: 0 }}
                             transition={tabTransition}
-                            className="overflow-hidden text-xs font-semibold tracking-wide whitespace-nowrap"
+                            className="overflow-hidden text-[10px] font-medium tracking-wide whitespace-nowrap"
                           >
                             {action.label}
                           </motion.span>
@@ -257,6 +263,28 @@ export function SecondPanel({
                 className="flex min-h-0 flex-1 flex-col"
               >
                 <SessionInfoPanel />
+              </motion.div>
+            ) : view === "files" ? (
+              <motion.div
+                key="files"
+                initial={{ opacity: 0, x: 12 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -12 }}
+                transition={panelTransition}
+                className="flex min-h-0 flex-1 flex-col"
+              >
+                <LocalFileExplorerPanel />
+              </motion.div>
+            ) : view === "git" ? (
+              <motion.div
+                key="git"
+                initial={{ opacity: 0, x: 12 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -12 }}
+                transition={panelTransition}
+                className="flex min-h-0 flex-1 flex-col"
+              >
+                <GitPanel />
               </motion.div>
             ) : (
               <motion.div
