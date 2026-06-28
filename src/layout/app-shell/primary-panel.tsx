@@ -63,7 +63,7 @@ import {
 } from "@/components/ui/context-menu";
 import { cn } from "@/lib/utils";
 import { PanelHeader } from "@/layout/app-shell/panel-header";
-import { MAIN_SIDEBAR_TOOLBAR_SLOT_ID } from "@/layout/app-shell/sidebar-toolbar-slot";
+import { MAIN_PANEL_TOOLBAR_SLOT_ID } from "@/layout/app-shell/main-panel-toolbar-slot";
 import {
   Tooltip,
   TooltipContent,
@@ -251,7 +251,7 @@ function SidebarHeaderActions({
   );
 }
 
-function ConnectionSidebarHeader({
+function PrimaryPanelHeader({
   collapsed,
   onToggleCollapsed,
   ...actions
@@ -266,7 +266,7 @@ function ConnectionSidebarHeader({
       setToolbarSlot(null);
       return;
     }
-    setToolbarSlot(document.getElementById(MAIN_SIDEBAR_TOOLBAR_SLOT_ID));
+    setToolbarSlot(document.getElementById(MAIN_PANEL_TOOLBAR_SLOT_ID));
   }, [collapsed]);
 
   const toolbar = (
@@ -603,7 +603,7 @@ function GroupNameDialog({
   );
 }
 
-export function ConnectionSidebar({
+export function PrimaryPanel({
   collapsed = false,
   onToggleCollapsed,
 }: {
@@ -750,7 +750,7 @@ export function ConnectionSidebar({
 
   return (
     <div className="flex h-full w-full flex-col bg-shell-secondary">
-      <ConnectionSidebarHeader
+      <PrimaryPanelHeader
         collapsed={collapsed}
         onToggleCollapsed={onToggleCollapsed}
         sort={sort}

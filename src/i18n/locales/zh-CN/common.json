@@ -22,10 +22,11 @@
     "sessions": "会话",
     "transferQueue": "传输队列",
     "commandPalette": "命令面板",
-    "primaryPanel": "主面板",
-    "secondaryPanel": "副面板",
-    "togglePrimaryPanel": "切换主面板",
-    "toggleSecondaryPanel": "切换副面板"
+    "primaryPanel": "一级面板",
+    "mainPanel": "主面板",
+    "secondPanel": "二级面板",
+    "togglePrimaryPanel": "切换一级面板",
+    "toggleSecondPanel": "切换二级面板"
   },
   "status": {
     "connected": "已连接",

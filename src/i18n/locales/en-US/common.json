@@ -23,9 +23,10 @@
     "transferQueue": "Transfer Queue",
     "commandPalette": "Command Palette",
     "primaryPanel": "Primary Panel",
-    "secondaryPanel": "Secondary Panel",
+    "mainPanel": "Main Panel",
+    "secondPanel": "Second Panel",
     "togglePrimaryPanel": "Toggle Primary Panel",
-    "toggleSecondaryPanel": "Toggle Secondary Panel"
+    "toggleSecondPanel": "Toggle Second Panel"
   },
   "status": {
     "connected": "Connected",

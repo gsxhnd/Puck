@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import type { PanelImperativeHandle } from "react-resizable-panels";
-import { ConnectionSidebar } from "@/layout/app-shell/connection-sidebar";
-import { MainWorkspace } from "@/layout/app-shell/main-workspace";
-import { SecondarySidebar } from "@/layout/app-shell/secondary-sidebar";
+import { PrimaryPanel } from "@/layout/app-shell/primary-panel";
+import { MainPanel } from "@/layout/app-shell/main-panel";
+import { SecondPanel } from "@/layout/app-shell/second-panel";
 import { openSettingsWindow } from "@/lib/open-settings-window";
 import { getPlatform } from "@/lib/platform";
 import { useAppSettingsStore } from "@/stores/app-settings-store";
@@ -15,28 +15,40 @@ import {
 
 const SHELL_LAYOUT_KEY = "puck-shell-layout";
 
-/** Sidebar width constraints (px), aligned with shadcn default 16rem ≈ 256px */
+/** Panel width constraints (px), aligned with shadcn default 16rem ≈ 256px */
 const SHELL_PANEL_SIZES = {
-  left: { default: 256, min: 200, max: 360 },
-  right: { default: 300, min: 240, max: 450 },
+  primary: { default: 256, min: 200, max: 360 },
+  second: { default: 300, min: 240, max: 450 },
   main: { min: 480 },
 } as const;
+
+function migrateStoredLayout(
+  layout: Record<string, number>,
+): Record<string, number> {
+  const { left, right, primary, second, main, ...rest } = layout;
+  return {
+    ...rest,
+    primary: primary ?? left,
+    main,
+    second: second ?? right,
+  };
+}
 
 function readStoredLayout(): Record<string, number> | undefined {
   try {
     const raw = localStorage.getItem(SHELL_LAYOUT_KEY);
     if (!raw) return undefined;
-    return JSON.parse(raw) as Record<string, number>;
+    return migrateStoredLayout(JSON.parse(raw) as Record<string, number>);
   } catch {
     return undefined;
   }
 }
 
 export function AppShell() {
-  const [leftSidebarOpen, setLeftSidebarOpen] = useState(true);
-  const [rightSidebarOpen, setRightSidebarOpen] = useState(true);
-  const leftPanelRef = useRef<PanelImperativeHandle>(null);
-  const rightPanelRef = useRef<PanelImperativeHandle>(null);
+  const [primaryPanelOpen, setPrimaryPanelOpen] = useState(true);
+  const [secondPanelOpen, setSecondPanelOpen] = useState(true);
+  const primaryPanelRef = useRef<PanelImperativeHandle>(null);
+  const secondPanelRef = useRef<PanelImperativeHandle>(null);
   const openLocalOnStart = useAppSettingsStore(
     (state) => state.openLocalTerminalOnStart,
   );
@@ -66,20 +78,20 @@ export function AppShell() {
   }, []);
 
   useEffect(() => {
-    if (leftSidebarOpen) {
-      leftPanelRef.current?.expand();
+    if (primaryPanelOpen) {
+      primaryPanelRef.current?.expand();
     } else {
-      leftPanelRef.current?.collapse();
+      primaryPanelRef.current?.collapse();
     }
-  }, [leftSidebarOpen]);
+  }, [primaryPanelOpen]);
 
   useEffect(() => {
-    if (rightSidebarOpen) {
-      rightPanelRef.current?.expand();
+    if (secondPanelOpen) {
+      secondPanelRef.current?.expand();
     } else {
-      rightPanelRef.current?.collapse();
+      secondPanelRef.current?.collapse();
     }
-  }, [rightSidebarOpen]);
+  }, [secondPanelOpen]);
 
   return (
     <div
@@ -92,67 +104,72 @@ export function AppShell() {
         id="app-shell"
         orientation="horizontal"
         className="h-full"
-        defaultLayout={readStoredLayout() ?? { left: 20, main: 55, right: 25 }}
+        defaultLayout={
+          readStoredLayout() ?? { primary: 20, main: 55, second: 25 }
+        }
         onLayoutChanged={(layout) => {
           try {
-            localStorage.setItem(SHELL_LAYOUT_KEY, JSON.stringify(layout));
+            localStorage.setItem(
+              SHELL_LAYOUT_KEY,
+              JSON.stringify(migrateStoredLayout(layout)),
+            );
           } catch {
             // Ignore quota or private browsing errors.
           }
 
-          const leftSize = layout.left ?? 0;
-          const rightSize = layout.right ?? 0;
+          const primarySize = layout.primary ?? layout.left ?? 0;
+          const secondSize = layout.second ?? layout.right ?? 0;
 
-          if (leftSize === 0 && leftSidebarOpen) {
-            setLeftSidebarOpen(false);
-          } else if (leftSize > 0 && !leftSidebarOpen) {
-            setLeftSidebarOpen(true);
+          if (primarySize === 0 && primaryPanelOpen) {
+            setPrimaryPanelOpen(false);
+          } else if (primarySize > 0 && !primaryPanelOpen) {
+            setPrimaryPanelOpen(true);
           }
 
-          if (rightSize === 0 && rightSidebarOpen) {
-            setRightSidebarOpen(false);
-          } else if (rightSize > 0 && !rightSidebarOpen) {
-            setRightSidebarOpen(true);
+          if (secondSize === 0 && secondPanelOpen) {
+            setSecondPanelOpen(false);
+          } else if (secondSize > 0 && !secondPanelOpen) {
+            setSecondPanelOpen(true);
           }
         }}
       >
         <ResizablePanel
-          id="left"
-          panelRef={leftPanelRef}
-          defaultSize={SHELL_PANEL_SIZES.left.default}
-          minSize={SHELL_PANEL_SIZES.left.min}
-          maxSize={SHELL_PANEL_SIZES.left.max}
+          id="primary"
+          panelRef={primaryPanelRef}
+          defaultSize={SHELL_PANEL_SIZES.primary.default}
+          minSize={SHELL_PANEL_SIZES.primary.min}
+          maxSize={SHELL_PANEL_SIZES.primary.max}
           collapsible
           collapsedSize={0}
           className="min-w-0 overflow-hidden"
         >
-          <ConnectionSidebar
-            collapsed={!leftSidebarOpen}
-            onToggleCollapsed={() => setLeftSidebarOpen((open) => !open)}
+          <PrimaryPanel
+            collapsed={!primaryPanelOpen}
+            onToggleCollapsed={() => setPrimaryPanelOpen((open) => !open)}
           />
         </ResizablePanel>
-        {leftSidebarOpen ? <ResizableHandle /> : null}
+        {primaryPanelOpen ? <ResizableHandle /> : null}
         <ResizablePanel id="main" minSize={SHELL_PANEL_SIZES.main.min}>
-          <MainWorkspace
-            leftSidebarOpen={leftSidebarOpen}
-            rightSidebarOpen={rightSidebarOpen}
-            onToggleRightSidebar={() => setRightSidebarOpen((v) => !v)}
+          <MainPanel
+            primaryPanelOpen={primaryPanelOpen}
+            secondPanelOpen={secondPanelOpen}
+            onToggleSecondPanel={() => setSecondPanelOpen((open) => !open)}
           />
         </ResizablePanel>
-        {rightSidebarOpen ? <ResizableHandle /> : null}
+        {secondPanelOpen ? <ResizableHandle /> : null}
         <ResizablePanel
-          id="right"
-          panelRef={rightPanelRef}
-          defaultSize={SHELL_PANEL_SIZES.right.default}
-          minSize={SHELL_PANEL_SIZES.right.min}
-          maxSize={SHELL_PANEL_SIZES.right.max}
+          id="second"
+          panelRef={secondPanelRef}
+          defaultSize={SHELL_PANEL_SIZES.second.default}
+          minSize={SHELL_PANEL_SIZES.second.min}
+          maxSize={SHELL_PANEL_SIZES.second.max}
           collapsible
           collapsedSize={0}
           className="min-w-0 overflow-hidden"
         >
-          <SecondarySidebar
-            rightSidebarOpen={rightSidebarOpen}
-            onToggleRightSidebar={() => setRightSidebarOpen((v) => !v)}
+          <SecondPanel
+            secondPanelOpen={secondPanelOpen}
+            onToggleSecondPanel={() => setSecondPanelOpen((open) => !open)}
           />
         </ResizablePanel>
       </ResizablePanelGroup>

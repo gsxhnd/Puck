@@ -1,7 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { PanelRightIcon } from "lucide-react";
 import { PanelHeader } from "@/layout/app-shell/panel-header";
-import { MAIN_SIDEBAR_TOOLBAR_SLOT_ID } from "@/layout/app-shell/sidebar-toolbar-slot";
+import { MAIN_PANEL_TOOLBAR_SLOT_ID } from "@/layout/app-shell/main-panel-toolbar-slot";
 import { useSessionStore } from "@/stores/session-store";
 import { TerminalPane } from "@/page/terminal/terminal-pane";
 import { SshTerminalPane } from "@/page/terminal/ssh-terminal-pane";
@@ -16,13 +16,13 @@ import {
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
-type MainWorkspaceProps = {
-  leftSidebarOpen?: boolean;
-  rightSidebarOpen?: boolean;
-  onToggleRightSidebar?: () => void;
+type MainPanelProps = {
+  primaryPanelOpen?: boolean;
+  secondPanelOpen?: boolean;
+  onToggleSecondPanel?: () => void;
 };
 
-function EmptyWorkspace() {
+function EmptyMainPanel() {
   const { t } = useTranslation(["common", "terminal"]);
 
   return (
@@ -39,10 +39,10 @@ function EmptyWorkspace() {
 }
 
 function MainPanelHeader({
-  leftSidebarOpen = true,
-  rightSidebarOpen = true,
-  onToggleRightSidebar,
-}: MainWorkspaceProps) {
+  primaryPanelOpen = true,
+  secondPanelOpen = true,
+  onToggleSecondPanel,
+}: MainPanelProps) {
   const { t } = useTranslation("common");
   const sessions = useSessionStore((state) => state.sessions);
   const activeSessionId = useSessionStore((state) => state.activeSessionId);
@@ -52,10 +52,10 @@ function MainPanelHeader({
   return (
     <PanelHeader
       layout="balanced"
-      macosInset={!leftSidebarOpen}
+      macosInset={!primaryPanelOpen}
       leading={
         <div
-          id={MAIN_SIDEBAR_TOOLBAR_SLOT_ID}
+          id={MAIN_PANEL_TOOLBAR_SLOT_ID}
           className="flex min-h-7 items-center gap-0.5"
         />
       }
@@ -65,7 +65,7 @@ function MainPanelHeader({
         ) : null
       }
       trailing={
-        !rightSidebarOpen && onToggleRightSidebar ? (
+        !secondPanelOpen && onToggleSecondPanel ? (
           <Tooltip>
             <TooltipTrigger
               render={
@@ -73,17 +73,17 @@ function MainPanelHeader({
                   variant="ghost"
                   size="icon-sm"
                   className={cn(
-                    !rightSidebarOpen && "text-muted-foreground",
+                    !secondPanelOpen && "text-muted-foreground",
                   )}
-                  aria-label={t("nav.toggleSecondaryPanel")}
-                  onClick={onToggleRightSidebar}
+                  aria-label={t("nav.toggleSecondPanel")}
+                  onClick={onToggleSecondPanel}
                 >
                   <PanelRightIcon />
                 </Button>
               }
             />
             <TooltipContent side="bottom">
-              {t("nav.toggleSecondaryPanel")}
+              {t("nav.toggleSecondPanel")}
             </TooltipContent>
           </Tooltip>
         ) : null
@@ -92,11 +92,11 @@ function MainPanelHeader({
   );
 }
 
-export function MainWorkspace({
-  leftSidebarOpen,
-  rightSidebarOpen,
-  onToggleRightSidebar,
-}: MainWorkspaceProps) {
+export function MainPanel({
+  primaryPanelOpen,
+  secondPanelOpen,
+  onToggleSecondPanel,
+}: MainPanelProps) {
   const sessions = useSessionStore((state) => state.sessions);
   const activeSessionId = useSessionStore((state) => state.activeSessionId);
   const activeSession =
@@ -116,11 +116,11 @@ export function MainWorkspace({
     return (
       <div className="flex h-full min-h-0 flex-col overflow-hidden bg-shell-main">
         <MainPanelHeader
-          leftSidebarOpen={leftSidebarOpen}
-          rightSidebarOpen={rightSidebarOpen}
-          onToggleRightSidebar={onToggleRightSidebar}
+          primaryPanelOpen={primaryPanelOpen}
+          secondPanelOpen={secondPanelOpen}
+          onToggleSecondPanel={onToggleSecondPanel}
         />
-        <EmptyWorkspace />
+        <EmptyMainPanel />
       </div>
     );
   }
@@ -128,9 +128,9 @@ export function MainWorkspace({
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden bg-shell-main">
       <MainPanelHeader
-        leftSidebarOpen={leftSidebarOpen}
-        rightSidebarOpen={rightSidebarOpen}
-        onToggleRightSidebar={onToggleRightSidebar}
+        primaryPanelOpen={primaryPanelOpen}
+        secondPanelOpen={secondPanelOpen}
+        onToggleSecondPanel={onToggleSecondPanel}
       />
       <div className="relative min-h-0 flex-1 overflow-hidden">
         {localTerminalSessions.map((session) => (

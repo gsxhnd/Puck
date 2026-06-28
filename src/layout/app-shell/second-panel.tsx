@@ -139,12 +139,12 @@ function SessionInfoPanel() {
   );
 }
 
-export function SessionInfoSidebar({
-  rightSidebarOpen = true,
-  onToggleRightSidebar,
+export function SecondPanel({
+  secondPanelOpen = true,
+  onToggleSecondPanel,
 }: {
-  rightSidebarOpen?: boolean;
-  onToggleRightSidebar?: () => void;
+  secondPanelOpen?: boolean;
+  onToggleSecondPanel?: () => void;
 }) {
   const { t } = useTranslation(["info", "common"]);
   const [view, setView] = useState<PanelView>("info");
@@ -162,7 +162,7 @@ export function SessionInfoSidebar({
     <div className="flex h-full w-full flex-col overflow-hidden bg-shell-secondary">
       <PanelHeader
         leading={
-          <LayoutGroup id="session-info-tabs">
+          <LayoutGroup id="second-panel-tabs">
             <div className="flex items-center gap-0.5">
               {headerActions.map((action) => {
                 const isSelected = view === action.id;
@@ -217,7 +217,7 @@ export function SessionInfoSidebar({
         }
         trailing={
           <>
-            {onToggleRightSidebar ? (
+            {onToggleSecondPanel ? (
               <Tooltip>
                 <TooltipTrigger
                   render={
@@ -225,17 +225,17 @@ export function SessionInfoSidebar({
                       variant="ghost"
                       size="icon-sm"
                       className={cn(
-                        !rightSidebarOpen && "text-muted-foreground",
+                        !secondPanelOpen && "text-muted-foreground",
                       )}
-                      aria-label={t("common:nav.toggleSecondaryPanel")}
-                      onClick={onToggleRightSidebar}
+                      aria-label={t("common:nav.toggleSecondPanel")}
+                      onClick={onToggleSecondPanel}
                     >
                       <PanelRightIcon />
                     </Button>
                   }
                 />
                 <TooltipContent side="bottom">
-                  {t("common:nav.toggleSecondaryPanel")}
+                  {t("common:nav.toggleSecondPanel")}
                 </TooltipContent>
               </Tooltip>
             ) : null}
@@ -244,7 +244,7 @@ export function SessionInfoSidebar({
         }
       />
 
-      {rightSidebarOpen ? (
+      {secondPanelOpen ? (
         <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
           <AnimatePresence mode="wait" initial={false}>
             {view === "info" ? (
