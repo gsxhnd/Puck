@@ -2,6 +2,7 @@
   "title": "信息",
   "files": "文件",
   "git": "Git",
+  "outline": "大纲",
   "transfers": "传输",
   "workingDirectory": "工作目录",
   "copyPath": "复制路径",
@@ -19,5 +20,6 @@
   "gitClean": "工作区干净",
   "detachedHead": "游离 HEAD",
   "refresh": "刷新",
-  "emptyDirectory": "空目录"
+  "emptyDirectory": "空目录",
+  "outlineEmpty": "输入的命令会显示在这里"
 }

@@ -22,6 +22,9 @@ import {
 } from "@/lib/tauri-terminal";
 import { buildTabLabel, extractOsc7Cwd } from "@/lib/session-display";
 import { applyTerminalFont, applyTerminalTheme } from "@/lib/apply-terminal-appearance";
+import { registerTerminal, unregisterTerminal } from "@/lib/terminal-registry";
+import { trackTerminalCommandInput } from "@/lib/track-terminal-command";
+import { useCommandOutlineStore } from "@/stores/command-outline-store";
 import { useTerminalTheme } from "@/hooks/use-terminal-theme";
 import { cn } from "@/lib/utils";
 
@@ -48,6 +51,7 @@ export function TerminalPane({ sessionId, shellId, active }: TerminalPaneProps) 
 
   const tRef = useRef(t);
   tRef.current = t;
+  const commandInputRef = useRef({ buffer: "" });
 
   useEffect(() => {
     const container = containerRef.current;
@@ -73,8 +77,10 @@ export function TerminalPane({ sessionId, shellId, active }: TerminalPaneProps) 
 
     terminalRef.current = terminal;
     fitAddonRef.current = fitAddon;
+    registerTerminal(sessionId, terminal);
 
     const dataDisposable = terminal.onData((data) => {
+      trackTerminalCommandInput(sessionId, terminal, data, commandInputRef.current);
       void writeTerminal(sessionId, data);
     });
 
@@ -172,6 +178,9 @@ export function TerminalPane({ sessionId, shellId, active }: TerminalPaneProps) 
       terminalRef.current = null;
       fitAddonRef.current = null;
       openedRef.current = false;
+      unregisterTerminal(sessionId);
+      commandInputRef.current.buffer = "";
+      useCommandOutlineStore.getState().removeSession(sessionId);
     };
   }, [sessionId, shellId, removeSession, updateSessionMeta, updateSessionStatus]);
 

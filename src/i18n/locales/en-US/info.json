@@ -2,6 +2,7 @@
   "title": "Info",
   "files": "Files",
   "git": "Git",
+  "outline": "Outline",
   "transfers": "Transfers",
   "workingDirectory": "Working Directory",
   "copyPath": "Copy Path",
@@ -19,5 +20,6 @@
   "gitClean": "Working tree clean",
   "detachedHead": "Detached HEAD",
   "refresh": "Refresh",
-  "emptyDirectory": "Empty directory"
+  "emptyDirectory": "Empty directory",
+  "outlineEmpty": "Commands you run will appear here"
 }

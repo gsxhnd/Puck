@@ -34,6 +34,9 @@ import {
 } from "@/lib/session-display";
 import { isHostKeyError, parsePuckError } from "@/lib/puck-error";
 import { applyTerminalFont, applyTerminalTheme } from "@/lib/apply-terminal-appearance";
+import { registerTerminal, unregisterTerminal } from "@/lib/terminal-registry";
+import { trackTerminalCommandInput } from "@/lib/track-terminal-command";
+import { useCommandOutlineStore } from "@/stores/command-outline-store";
 import { HostKeyDialog } from "@/components/ssh/host-key-dialog";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -79,6 +82,7 @@ export function SshTerminalPane({
 
   const tRef = useRef(t);
   tRef.current = t;
+  const commandInputRef = useRef({ buffer: "" });
 
   const connect = async (cols: number, rows: number) => {
     if (!profile) {
@@ -132,8 +136,10 @@ export function SshTerminalPane({
     terminal.open(container);
     terminalRef.current = terminal;
     fitAddonRef.current = fitAddon;
+    registerTerminal(sessionId, terminal);
 
     const dataDisposable = terminal.onData((data) => {
+      trackTerminalCommandInput(sessionId, terminal, data, commandInputRef.current);
       void writeTerminal(sessionId, data);
     });
     const resizeDisposable = terminal.onResize(({ cols, rows }) => {
@@ -212,6 +218,9 @@ export function SshTerminalPane({
       terminalRef.current = null;
       fitAddonRef.current = null;
       openedRef.current = false;
+      unregisterTerminal(sessionId);
+      commandInputRef.current.buffer = "";
+      useCommandOutlineStore.getState().removeSession(sessionId);
     };
   }, [
     profile,

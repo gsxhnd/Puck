@@ -9,9 +9,11 @@ import {
   GitBranchIcon,
   InfoIcon,
   ListIcon,
+  ListTreeIcon,
   PanelRightIcon,
 } from "lucide-react";
 import { TransferQueueContent } from "@/components/files/transfer-queue";
+import { CommandOutlinePanel } from "@/components/workspace/command-outline-panel";
 import { GitPanel } from "@/components/workspace/git-panel";
 import { LocalFileExplorerPanel } from "@/components/workspace/local-file-explorer";
 import { useSessionStore } from "@/stores/session-store";
@@ -29,7 +31,7 @@ import { PanelHeader } from "@/layout/app-shell/panel-header";
 import { WindowControls } from "@/layout/app-shell/window-controls";
 import { getPlatform } from "@/lib/platform";
 
-type PanelView = "info" | "files" | "git" | "transfers";
+type PanelView = "info" | "files" | "git" | "outline" | "transfers";
 
 const tabTransition = { duration: 0.2, ease: [0.25, 0.1, 0.25, 1] } as const;
 const panelTransition = { duration: 0.22, ease: [0.25, 0.1, 0.25, 1] } as const;
@@ -159,6 +161,7 @@ export function SecondPanel({
         { id: "info" as const, icon: InfoIcon, label: t("info:title") },
         { id: "files" as const, icon: FolderTreeIcon, label: t("info:files") },
         { id: "git" as const, icon: GitBranchIcon, label: t("info:git") },
+        { id: "outline" as const, icon: ListTreeIcon, label: t("info:outline") },
         { id: "transfers" as const, icon: ListIcon, label: t("info:transfers") },
       ] as const,
     [t],
@@ -285,6 +288,17 @@ export function SecondPanel({
                 className="flex min-h-0 flex-1 flex-col"
               >
                 <GitPanel />
+              </motion.div>
+            ) : view === "outline" ? (
+              <motion.div
+                key="outline"
+                initial={{ opacity: 0, x: 12 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -12 }}
+                transition={panelTransition}
+                className="flex min-h-0 flex-1 flex-col"
+              >
+                <CommandOutlinePanel />
               </motion.div>
             ) : (
               <motion.div
