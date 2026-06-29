@@ -72,8 +72,13 @@
     "description": "Create a remote connection profile. Passwords and passphrases are stored securely.",
     "untitled": "Untitled Connection"
   },
+  "quickConnect": {
+    "title": "Quick Connect",
+    "description": "Connect immediately or save as a profile for next time."
+  },
   "lastConnected": "Last connected: {{time}}",
   "newMenu": {
+    "quickConnect": "Quick Connect",
     "localTerminal": "Local Terminal",
     "remoteManager": "Remote Management"
   },

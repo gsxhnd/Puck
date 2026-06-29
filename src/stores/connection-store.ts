@@ -19,6 +19,10 @@ type ConnectionStore = {
     partial: Pick<ConnectionProfile, "name" | "protocol"> &
       Partial<Omit<ConnectionProfile, "id" | "name" | "protocol" | "createdAt" | "updatedAt">>,
   ) => ConnectionProfile;
+  addEphemeralProfile: (
+    partial: Pick<ConnectionProfile, "name" | "protocol"> &
+      Partial<Omit<ConnectionProfile, "id" | "name" | "protocol" | "createdAt" | "updatedAt">>,
+  ) => ConnectionProfile;
   updateProfile: (
     id: string,
     patch: Partial<Omit<ConnectionProfile, "id" | "createdAt">>,
@@ -67,6 +71,11 @@ export const useConnectionStore = create<ConnectionStore>()(
         set((state) => ({ profiles: [...state.profiles, profile] }));
         return profile;
       },
+      addEphemeralProfile: (partial) => {
+        const profile = { ...createConnectionProfile(partial), ephemeral: true };
+        set((state) => ({ profiles: [...state.profiles, profile] }));
+        return profile;
+      },
       updateProfile: (id, patch) => {
         set((state) => ({
           profiles: state.profiles.map((profile) =>
@@ -109,6 +118,9 @@ export const useConnectionStore = create<ConnectionStore>()(
       name: PUCK_CONFIG_KEYS.connections,
       storage: puckPersistStorage,
       skipHydration: true,
+      partialize: (state) => ({
+        profiles: state.profiles.filter((profile) => !profile.ephemeral),
+      }),
       merge: (persisted, current) => {
         const stored = persisted as Partial<ConnectionStore> | undefined;
         if (stored?.profiles && stored.profiles.length > 0) {

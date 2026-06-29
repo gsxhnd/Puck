@@ -4,6 +4,8 @@ import { open } from "@tauri-apps/plugin-dialog";
 import type { AuthMethod, ConnectionProfile, ConnectionProtocol } from "@/types/connection";
 import { DEFAULT_PORTS } from "@/types/connection";
 import { useConnectionStore } from "@/stores/connection-store";
+import { useSessionStore } from "@/stores/session-store";
+import { buildProfileSessionRequest } from "@/lib/open-connection-profile";
 import {
   deleteConnectionCredentials,
   saveCredential,
@@ -22,6 +24,7 @@ import { Input } from "@/components/ui/input";
 type ConnectionDialogProps = {
   open: boolean;
   profileId?: string | null;
+  mode?: "default" | "quickConnect";
   onOpenChange: (open: boolean) => void;
 };
 
@@ -78,19 +81,47 @@ function emptyForm(): FormState {
   };
 }
 
+function formToProfilePayload(form: FormState, untitledLabel: string) {
+  const port = Number.parseInt(form.port, 10);
+  return {
+    name: form.name.trim() || untitledLabel,
+    protocol: form.protocol,
+    host: form.host.trim(),
+    port: Number.isFinite(port) ? port : DEFAULT_PORTS[form.protocol],
+    username: form.username.trim(),
+    authMethod: form.authMethod,
+    privateKeyPath:
+      form.authMethod === "privateKey" ? form.privateKeyPath.trim() : undefined,
+    defaultDirectory: form.defaultDirectory.trim() || undefined,
+  };
+}
+
+async function persistCredentials(connectionId: string, form: FormState) {
+  if (form.authMethod === "password" && form.password) {
+    await saveCredential(connectionId, "password", form.password);
+  }
+  if (form.authMethod === "privateKey" && form.passphrase) {
+    await saveCredential(connectionId, "passphrase", form.passphrase);
+  }
+}
+
 export function ConnectionDialog({
   open: dialogOpen,
   profileId,
+  mode = "default",
   onOpenChange,
 }: ConnectionDialogProps) {
   const { t } = useTranslation(["connections", "common"]);
   const addProfile = useConnectionStore((state) => state.addProfile);
+  const addEphemeralProfile = useConnectionStore((state) => state.addEphemeralProfile);
   const updateProfile = useConnectionStore((state) => state.updateProfile);
   const removeProfile = useConnectionStore((state) => state.removeProfile);
+  const addSession = useSessionStore((state) => state.addSession);
   const profile = useConnectionStore((state) =>
     profileId ? state.getProfile(profileId) : undefined,
   );
   const isEditing = Boolean(profileId && profile && profile.protocol !== "local");
+  const isQuickConnect = mode === "quickConnect" && !isEditing;
   const [form, setForm] = useState<FormState>(emptyForm);
   const [saving, setSaving] = useState(false);
 
@@ -128,18 +159,10 @@ export function ConnectionDialog({
   const handleSave = async () => {
     setSaving(true);
     try {
-      const port = Number.parseInt(form.port, 10);
-      const payload = {
-        name: form.name.trim() || t("connections:newDialog.untitled"),
-        protocol: form.protocol,
-        host: form.host.trim(),
-        port: Number.isFinite(port) ? port : DEFAULT_PORTS[form.protocol],
-        username: form.username.trim(),
-        authMethod: form.authMethod,
-        privateKeyPath:
-          form.authMethod === "privateKey" ? form.privateKeyPath.trim() : undefined,
-        defaultDirectory: form.defaultDirectory.trim() || undefined,
-      };
+      const payload = formToProfilePayload(
+        form,
+        t("connections:newDialog.untitled"),
+      );
 
       let connectionId = profileId ?? "";
       if (isEditing && profileId) {
@@ -149,13 +172,23 @@ export function ConnectionDialog({
         connectionId = created.id;
       }
 
-      if (form.authMethod === "password" && form.password) {
-        await saveCredential(connectionId, "password", form.password);
-      }
-      if (form.authMethod === "privateKey" && form.passphrase) {
-        await saveCredential(connectionId, "passphrase", form.passphrase);
-      }
+      await persistCredentials(connectionId, form);
+      onOpenChange(false);
+    } finally {
+      setSaving(false);
+    }
+  };
 
+  const handleConnect = async () => {
+    setSaving(true);
+    try {
+      const payload = formToProfilePayload(
+        form,
+        t("connections:newDialog.untitled"),
+      );
+      const profile = addEphemeralProfile(payload);
+      await persistCredentials(profile.id, form);
+      addSession(buildProfileSessionRequest(profile));
       onOpenChange(false);
     } finally {
       setSaving(false);
@@ -176,12 +209,16 @@ export function ConnectionDialog({
           <DialogTitle>
             {isEditing
               ? t("connections:editDialog.title")
-              : t("connections:newDialog.title")}
+              : isQuickConnect
+                ? t("connections:quickConnect.title")
+                : t("connections:newDialog.title")}
           </DialogTitle>
           <DialogDescription>
             {isEditing
               ? t("connections:editDialog.description")
-              : t("connections:newDialog.description")}
+              : isQuickConnect
+                ? t("connections:quickConnect.description")
+                : t("connections:newDialog.description")}
           </DialogDescription>
         </DialogHeader>
 
@@ -349,9 +386,29 @@ export function ConnectionDialog({
             >
               {t("common:actions.cancel")}
             </Button>
-            <Button type="button" disabled={saving} onClick={() => void handleSave()}>
-              {t("common:actions.save")}
-            </Button>
+            {isQuickConnect ? (
+              <>
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={saving}
+                  onClick={() => void handleSave()}
+                >
+                  {t("common:actions.save")}
+                </Button>
+                <Button
+                  type="button"
+                  disabled={saving}
+                  onClick={() => void handleConnect()}
+                >
+                  {t("connections:manager.connect")}
+                </Button>
+              </>
+            ) : (
+              <Button type="button" disabled={saving} onClick={() => void handleSave()}>
+                {t("common:actions.save")}
+              </Button>
+            )}
           </div>
         </DialogFooter>
       </DialogContent>

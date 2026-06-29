@@ -256,7 +256,7 @@ export function usePaletteCommands(
 
   const connectCommands = useMemo<PaletteCommand[]>(() => {
     return profiles
-      .filter((profile) => profile.protocol !== "local")
+      .filter((profile) => profile.protocol !== "local" && !profile.ephemeral)
       .map((profile) => ({
         id: `connect-${profile.id}`,
         section: "connections" as const,

@@ -72,8 +72,13 @@
     "description": "创建远程连接配置，密码和私钥口令将安全保存。",
     "untitled": "未命名连接"
   },
+  "quickConnect": {
+    "title": "快速连接",
+    "description": "填写连接信息后可立即连接，或保存为配置以便下次使用。"
+  },
   "lastConnected": "最近连接：{{time}}",
   "newMenu": {
+    "quickConnect": "快速连接",
     "localTerminal": "本地终端",
     "remoteManager": "远程管理"
   },

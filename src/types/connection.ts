@@ -20,6 +20,8 @@ export type ConnectionProfile = {
   privateKeyPath?: string;
   defaultDirectory?: string;
   terminalThemeId?: string;
+  /** Runtime-only profile for quick connect; not persisted to disk. */
+  ephemeral?: boolean;
   createdAt: string;
   updatedAt: string;
 };

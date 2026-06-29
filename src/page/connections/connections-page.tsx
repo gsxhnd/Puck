@@ -91,7 +91,7 @@ export function ConnectionsPage() {
   const sortedProfiles = useMemo(
     () =>
       [...profiles]
-        .filter((profile) => profile.protocol !== "local")
+        .filter((profile) => profile.protocol !== "local" && !profile.ephemeral)
         .sort((a, b) =>
           a.name.localeCompare(b.name, undefined, { sensitivity: "base" }),
         ),

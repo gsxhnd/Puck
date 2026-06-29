@@ -29,7 +29,9 @@ function credentialFieldsForProfile(
 export function SettingsCredentials() {
   const { t } = useTranslation(["settings", "common"]);
   const profiles = useConnectionStore((state) =>
-    state.profiles.filter((profile) => profile.protocol !== "local"),
+    state.profiles.filter(
+      (profile) => profile.protocol !== "local" && !profile.ephemeral,
+    ),
   );
   const [statusById, setStatusById] = useState<Record<string, CredentialStatus>>(
     {},

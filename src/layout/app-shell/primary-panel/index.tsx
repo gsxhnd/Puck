@@ -103,7 +103,7 @@ export function PrimaryPanel({
     pruneSessions(sidebarSessions.map((session) => session.id));
   }, [pruneSessions, sidebarSessions]);
 
-  const openCreateDialog = () => {
+  const openQuickConnectDialog = () => {
     setEditingProfileId(null);
     setDialogOpen(true);
   };
@@ -191,7 +191,7 @@ export function PrimaryPanel({
         sort={sort}
         setSort={setSort}
         shells={shells}
-        onCreateConnection={openCreateDialog}
+        onQuickConnect={openQuickConnectDialog}
         onCreateGroup={() => setCreateGroupOpen(true)}
         onOpenDefaultTerminal={openDefaultTerminal}
         onOpenShellTerminal={openShellTerminal}
@@ -232,6 +232,7 @@ export function PrimaryPanel({
       <ConnectionDialog
         open={dialogOpen}
         profileId={editingProfileId}
+        mode="quickConnect"
         onOpenChange={setDialogOpen}
       />
 

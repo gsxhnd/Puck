@@ -7,6 +7,7 @@
  */
 import { create } from "zustand";
 import { exitApp } from "@/lib/exit-app";
+import { cleanupEphemeralProfileIfUnused } from "@/lib/ephemeral-connection";
 import {
   type ConnectionProtocol,
   type Session,
@@ -119,8 +120,13 @@ export const useSessionStore = create<SessionStore>()((set, get) => ({
   },
   closeSession: (id) => {
     let shouldExit = false;
+    let closedProfileId: string | undefined;
+    let remainingSessions: Session[] = [];
     set((state) => {
+      const closed = state.sessions.find((session) => session.id === id);
+      closedProfileId = closed?.profileId;
       const sessions = state.sessions.filter((session) => session.id !== id);
+      remainingSessions = sessions;
       shouldExit = sessions.length === 0;
       const activeSessionId =
         state.activeSessionId === id
@@ -128,6 +134,9 @@ export const useSessionStore = create<SessionStore>()((set, get) => ({
           : state.activeSessionId;
       return { sessions, activeSessionId };
     });
+    if (closedProfileId) {
+      void cleanupEphemeralProfileIfUnused(closedProfileId, remainingSessions);
+    }
     if (shouldExit) {
       void exitApp();
     }

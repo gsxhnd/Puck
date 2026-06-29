@@ -84,7 +84,7 @@ export type SidebarHeaderActionsProps = {
   collapsed?: boolean;
   menuAlign?: "start" | "end";
   onToggleCollapsed?: () => void;
-  onCreateConnection: () => void;
+  onQuickConnect: () => void;
   onCreateGroup: () => void;
   onOpenDefaultTerminal: () => void;
   onOpenShellTerminal: (shell: ShellInfo) => void;
@@ -94,7 +94,7 @@ export type SidebarHeaderActionsProps = {
 /**
  * Renders the sort menu, the "new" menu, and the collapse toggle.
  *
- * 渲染主侧栏头部的三个动作：排序菜单、"新建"菜单（新建连接 / 分组 /
+ * 渲染主侧栏头部的三个动作：排序菜单、"新建"菜单（快速连接 / 分组 /
  * 本地终端 / 远程管理窗口）以及折叠按钮。组件本身无状态，所有数据与
  * 回调均由父组件传入；折叠态下会隐藏排序菜单并切换菜单对齐方向。
  */
@@ -107,7 +107,7 @@ export function SidebarHeaderActions({
   collapsed = false,
   menuAlign = "end",
   onToggleCollapsed,
-  onCreateConnection,
+  onQuickConnect,
   onCreateGroup,
   onOpenDefaultTerminal,
   onOpenShellTerminal,
@@ -162,15 +162,15 @@ export function SidebarHeaderActions({
             variant="ghost"
             size="icon-sm"
             className={sidebarHeaderIconClass}
-            aria-label={t("common:actions.newConnection")}
+            aria-label={t("connections:newMenu.quickConnect")}
           >
             <PlusIcon />
           </Button>
         }
       />
       <DropdownMenuContent align={menuAlign} className="w-56">
-        <DropdownMenuItem onClick={onCreateConnection}>
-          {t("common:actions.newConnection")}
+        <DropdownMenuItem onClick={onQuickConnect}>
+          {t("connections:newMenu.quickConnect")}
         </DropdownMenuItem>
         <DropdownMenuItem onClick={onCreateGroup}>
           {t("connections:sidebarGroups.new")}
