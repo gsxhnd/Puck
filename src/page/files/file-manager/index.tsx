@@ -1,14 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { open, save } from "@tauri-apps/plugin-dialog";
-import {
-  ChevronRightIcon,
-  FolderIcon,
-  FolderPlusIcon,
-  RefreshCwIcon,
-  Trash2Icon,
-  UploadIcon,
-} from "lucide-react";
 import { useConnectionStore } from "@/stores/connection-store";
 import { useSessionStore } from "@/stores/session-store";
 import { useTransferStore } from "@/stores/transfer-store";
@@ -28,44 +20,38 @@ import {
 } from "@/lib/tauri-sftp";
 import { trustSshHostKey } from "@/lib/tauri-ssh";
 import { isHostKeyError, parsePuckError } from "@/lib/puck-error";
+import type { HostKeyPrompt } from "@/lib/puck-error";
 import { HostKeyDialog } from "@/components/ssh/host-key-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
-import type { HostKeyPrompt } from "@/lib/puck-error";
+import { FileManagerToolbar } from "@/page/files/file-manager/file-toolbar";
+import { RemoteFileTable } from "@/page/files/file-manager/remote-file-table";
+import {
+  buildBreadcrumbs,
+  joinRemotePath,
+  sortRemoteEntries,
+} from "@/page/files/file-manager/utils";
 
-type FileManagerProps = {
-  sessionId: string;
-  profileId?: string;
-  active: boolean;
-  focused?: boolean;
-  layout?: "stack" | "pane";
-};
-
-function formatBytes(size: number) {
-  if (size < 1024) return `${size} B`;
-  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
-  if (size < 1024 * 1024 * 1024) return `${(size / (1024 * 1024)).toFixed(1)} MB`;
-  return `${(size / (1024 * 1024 * 1024)).toFixed(1)} GB`;
-}
-
-function formatModified(timestamp?: number) {
-  if (!timestamp) return "—";
-  return new Date(timestamp * 1000).toLocaleString();
-}
-
-function joinRemotePath(base: string, name: string) {
-  if (base === "/") return `/${name}`;
-  return `${base.replace(/\/$/, "")}/${name}`;
-}
-
+/**
+ * SFTP/SSH remote file browser for a session tab.
+ *
+ * 会话标签内的远程文件管理器。通过 SFTP 连接浏览远端目录，支持上传、下载、
+ * 新建文件夹、重命名与删除；传输进度写入全局 transfer store。首次连接若遇到
+ * 未知 SSH 主机密钥，会弹出信任确认对话框。
+ */
 export function FileManager({
   sessionId,
   profileId,
   active,
   layout = "stack",
-}: FileManagerProps) {
+}: {
+  sessionId: string;
+  profileId?: string;
+  active: boolean;
+  focused?: boolean;
+  layout?: "stack" | "pane";
+}) {
   const { t } = useTranslation(["files", "errors", "common"]);
   const profile = useConnectionStore((state) =>
     profileId ? state.getProfile(profileId) : undefined,
@@ -89,11 +75,7 @@ export function FileManager({
   const [hostKeyPrompt, setHostKeyPrompt] = useState<HostKeyPrompt | null>(null);
 
   const supported = profile?.protocol === "sftp" || profile?.protocol === "ssh";
-
-  const breadcrumbs = useMemo(() => {
-    if (cwd === "/") return ["/"];
-    return ["/", ...cwd.split("/").filter(Boolean)];
-  }, [cwd]);
+  const breadcrumbs = useMemo(() => buildBreadcrumbs(cwd), [cwd]);
 
   const refresh = useCallback(async () => {
     if (!connected) return;
@@ -101,7 +83,7 @@ export function FileManager({
     setError(null);
     try {
       const list = await listRemoteDir(sessionId, cwd);
-      setEntries(list.sort((a, b) => Number(b.isDir) - Number(a.isDir) || a.name.localeCompare(b.name)));
+      setEntries(sortRemoteEntries(list));
     } catch (err) {
       setError(parsePuckError(err).message);
     } finally {
@@ -299,64 +281,23 @@ export function FileManager({
         !active && "pointer-events-none invisible",
       )}
     >
-      <div className="flex flex-wrap items-center gap-2 px-3 py-2">
-        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1 text-sm">
-          {breadcrumbs.map((segment, index) => {
-            const path =
-              segment === "/"
-                ? "/"
-                : `/${breadcrumbs.slice(1, index + 1).join("/")}`;
-            return (
-              <div key={`${segment}-${index}`} className="flex items-center gap-1">
-                {index > 0 ? (
-                  <ChevronRightIcon className="size-3.5 text-muted-foreground" />
-                ) : null}
-                <button
-                  type="button"
-                  className="rounded px-1 hover:bg-muted"
-                  onClick={() => navigateTo(path)}
-                >
-                  {segment}
-                </button>
-              </div>
-            );
-          })}
-        </div>
-        <div className="flex items-center gap-1">
-          <Button size="sm" variant="outline" onClick={() => void refresh()} disabled={!connected}>
-            <RefreshCwIcon className="size-4" />
-            {t("common:actions.refresh")}
-          </Button>
-          <Button size="sm" variant="outline" onClick={() => void handleMkdir()} disabled={!connected}>
-            <FolderPlusIcon className="size-4" />
-            {t("files:actions.newFolder")}
-          </Button>
-          <Button size="sm" variant="outline" onClick={() => void handleUpload()} disabled={!connected}>
-            <UploadIcon className="size-4" />
-            {t("files:actions.upload")}
-          </Button>
-          <Button size="sm" variant="outline" onClick={() => void handleDownload()} disabled={!selectedPath}>
-            {t("files:actions.download")}
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => {
-              setRenaming(true);
-              if (selectedPath) {
-                setRenameValue(selectedPath.split("/").pop() ?? "");
-              }
-            }}
-            disabled={!selectedPath}
-          >
-            {t("files:actions.rename")}
-          </Button>
-          <Button size="sm" variant="outline" onClick={() => void handleDelete()} disabled={!selectedPath}>
-            <Trash2Icon className="size-4" />
-            {t("common:actions.delete")}
-          </Button>
-        </div>
-      </div>
+      <FileManagerToolbar
+        breadcrumbs={breadcrumbs}
+        connected={connected}
+        selectedPath={selectedPath}
+        onNavigate={navigateTo}
+        onRefresh={() => void refresh()}
+        onMkdir={() => void handleMkdir()}
+        onUpload={() => void handleUpload()}
+        onDownload={() => void handleDownload()}
+        onRename={() => {
+          setRenaming(true);
+          if (selectedPath) {
+            setRenameValue(selectedPath.split("/").pop() ?? "");
+          }
+        }}
+        onDelete={() => void handleDelete()}
+      />
 
       {error ? (
         <div className="bg-destructive/10 px-3 py-2 text-sm text-destructive">
@@ -383,73 +324,14 @@ export function FileManager({
         </div>
       ) : null}
 
-      <ScrollArea className="min-h-0 flex-1">
-        <table className="w-full text-sm">
-          <thead className="sticky top-0 bg-muted/50 text-left text-xs text-muted-foreground">
-            <tr>
-              <th className="px-3 py-2 font-medium">{t("files:columns.name")}</th>
-              <th className="px-3 py-2 font-medium">{t("files:columns.size")}</th>
-              <th className="px-3 py-2 font-medium">{t("files:columns.modified")}</th>
-              <th className="px-3 py-2 font-medium">{t("files:columns.permissions")}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {cwd !== "/" ? (
-              <tr
-                className="cursor-pointer hover:bg-muted/40"
-                onClick={() => {
-                  const parent =
-                    cwd === "/" ? "/" : cwd.replace(/\/[^/]+$/, "") || "/";
-                  navigateTo(parent);
-                }}
-              >
-                <td className="px-3 py-2" colSpan={4}>
-                  ..
-                </td>
-              </tr>
-            ) : null}
-            {loading ? (
-              <tr>
-                <td className="px-3 py-6 text-muted-foreground" colSpan={4}>
-                  {t("files:loading")}
-                </td>
-              </tr>
-            ) : (
-              entries.map((entry) => (
-                <tr
-                  key={entry.path}
-                  className={cn(
-                    "cursor-pointer hover:bg-muted/40",
-                    selectedPath === entry.path && "bg-muted/60",
-                  )}
-                  onClick={() => handleEntryOpen(entry)}
-                  onDoubleClick={() => {
-                    if (entry.isDir) handleEntryOpen(entry);
-                  }}
-                >
-                  <td className="px-3 py-2">
-                    <span className="inline-flex items-center gap-2">
-                      {entry.isDir ? (
-                        <FolderIcon className="size-4 text-sky-500" />
-                      ) : null}
-                      {entry.name}
-                    </span>
-                  </td>
-                  <td className="px-3 py-2 text-muted-foreground">
-                    {entry.isDir ? "—" : formatBytes(entry.size)}
-                  </td>
-                  <td className="px-3 py-2 text-muted-foreground">
-                    {formatModified(entry.modified)}
-                  </td>
-                  <td className="px-3 py-2 text-muted-foreground">
-                    {entry.permissions ?? "—"}
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </ScrollArea>
+      <RemoteFileTable
+        cwd={cwd}
+        entries={entries}
+        loading={loading}
+        selectedPath={selectedPath}
+        onNavigate={navigateTo}
+        onOpenEntry={handleEntryOpen}
+      />
 
       <HostKeyDialog
         open={Boolean(hostKeyPrompt)}

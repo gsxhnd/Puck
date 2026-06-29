@@ -1,3 +1,9 @@
+/**
+ * Structured error parsing for Rust backend `PuckError` payloads.
+ *
+ * 解析 Rust 后端返回的结构化错误 JSON（`PuckError`），统一提取错误码、
+ * 消息与详情；并提供 `isHostKeyError` 辅助判断 SSH 未知主机密钥场景。
+ */
 export type HostKeyPrompt = {
   host: string;
   port: number;

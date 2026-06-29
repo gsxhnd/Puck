@@ -1,3 +1,9 @@
+/**
+ * SFTP upload/download transfer queue and progress tracking.
+ *
+ * 文件传输任务队列 store：跟踪每个上传/下载任务的状态、已传输字节数与错误
+ * 信息；由 file-manager 创建任务，后端事件回调更新进度与完成/失败状态。
+ */
 import { create } from "zustand";
 import type {
   TransferDoneEvent,

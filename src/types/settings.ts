@@ -1,3 +1,9 @@
+/**
+ * Application settings shape and default values.
+ *
+ * 应用全局设置的类型定义与默认值：语言、主题、终端外观、面板可见性以及
+ * 默认会话权限等字段，供 app-settings-store 使用。
+ */
 import type { ColorThemeId } from "@/lib/color-themes";
 import { DEFAULT_COLOR_THEME } from "@/lib/color-themes";
 import {

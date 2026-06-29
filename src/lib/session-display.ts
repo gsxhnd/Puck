@@ -1,3 +1,9 @@
+/**
+ * Session label, path, and grouping display helpers.
+ *
+ * 会话展示相关的纯函数：从 OSC 7 转义序列解析当前工作目录、格式化侧栏标签
+ * 与终端标题、按目录自动分组，以及 shell 类型徽标等 UI 派生值。
+ */
 import type { ConnectionProfile, Session } from "@/types/connection";
 
 const OSC7_REGEX =

@@ -1,3 +1,9 @@
+/**
+ * Per-session command history for the outline panel.
+ *
+ * 按会话记录已执行命令的 store，供次面板的「命令大纲」视图展示与跳转。
+ * 每个会话最多保留 500 条记录，会话关闭时通过 removeSession 清理。
+ */
 import { create } from "zustand";
 
 const MAX_ENTRIES_PER_SESSION = 500;

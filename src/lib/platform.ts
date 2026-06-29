@@ -1,3 +1,9 @@
+/**
+ * Runtime platform detection for Tauri vs browser and OS family.
+ *
+ * 运行时平台检测：判断当前是否在 Tauri 桌面环境中运行，以及操作系统族
+ * （macOS / Windows / Linux），用于快捷键显示、窗口装饰与功能降级。
+ */
 export type Platform = "macos" | "windows" | "linux";
 
 export function isTauri(): boolean {

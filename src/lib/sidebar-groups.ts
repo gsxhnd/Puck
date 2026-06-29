@@ -1,3 +1,10 @@
+/**
+ * Pure functions for sidebar session grouping, sorting, and drag-and-drop layout.
+ *
+ * 主侧栏会话分组与排序的纯函数库：把终端会话按内置规则（最近、名称、目录）
+ * 或用户自定义分组组织成可展示结构，并提供扁平布局的拖拽重排与跨分组移动
+ * 算法。不依赖 React 或 store，供 sidebar-layout-store 与 PrimaryPanel 共用。
+ */
 import type { Session } from "@/types/connection";
 import { getSessionGroupKey, groupSessionsByDirectory } from "@/lib/session-display";
 

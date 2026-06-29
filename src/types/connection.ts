@@ -1,3 +1,9 @@
+/**
+ * Core domain types for saved connections and runtime sessions.
+ *
+ * 连接与会话的核心领域类型：连接配置（协议、主机、认证方式等）、运行时
+ * 会话（终端/文件标签）、连接状态枚举，以及创建配置/会话的工厂函数。
+ */
 export type ConnectionProtocol = "local" | "ssh" | "sftp" | "ftp" | "ftps";
 
 export type AuthMethod = "none" | "password" | "privateKey" | "agent";

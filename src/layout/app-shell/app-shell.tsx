@@ -10,7 +10,7 @@ import type { PanelImperativeHandle } from "react-resizable-panels";
 import { PrimaryPanel } from "@/layout/app-shell/primary-panel";
 import { MainPanel } from "@/layout/app-shell/main-panel";
 import { SecondPanel } from "@/layout/app-shell/second-panel";
-import { CommandPalette } from "@/components/command-palette/command-palette";
+import { CommandPalette } from "@/components/command-palette";
 import { openSettingsWindow } from "@/lib/open-settings-window";
 import {
   PUCK_CONFIG_KEYS,

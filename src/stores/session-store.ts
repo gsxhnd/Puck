@@ -1,3 +1,10 @@
+/**
+ * In-memory store for open session tabs (terminals and file panes).
+ *
+ * 当前打开的所有会话标签（终端、文件管理器等）的运行时 store。负责新增、
+ * 聚焦、关闭、重命名会话以及更新连接状态与工作目录；关闭最后一个会话时会
+ * 触发应用退出。不持久化——会话列表随应用重启清空。
+ */
 import { create } from "zustand";
 import { exitApp } from "@/lib/exit-app";
 import {

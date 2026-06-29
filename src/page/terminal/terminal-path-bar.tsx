@@ -1,21 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
-import {
-  BellIcon,
-  ChevronRightIcon,
-  FolderIcon,
-  RotateCcwIcon,
-  Volume2Icon,
-} from "lucide-react";
+import { BellIcon, FolderIcon, RotateCcwIcon, Volume2Icon } from "lucide-react";
 import type { Session, SessionTitleMode } from "@/types/connection";
 import {
   getSessionPathDisplay,
   getSessionTitleEditorValue,
   getTerminalHeaderTitle,
 } from "@/lib/session-display";
-import { openPathInApp, type OpenInAppId } from "@/lib/open-in-app";
-import { getPlatform, isTauri } from "@/lib/platform";
+import { openPathInApp } from "@/lib/open-in-app";
+import { isTauri } from "@/lib/platform";
 import { focusTerminal } from "@/lib/terminal-registry";
 import { useSessionStore } from "@/stores/session-store";
 import { useTerminalSearchStore } from "@/stores/terminal-search-store";
@@ -25,7 +19,6 @@ import type { TerminalSplitDirection } from "@/types/terminal-split";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
 import { Input } from "@/components/ui/input";
-import { Kbd } from "@/components/ui/kbd";
 import {
   Popover,
   PopoverContent,
@@ -35,140 +28,26 @@ import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { TerminalPrivilegesSubmenu } from "@/page/terminal/terminal-privileges-submenu";
+import {
+  OPEN_IN_APPS,
+  SPLIT_ACTIONS,
+  TitleMenuItem,
+  TitleMenuSubmenu,
+  TitleMenuSubmenuItem,
+  type TitleSubmenuId,
+} from "@/page/terminal/terminal-path-bar-title-menu";
 
-type TerminalPathBarProps = {
-  session: Session;
-};
-
-type SubmenuId = "openIn" | "notifications" | "split";
-
-const OPEN_IN_APPS: Array<{ id: OpenInAppId; labelKey: string }> = [
-  { id: "vscode", labelKey: "titleMenu.apps.vscode" },
-  { id: "cursor", labelKey: "titleMenu.apps.cursor" },
-  { id: "xcode", labelKey: "titleMenu.apps.xcode" },
-  { id: "zed", labelKey: "titleMenu.apps.zed" },
-  { id: "finder", labelKey: "titleMenu.apps.finder" },
-  { id: "terminal", labelKey: "titleMenu.apps.terminal" },
-];
-
-function formatShortcut(keys: string): string {
-  const isMac = getPlatform() === "macos";
-  return keys
-    .replace(/⌘/g, isMac ? "⌘" : "Ctrl+")
-    .replace(/⇧/g, isMac ? "⇧" : "Shift+")
-    .replace(/⌥/g, isMac ? "⌥" : "Alt+");
-}
-
-function TitleMenuItem({
-  label,
-  shortcut,
-  hasSubmenu,
-  active,
-  onClick,
-  onMouseEnter,
-  children,
-}: {
-  label: string;
-  shortcut?: string;
-  hasSubmenu?: boolean;
-  active?: boolean;
-  onClick?: () => void;
-  onMouseEnter?: () => void;
-  children?: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      className={cn(
-        "relative flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm outline-hidden transition-colors",
-        active
-          ? "bg-primary text-primary-foreground"
-          : "text-foreground/90 hover:bg-muted/70",
-      )}
-      onClick={onClick}
-      onMouseEnter={onMouseEnter}
-    >
-      {children}
-      <span className="min-w-0 flex-1 truncate">{label}</span>
-      {shortcut ? (
-        <Kbd className="bg-transparent text-[10px] text-muted-foreground group-hover:text-inherit">
-          {formatShortcut(shortcut)}
-        </Kbd>
-      ) : null}
-      {hasSubmenu ? (
-        <ChevronRightIcon className="size-3.5 shrink-0 opacity-70" />
-      ) : null}
-    </button>
-  );
-}
-
-const SPLIT_ACTIONS: Array<{
-  direction: TerminalSplitDirection;
-  labelKey: string;
-  shortcut: string;
-}> = [
-  { direction: "right", labelKey: "titleMenu.split.right", shortcut: "⌘D" },
-  { direction: "left", labelKey: "titleMenu.split.left", shortcut: "⌥⌘D" },
-  { direction: "down", labelKey: "titleMenu.split.down", shortcut: "⇧⌘D" },
-  { direction: "up", labelKey: "titleMenu.split.up", shortcut: "⌥⇧⌘D" },
-];
-
-function TitleMenuSubmenuItem({
-  label,
-  shortcut,
-  onClick,
-}: {
-  label: string;
-  shortcut?: string;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm text-foreground/90 hover:bg-muted/70"
-      onClick={onClick}
-    >
-      <span className="min-w-0 flex-1 truncate">{label}</span>
-      {shortcut ? (
-        <Kbd className="bg-transparent text-[10px] text-muted-foreground">
-          {formatShortcut(shortcut)}
-        </Kbd>
-      ) : null}
-    </button>
-  );
-}
-
-function TitleMenuSubmenu({
-  open,
-  children,
-  className,
-}: {
-  open: boolean;
-  children: React.ReactNode;
-  className?: string;
-}) {
-  if (!open) {
-    return null;
-  }
-
-  return (
-    <div className="absolute top-0 left-full z-50 flex pl-1">
-      <div
-        className={cn(
-          "min-w-40 rounded-lg bg-popover p-1 text-popover-foreground shadow-lg ring-1 ring-foreground/10",
-          className,
-        )}
-      >
-        {children}
-      </div>
-    </div>
-  );
-}
-
-export function TerminalPathBar({ session }: TerminalPathBarProps) {
+/**
+ * Terminal tab title bar with path display and action popover.
+ *
+ * 终端工作区顶部的标题/路径栏。点击后弹出菜单，可重命名标签（名称或前缀模式）、
+ * 查看工作目录、复制/在 Finder 中显示路径、用外部应用打开、管理会话权限、
+ * 分屏、搜索、跳转大纲以及打开命令面板。
+ */
+export function TerminalPathBar({ session }: { session: Session }) {
   const { t } = useTranslation("terminal");
   const [open, setOpen] = useState(false);
-  const [activeSubmenu, setActiveSubmenu] = useState<SubmenuId | null>(null);
+  const [activeSubmenu, setActiveSubmenu] = useState<TitleSubmenuId | null>(null);
   const [titleMode, setTitleMode] = useState<SessionTitleMode>(
     session.titleMode ?? "name",
   );
@@ -243,7 +122,7 @@ export function TerminalPathBar({ session }: TerminalPathBarProps) {
     }
   };
 
-  const handleOpenInApp = async (app: OpenInAppId) => {
+  const handleOpenInApp = async (app: (typeof OPEN_IN_APPS)[number]["id"]) => {
     if (!resolvedPath) {
       return;
     }

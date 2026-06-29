@@ -1,3 +1,9 @@
+/**
+ * Terminal in-buffer search bar state (scope, query, match options).
+ *
+ * 终端内搜索栏的状态：是否打开、搜索范围（当前标签 / 全部标签）、查询字符串
+ * 以及大小写、整词、正则、仅选区等匹配选项。由快捷键 ⌘F / ⇧⌘F 触发。
+ */
 import { create } from "zustand";
 
 export type TerminalSearchScope = "tab" | "all";

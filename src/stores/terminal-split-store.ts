@@ -1,3 +1,9 @@
+/**
+ * Terminal pane split layout (grid of session IDs).
+ *
+ * 终端分屏布局 store：记录当前分屏树结构（方向与窗格顺序），提供按方向拆分
+ * 会话、清除分屏以及与活动会话列表同步的能力。
+ */
 import { create } from "zustand";
 import {
   splitOrientation,
