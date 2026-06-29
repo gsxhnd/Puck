@@ -5,22 +5,23 @@ import type { DragEndEvent } from "@dnd-kit/dom";
 import { ConnectionDialog } from "@/components/connections/connection-dialog";
 import { useSessionStore } from "@/stores/session-store";
 import { useSidebarLayoutStore } from "@/stores/sidebar-layout-store";
+import { useHostsLayoutStore } from "@/stores/hosts-layout-store";
+import { useShellUiStore } from "@/stores/shell-ui-store";
 import { listShells } from "@/lib/tauri-terminal";
 import { PrimaryPanelHeader } from "@/layout/app-shell/primary-panel/primary-panel-header";
 import { PrimaryPanelTabs } from "@/layout/app-shell/primary-panel/primary-panel-tabs";
 import { SessionGroup } from "@/layout/app-shell/primary-panel/session-group";
 import { NameInputDialog } from "@/layout/app-shell/primary-panel/name-input-dialog";
 import { RemoteHostsPanel } from "@/layout/app-shell/primary-panel/remote-hosts-panel";
-import {
-  SidebarPanelToolbar,
-  type PrimaryPanelTab,
-} from "@/layout/app-shell/primary-panel/sidebar-panel-toolbar";
+import { SidebarPanelToolbar } from "@/layout/app-shell/primary-panel/sidebar-panel-toolbar";
+import type { PrimaryPanelTab } from "@/types/shell-ui";
 import {
   type SessionSort,
   buildSidebarGroups,
   groupIdFromDropId,
   isGroupDropId,
 } from "@/lib/sidebar-groups";
+import type { HostSort } from "@/lib/hosts-groups";
 import type { ShellInfo } from "@/types/shell";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { formatSidebarLabel } from "@/lib/session-display";
@@ -58,18 +59,37 @@ export function PrimaryPanel({
     (state) => state.moveSessionToGroup,
   );
   const pruneSessions = useSidebarLayoutStore((state) => state.pruneSessions);
+  const sessionGroupingEnabled = useSidebarLayoutStore(
+    (state) => state.sessionGroupingEnabled,
+  );
+  const setSessionGroupingEnabled = useSidebarLayoutStore(
+    (state) => state.setSessionGroupingEnabled,
+  );
+  const hostCustomGroups = useHostsLayoutStore((state) => state.customGroups);
+  const createHostGroup = useHostsLayoutStore((state) => state.createGroup);
+  const renameHostGroup = useHostsLayoutStore((state) => state.renameGroup);
+  const hostGroupingEnabled = useHostsLayoutStore(
+    (state) => state.hostGroupingEnabled,
+  );
+  const setHostGroupingEnabled = useHostsLayoutStore(
+    (state) => state.setHostGroupingEnabled,
+  );
+  const openHostEditor = useShellUiStore((state) => state.openHostEditor);
+  const showSessionPanel = useShellUiStore((state) => state.showSessionPanel);
+  const setPrimaryPanelTab = useShellUiStore((state) => state.setPrimaryPanelTab);
+  const primaryPanelTab = useShellUiStore((state) => state.primaryPanelTab);
   const [sort, setSort] = useState<SessionSort>("recent");
-  const [panelTab, setPanelTab] = useState<PrimaryPanelTab>("sessions");
+  const [hostSort, setHostSort] = useState<HostSort>("nameAsc");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingProfileId, setEditingProfileId] = useState<string | null>(null);
-  const [profileDialogOpen, setProfileDialogOpen] = useState(false);
-  const [profileDialogId, setProfileDialogId] = useState<string | null>(null);
   const [shells, setShells] = useState<ShellInfo[]>([]);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(
     () => new Set(),
   );
   const [createGroupOpen, setCreateGroupOpen] = useState(false);
+  const [createHostGroupOpen, setCreateHostGroupOpen] = useState(false);
   const [renameGroupId, setRenameGroupId] = useState<string | null>(null);
+  const [renameHostGroupId, setRenameHostGroupId] = useState<string | null>(null);
   const [renameSessionId, setRenameSessionId] = useState<string | null>(null);
 
   const sidebarSessions = useMemo(
@@ -89,6 +109,7 @@ export function PrimaryPanel({
         groupOrder,
         sessionOrder,
         sort,
+        sessionGroupingEnabled,
       ),
     [
       sidebarSessions,
@@ -97,6 +118,7 @@ export function PrimaryPanel({
       groupOrder,
       sessionOrder,
       sort,
+      sessionGroupingEnabled,
     ],
   );
 
@@ -116,17 +138,16 @@ export function PrimaryPanel({
     setDialogOpen(true);
   };
 
-  const openNewConnectionDialog = () => {
-    setProfileDialogId(null);
-    setProfileDialogOpen(true);
+  const openNewConnection = () => {
+    openHostEditor(null);
   };
 
-  const openEditConnectionDialog = (profileId: string) => {
-    setProfileDialogId(profileId);
-    setProfileDialogOpen(true);
+  const handlePanelTabChange = (tab: PrimaryPanelTab) => {
+    setPrimaryPanelTab(tab);
   };
 
   const openDefaultTerminal = () => {
+    showSessionPanel();
     addSession({
       kind: "terminal",
       title: "__local__",
@@ -135,6 +156,7 @@ export function PrimaryPanel({
   };
 
   const openShellTerminal = (shell: ShellInfo) => {
+    showSessionPanel();
     addSession({
       kind: "terminal",
       title: shell.name,
@@ -196,6 +218,9 @@ export function PrimaryPanel({
   }, [displayGroups]);
 
   const renamingGroup = customGroups.find((group) => group.id === renameGroupId);
+  const renamingHostGroup = hostCustomGroups.find(
+    (group) => group.id === renameHostGroupId,
+  );
   const renamingSession = sessions.find((session) => session.id === renameSessionId);
 
   return (
@@ -206,11 +231,12 @@ export function PrimaryPanel({
       <PrimaryPanelHeader
         collapsed={collapsed}
         onToggleCollapsed={onToggleCollapsed}
-        tab={panelTab}
+        tab={primaryPanelTab}
         shells={shells}
         onQuickConnect={openQuickConnectDialog}
-        onNewConnection={openNewConnectionDialog}
+        onNewConnection={openNewConnection}
         onCreateGroup={() => setCreateGroupOpen(true)}
+        onCreateHostGroup={() => setCreateHostGroupOpen(true)}
         onOpenDefaultTerminal={openDefaultTerminal}
         onOpenShellTerminal={openShellTerminal}
       />
@@ -218,23 +244,30 @@ export function PrimaryPanel({
       {!collapsed ? (
         <>
           <div className="flex shrink-0 items-center justify-between px-2 py-1">
-            <PrimaryPanelTabs tab={panelTab} onTabChange={setPanelTab} />
+            <PrimaryPanelTabs tab={primaryPanelTab} onTabChange={handlePanelTabChange} />
             <div className="flex items-center justify-end gap-0.5">
               <SidebarPanelToolbar
-                tab={panelTab}
+                tab={primaryPanelTab}
                 sort={sort}
                 setSort={setSort}
+                hostSort={hostSort}
+                setHostSort={setHostSort}
+                sessionGroupingEnabled={sessionGroupingEnabled}
+                setSessionGroupingEnabled={setSessionGroupingEnabled}
+                hostGroupingEnabled={hostGroupingEnabled}
+                setHostGroupingEnabled={setHostGroupingEnabled}
                 shells={shells}
                 onQuickConnect={openQuickConnectDialog}
-                onNewConnection={openNewConnectionDialog}
+                onNewConnection={openNewConnection}
                 onCreateGroup={() => setCreateGroupOpen(true)}
+                onCreateHostGroup={() => setCreateHostGroupOpen(true)}
                 onOpenDefaultTerminal={openDefaultTerminal}
                 onOpenShellTerminal={openShellTerminal}
               />
             </div>
           </div>
           <ScrollArea className="min-h-0 flex-1 px-2 py-1">
-            {panelTab === "sessions" ? (
+            {primaryPanelTab === "sessions" ? (
               <DragDropProvider onDragEnd={handleDragEnd}>
                 {displayGroups.length === 0 ? (
                   <div className="px-2 py-6 text-center text-xs text-muted-foreground">
@@ -264,7 +297,11 @@ export function PrimaryPanel({
                 )}
               </DragDropProvider>
             ) : (
-              <RemoteHostsPanel onEditProfile={openEditConnectionDialog} />
+              <RemoteHostsPanel
+                sort={hostSort}
+                onSortChange={setHostSort}
+                onRenameGroup={setRenameHostGroupId}
+              />
             )}
           </ScrollArea>
         </>
@@ -275,12 +312,6 @@ export function PrimaryPanel({
         profileId={editingProfileId}
         mode="quickConnect"
         onOpenChange={setDialogOpen}
-      />
-
-      <ConnectionDialog
-        open={profileDialogOpen}
-        profileId={profileDialogId}
-        onOpenChange={setProfileDialogOpen}
       />
 
       <NameInputDialog
@@ -296,6 +327,18 @@ export function PrimaryPanel({
       />
 
       <NameInputDialog
+        open={createHostGroupOpen}
+        title={t("connections:sidebarGroups.new")}
+        description={t("connections:sidebarGroups.newDescription")}
+        confirmLabel={t("connections:sidebarGroups.create")}
+        onOpenChange={setCreateHostGroupOpen}
+        onConfirm={(name) => {
+          createHostGroup(name);
+          setHostSort("custom");
+        }}
+      />
+
+      <NameInputDialog
         open={renameGroupId != null}
         title={t("connections:sidebarGroups.rename")}
         description={t("connections:sidebarGroups.renameDescription")}
@@ -307,6 +350,21 @@ export function PrimaryPanel({
         onConfirm={(name) => {
           if (renameGroupId) renameGroup(renameGroupId, name);
           setRenameGroupId(null);
+        }}
+      />
+
+      <NameInputDialog
+        open={renameHostGroupId != null}
+        title={t("connections:sidebarGroups.rename")}
+        description={t("connections:sidebarGroups.renameDescription")}
+        defaultValue={renamingHostGroup?.name}
+        confirmLabel={t("common:actions.save")}
+        onOpenChange={(open) => {
+          if (!open) setRenameHostGroupId(null);
+        }}
+        onConfirm={(name) => {
+          if (renameHostGroupId) renameHostGroup(renameHostGroupId, name);
+          setRenameHostGroupId(null);
         }}
       />
 

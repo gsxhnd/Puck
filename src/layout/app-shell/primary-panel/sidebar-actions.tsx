@@ -17,7 +17,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import type { PrimaryPanelTab } from "@/layout/app-shell/primary-panel/sidebar-panel-toolbar";
+import type { PrimaryPanelTab } from "@/types/shell-ui";
 import { sidebarPanelIconClass } from "@/layout/app-shell/primary-panel/sidebar-panel-toolbar";
 import type { ShellInfo } from "@/types/shell";
 
@@ -59,6 +59,7 @@ export type SidebarCollapsedActionsProps = {
   onQuickConnect: () => void;
   onNewConnection: () => void;
   onCreateGroup: () => void;
+  onCreateHostGroup: () => void;
   onOpenDefaultTerminal: () => void;
   onOpenShellTerminal: (shell: ShellInfo) => void;
 };
@@ -70,6 +71,7 @@ export function SidebarCollapsedActions({
   onQuickConnect,
   onNewConnection,
   onCreateGroup,
+  onCreateHostGroup,
   onOpenDefaultTerminal,
   onOpenShellTerminal,
 }: SidebarCollapsedActionsProps) {
@@ -97,6 +99,9 @@ export function SidebarCollapsedActions({
             </DropdownMenuItem>
             <DropdownMenuItem onClick={onQuickConnect}>
               {t("connections:newMenu.quickConnect")}
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={onCreateHostGroup}>
+              {t("connections:sidebarGroups.new")}
             </DropdownMenuItem>
           </>
         ) : (

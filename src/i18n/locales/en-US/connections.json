@@ -24,7 +24,10 @@
     "none": "None",
     "password": "Password",
     "privateKey": "Private Key",
-    "agent": "SSH Agent"
+    "agent": "SSH Agent",
+    "askPasswordEachTime": "Ask for password every time",
+    "askPasswordEachTimeHint": "You will be prompted on each connect. The password is not saved to the keychain.",
+    "askPassphraseEachTimeHint": "You will be prompted on each connect. The passphrase is not saved to the keychain."
   },
   "actions": {
     "openTerminal": "Open Terminal",
@@ -37,7 +40,8 @@
     "nameAsc": "Name (A–Z)",
     "nameDesc": "Name (Z–A)",
     "recent": "Recent",
-    "custom": "Custom"
+    "custom": "Custom",
+    "grouped": "Group items"
   },
   "dragHandle": "Drag to reorder",
   "sidebarGroups": {
@@ -56,6 +60,12 @@
     "reconnect": "Reconnect",
     "rename": "Rename Tab",
     "renameDescription": "Enter a new name for this tab."
+  },
+  "credentialPrompt": {
+    "passwordTitle": "Enter Password",
+    "passphraseTitle": "Enter Key Passphrase",
+    "description": "Authentication is required to connect to \"{{name}}\".",
+    "submit": "Connect"
   },
   "hostKey": {
     "title": "Unknown Host Key",
@@ -86,7 +96,8 @@
     "tabs": {
       "sessions": "Sessions",
       "hosts": "Remote Hosts"
-    }
+    },
+    "hostsHome": "Select a host on the left to edit, or create a new connection."
   },
   "manager": {
     "title": "Remote Management",

@@ -4,6 +4,7 @@ import { initPuckConfigStorage } from "@/lib/puck-config-storage";
 import { useAppSettingsStore } from "@/stores/app-settings-store";
 import { useConnectionStore } from "@/stores/connection-store";
 import { useSessionPrivilegesStore } from "@/stores/session-privileges-store";
+import { useHostsLayoutStore } from "@/stores/hosts-layout-store";
 import { useSidebarLayoutStore } from "@/stores/sidebar-layout-store";
 
 /** Hydrate all persisted stores after config.toml has been preloaded. */
@@ -14,6 +15,7 @@ export async function bootstrapPersistStores(): Promise<void> {
     useAppSettingsStore.persist.rehydrate(),
     useConnectionStore.persist.rehydrate(),
     useSidebarLayoutStore.persist.rehydrate(),
+    useHostsLayoutStore.persist.rehydrate(),
     useSessionPrivilegesStore.persist.rehydrate(),
   ]);
 

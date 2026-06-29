@@ -5,8 +5,10 @@ import { PanelHeader } from "@/layout/app-shell/panel-header";
 import { MAIN_PANEL_TOOLBAR_SLOT_ID } from "@/layout/app-shell/main-panel-toolbar-slot";
 import { useSessionStore } from "@/stores/session-store";
 import { NewTerminalMenu } from "@/page/terminal/new-terminal-menu";
+import { RemoteHostsMainPanel } from "@/page/connections/remote-hosts-main-panel";
 import { TerminalPathBar } from "@/page/terminal/terminal-path-bar";
 import { TerminalWorkspace } from "@/page/terminal/terminal-workspace";
+import { useShellUiStore } from "@/stores/shell-ui-store";
 import { useTerminalSearchStore } from "@/stores/terminal-search-store";
 import { useTerminalSplitStore } from "@/stores/terminal-split-store";
 import type { TerminalSplitDirection } from "@/types/terminal-split";
@@ -46,6 +48,7 @@ function MainPanelHeader({
   onToggleSecondPanel,
 }: MainPanelProps) {
   const { t } = useTranslation("common");
+  const primaryPanelTab = useShellUiStore((state) => state.primaryPanelTab);
   const sessions = useSessionStore((state) => state.sessions);
   const activeSessionId = useSessionStore((state) => state.activeSessionId);
   const activeSession =
@@ -62,7 +65,7 @@ function MainPanelHeader({
         />
       }
       center={
-        activeSession?.kind === "terminal" ? (
+        primaryPanelTab === "sessions" && activeSession?.kind === "terminal" ? (
           <TerminalPathBar session={activeSession} />
         ) : null
       }
@@ -101,11 +104,13 @@ export function MainPanel({
 }: MainPanelProps) {
   const sessions = useSessionStore((state) => state.sessions);
   const activeSessionId = useSessionStore((state) => state.activeSessionId);
+  const primaryPanelTab = useShellUiStore((state) => state.primaryPanelTab);
   const activeSession =
     sessions.find((session) => session.id === activeSessionId) ?? null;
   const openSearch = useTerminalSearchStore((state) => state.openSearch);
   const splitSession = useTerminalSplitStore((state) => state.splitSession);
   const syncSplit = useTerminalSplitStore((state) => state.syncWithSessions);
+  const isHostsTab = primaryPanelTab === "hosts";
 
   useEffect(() => {
     syncSplit(sessions.map((session) => session.id));
@@ -155,27 +160,38 @@ export function MainPanel({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [activeSession?.kind, activeSessionId, openSearch, splitSession]);
 
-  if (!activeSession) {
-    return (
-      <div className="main-panel-root flex h-full min-h-0 flex-col overflow-hidden bg-shell-main">
-        <MainPanelHeader
-          primaryPanelOpen={primaryPanelOpen}
-          secondPanelOpen={secondPanelOpen}
-          onToggleSecondPanel={onToggleSecondPanel}
-        />
-        <EmptyMainPanel />
-      </div>
-    );
-  }
-
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden bg-shell-main">
+    <div
+      className={cn(
+        "flex h-full min-h-0 flex-col overflow-hidden bg-shell-main",
+        !isHostsTab && !activeSession && "main-panel-root",
+      )}
+    >
       <MainPanelHeader
         primaryPanelOpen={primaryPanelOpen}
         secondPanelOpen={secondPanelOpen}
         onToggleSecondPanel={onToggleSecondPanel}
       />
-      <TerminalWorkspace activeSessionId={activeSessionId} />
+      <div className="relative min-h-0 flex-1">
+        {isHostsTab ? (
+          <div className="absolute inset-0 z-10 flex min-h-0 flex-col overflow-hidden bg-shell-main">
+            <RemoteHostsMainPanel />
+          </div>
+        ) : null}
+        <div
+          className={cn(
+            "flex h-full min-h-0 flex-col",
+            isHostsTab && "invisible",
+          )}
+          aria-hidden={isHostsTab}
+        >
+          {activeSession ? (
+            <TerminalWorkspace activeSessionId={activeSessionId} />
+          ) : (
+            <EmptyMainPanel />
+          )}
+        </div>
+      </div>
     </div>
   );
 }

@@ -12,6 +12,7 @@ import { MainPanel } from "@/layout/app-shell/main-panel";
 import { SecondPanel } from "@/layout/app-shell/second-panel";
 import { usePrimaryPanelOverlayWidth } from "@/layout/app-shell/use-primary-panel-overlay-width";
 import { CommandPalette } from "@/components/command-palette";
+import { CredentialPromptDialog } from "@/components/connections/credential-prompt-dialog";
 import { openSettingsWindow } from "@/lib/open-settings-window";
 import {
   PUCK_CONFIG_KEYS,
@@ -271,6 +272,7 @@ export function AppShell() {
         </ResizablePanel>
       </ResizablePanelGroup>
       <CommandPalette />
+      <CredentialPromptDialog />
     </div>
   );
 }

@@ -61,6 +61,8 @@ type SidebarLayoutStore = {
     targetGroupId: string,
   ) => void;
   pruneSessions: (activeSessionIds: string[]) => void;
+  sessionGroupingEnabled: boolean;
+  setSessionGroupingEnabled: (enabled: boolean) => void;
 };
 
 function applyFlatLayoutUpdate(
@@ -97,6 +99,10 @@ export const useSidebarLayoutStore = create<SidebarLayoutStore>()(
       sessionGroup: {},
       groupOrder: [],
       sessionOrder: {},
+      sessionGroupingEnabled: true,
+
+      setSessionGroupingEnabled: (sessionGroupingEnabled) =>
+        set({ sessionGroupingEnabled }),
 
       createGroup: (name) => {
         const trimmed = name.trim();

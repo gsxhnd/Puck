@@ -3,6 +3,7 @@ import { useSortable } from "@dnd-kit/react/sortable";
 import { CopyIcon, Loader2Icon, PencilIcon, RefreshCwIcon, XIcon } from "lucide-react";
 import type { Session } from "@/types/connection";
 import { useSessionStore } from "@/stores/session-store";
+import { useShellUiStore } from "@/stores/shell-ui-store";
 import { formatSidebarLabel, getShellBadge } from "@/lib/session-display";
 import {
   canReconnectSession,
@@ -40,6 +41,7 @@ export function SortableSessionTabItem({
   const sessions = useSessionStore((state) => state.sessions);
   const activeSessionId = useSessionStore((state) => state.activeSessionId);
   const setActiveSession = useSessionStore((state) => state.setActiveSession);
+  const showSessionPanel = useShellUiStore((state) => state.showSessionPanel);
   const closeSession = useSessionStore((state) => state.closeSession);
   const addSession = useSessionStore((state) => state.addSession);
   const { ref, isDragging, isDropTarget } = useSortable({
@@ -99,10 +101,14 @@ export function SortableSessionTabItem({
             title={label}
             role="button"
             tabIndex={0}
-            onClick={() => setActiveSession(session.id)}
+            onClick={() => {
+              showSessionPanel();
+              setActiveSession(session.id);
+            }}
             onKeyDown={(event) => {
               if (event.key === "Enter" || event.key === " ") {
                 event.preventDefault();
+                showSessionPanel();
                 setActiveSession(session.id);
               }
             }}

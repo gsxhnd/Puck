@@ -7,7 +7,7 @@ use russh::keys::{decode_secret_key, PrivateKeyWithHashAlg, PublicKey};
 use serde::Deserialize;
 use tauri::{AppHandle, Emitter, State};
 
-use crate::credential::{read_credential, require_credential};
+use crate::credential::read_credential;
 use crate::error::{host_key_prompt, puck_err, HostKeyPrompt, PuckError, PuckResult};
 use crate::known_hosts::KnownHostsStore;
 use crate::runtime::runtime;
@@ -27,6 +27,8 @@ pub struct SshConnectRequest {
     pub username: String,
     pub auth_method: String,
     pub private_key_path: Option<String>,
+    pub password: Option<String>,
+    pub passphrase: Option<String>,
     pub cols: u16,
     pub rows: u16,
 }
@@ -101,8 +103,15 @@ async fn authenticate(
 
     let auth_result = match request.auth_method.as_str() {
         "password" => {
-            let password =
-                require_credential(&request.connection_id, "password").map_err(PuckError::config)?;
+            let password = request
+                .password
+                .clone()
+                .or_else(|| {
+                    read_credential(&request.connection_id, "password")
+                        .ok()
+                        .flatten()
+                })
+                .ok_or_else(|| PuckError::config("missing credential: password"))?;
             session
                 .authenticate_password(username, password)
                 .await
@@ -114,7 +123,10 @@ async fn authenticate(
                 .as_ref()
                 .ok_or_else(|| PuckError::config("private key path is required"))?;
             let content = std::fs::read_to_string(path).map_err(PuckError::from)?;
-            let passphrase = read_credential(&request.connection_id, "passphrase")?;
+            let passphrase = request
+                .passphrase
+                .clone()
+                .or(read_credential(&request.connection_id, "passphrase")?);
             let key = decode_secret_key(&content, passphrase.as_deref())
                 .map_err(|error| PuckError::auth_failed(error.to_string()))?;
             session
@@ -333,6 +345,8 @@ pub fn reconnect_ssh_terminal(
             username: profile.username,
             auth_method: profile.auth_method,
             private_key_path: profile.private_key_path,
+            password: None,
+            passphrase: None,
             cols,
             rows,
         },

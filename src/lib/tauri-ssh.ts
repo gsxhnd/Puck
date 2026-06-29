@@ -11,6 +11,8 @@ export type SshConnectRequest = {
   username: string;
   authMethod: string;
   privateKeyPath?: string;
+  password?: string;
+  passphrase?: string;
   cols: number;
   rows: number;
 };
@@ -59,6 +61,13 @@ export function saveCredential(
   secret: string,
 ): Promise<void> {
   return invoke("save_credential", { connectionId, field, secret });
+}
+
+export function deleteCredential(
+  connectionId: string,
+  field: "password" | "passphrase",
+): Promise<void> {
+  return invoke("delete_credential", { connectionId, field });
 }
 
 export function deleteConnectionCredentials(connectionId: string): Promise<void> {

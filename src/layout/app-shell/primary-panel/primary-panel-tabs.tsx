@@ -9,7 +9,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import type { PrimaryPanelTab } from "@/layout/app-shell/primary-panel/sidebar-panel-toolbar";
+import type { PrimaryPanelTab } from "@/types/shell-ui";
 
 const tabTransition = { duration: 0.2, ease: [0.25, 0.1, 0.25, 1] } as const;
 

@@ -104,6 +104,7 @@ export const useConnectionStore = create<ConnectionStore>()(
           port: source.port,
           username: source.username,
           authMethod: source.authMethod,
+          askPasswordEachTime: source.askPasswordEachTime,
           credentialRef: source.credentialRef,
           privateKeyPath: source.privateKeyPath,
           defaultDirectory: source.defaultDirectory,

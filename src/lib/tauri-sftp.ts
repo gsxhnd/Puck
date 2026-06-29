@@ -19,6 +19,8 @@ export type OpenFileConnectionRequest = {
   username: string;
   authMethod: string;
   privateKeyPath?: string;
+  password?: string;
+  passphrase?: string;
   defaultDirectory?: string;
 };
 

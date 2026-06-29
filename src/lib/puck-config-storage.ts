@@ -15,6 +15,7 @@ export const PUCK_CONFIG_KEYS = {
   appSettings: "app_settings",
   connections: "connections",
   sidebarLayout: "sidebar_layout",
+  hostsLayout: "hosts_layout",
   sessionPrivileges: "session_privileges",
   shellLayout: "shell_layout",
 } as const;
@@ -23,6 +24,7 @@ const LEGACY_LOCAL_STORAGE_KEYS: Record<string, string> = {
   "puck-app-settings": PUCK_CONFIG_KEYS.appSettings,
   "puck-connections": PUCK_CONFIG_KEYS.connections,
   "puck-sidebar-layout": PUCK_CONFIG_KEYS.sidebarLayout,
+  "puck-hosts-layout": PUCK_CONFIG_KEYS.hostsLayout,
   "puck-session-privileges": PUCK_CONFIG_KEYS.sessionPrivileges,
   "puck-shell-layout": PUCK_CONFIG_KEYS.shellLayout,
 };

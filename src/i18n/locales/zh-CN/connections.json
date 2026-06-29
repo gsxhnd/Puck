@@ -24,7 +24,10 @@
     "none": "无",
     "password": "密码",
     "privateKey": "私钥",
-    "agent": "SSH Agent"
+    "agent": "SSH Agent",
+    "askPasswordEachTime": "每次询问密码",
+    "askPasswordEachTimeHint": "连接时将弹出对话框输入密码，不会保存到钥匙串。",
+    "askPassphraseEachTimeHint": "连接时将弹出对话框输入私钥口令，不会保存到钥匙串。"
   },
   "actions": {
     "openTerminal": "打开终端",
@@ -37,7 +40,8 @@
     "nameAsc": "名称 (A–Z)",
     "nameDesc": "名称 (Z–A)",
     "recent": "最近",
-    "custom": "自定义"
+    "custom": "自定义",
+    "grouped": "分组显示"
   },
   "dragHandle": "拖拽排序",
   "sidebarGroups": {
@@ -56,6 +60,12 @@
     "reconnect": "重新连接",
     "rename": "重命名标签页",
     "renameDescription": "输入新的标签页名称。"
+  },
+  "credentialPrompt": {
+    "passwordTitle": "输入密码",
+    "passphraseTitle": "输入私钥口令",
+    "description": "连接「{{name}}」需要认证信息。",
+    "submit": "连接"
   },
   "hostKey": {
     "title": "未知主机密钥",
@@ -86,7 +96,8 @@
     "tabs": {
       "sessions": "会话",
       "hosts": "远程主机"
-    }
+    },
+    "hostsHome": "从左侧选择主机进行配置，或新建连接。"
   },
   "manager": {
     "title": "远程管理",

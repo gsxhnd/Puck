@@ -3,9 +3,14 @@ import { useTranslation } from "react-i18next";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import { useConnectionStore } from "@/stores/connection-store";
 import { useSessionStore } from "@/stores/session-store";
+import { useShellUiStore } from "@/stores/shell-ui-store";
 import { useTransferStore } from "@/stores/transfer-store";
 import { closeSession } from "@/lib/tauri-terminal";
 import { RECONNECT_SESSION_EVENT } from "@/lib/reconnect-session";
+import {
+  resolveConnectionCredential,
+  takeConnectionSecrets,
+} from "@/lib/resolve-connection-credential";
 import {
   deleteRemote,
   listRemoteDir,
@@ -92,11 +97,25 @@ export function FileManager({
     }
   }, [connected, cwd, sessionId]);
 
-  const connect = useCallback(() => {
+  const connect = useCallback(async () => {
     if (!profile || !supported) return;
     updateSessionStatus(sessionId, "creating");
     setError(null);
-    void openFileConnection(profileToFileRequest(sessionId, profile));
+
+    let secrets = takeConnectionSecrets(profile.id);
+    if (profile.askPasswordEachTime) {
+      const resolved = await resolveConnectionCredential(profile);
+      if (resolved === null) {
+        updateSessionStatus(sessionId, "failed");
+        return;
+      }
+      secrets = resolved;
+    }
+
+    void openFileConnection({
+      ...profileToFileRequest(sessionId, profile),
+      ...secrets,
+    });
   }, [profile, sessionId, supported, updateSessionStatus]);
 
   const handleReconnect = useCallback(async () => {
@@ -117,6 +136,7 @@ export function FileManager({
       unlistenStatus = await onSessionStatus((event) => {
         if (event.sessionId !== sessionId || disposed) return;
         if (event.errorCode === "host_key_unknown" && event.hostKey) {
+          useShellUiStore.getState().showSessionPanel();
           setHostKeyPrompt(event.hostKey);
           return;
         }

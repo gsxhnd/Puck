@@ -139,8 +139,20 @@ export function buildSidebarGroups(
   groupOrder: string[],
   sessionOrder: Record<string, string[]>,
   sort: SessionSort,
+  groupEnabled = true,
 ): SidebarDisplayGroup[] {
   const sorted = sortSessions(sessions, sort);
+
+  if (!groupEnabled) {
+    return [
+      {
+        id: "flat",
+        name: "",
+        isCustom: false,
+        sessions: sorted,
+      },
+    ];
+  }
 
   if (!usesCustomLayout(customGroups, sessionGroup, sort)) {
     return groupSessionsByDirectory(sorted).map((group) => ({

@@ -6,15 +6,22 @@
  * app-settings-store，运行中通过快捷键或命令面板切换。
  */
 import { create } from "zustand";
-import type { SecondPanelView } from "@/types/shell-ui";
+import type { PrimaryPanelTab, SecondPanelView } from "@/types/shell-ui";
 
 type ShellUiStore = {
   primaryPanelOpen: boolean;
   secondPanelOpen: boolean;
   secondPanelView: SecondPanelView;
+  primaryPanelTab: PrimaryPanelTab;
+  selectedProfileId: string | null;
+  hostEditorOpen: boolean;
   setPrimaryPanelOpen: (open: boolean) => void;
   setSecondPanelOpen: (open: boolean) => void;
   setSecondPanelView: (view: SecondPanelView) => void;
+  setPrimaryPanelTab: (tab: PrimaryPanelTab) => void;
+  openHostEditor: (profileId: string | null) => void;
+  closeHostEditor: () => void;
+  showSessionPanel: () => void;
   togglePrimaryPanel: () => void;
   toggleSecondPanel: () => void;
   showSecondPanelView: (view: SecondPanelView) => void;
@@ -24,9 +31,33 @@ export const useShellUiStore = create<ShellUiStore>()((set) => ({
   primaryPanelOpen: true,
   secondPanelOpen: true,
   secondPanelView: "info",
+  primaryPanelTab: "sessions",
+  selectedProfileId: null,
+  hostEditorOpen: false,
   setPrimaryPanelOpen: (primaryPanelOpen) => set({ primaryPanelOpen }),
   setSecondPanelOpen: (secondPanelOpen) => set({ secondPanelOpen }),
   setSecondPanelView: (secondPanelView) => set({ secondPanelView }),
+  setPrimaryPanelTab: (primaryPanelTab) =>
+    set({
+      primaryPanelTab,
+      ...(primaryPanelTab === "sessions"
+        ? { hostEditorOpen: false, selectedProfileId: null }
+        : { hostEditorOpen: false, selectedProfileId: null }),
+    }),
+  openHostEditor: (selectedProfileId) =>
+    set({
+      primaryPanelTab: "hosts",
+      selectedProfileId,
+      hostEditorOpen: true,
+    }),
+  closeHostEditor: () =>
+    set({ hostEditorOpen: false, selectedProfileId: null }),
+  showSessionPanel: () =>
+    set({
+      primaryPanelTab: "sessions",
+      hostEditorOpen: false,
+      selectedProfileId: null,
+    }),
   togglePrimaryPanel: () =>
     set((state) => ({ primaryPanelOpen: !state.primaryPanelOpen })),
   toggleSecondPanel: () =>

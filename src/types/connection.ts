@@ -16,6 +16,8 @@ export type ConnectionProfile = {
   port?: number;
   username?: string;
   authMethod?: AuthMethod;
+  /** When true, password/passphrase is prompted on each connect and not stored. */
+  askPasswordEachTime?: boolean;
   credentialRef?: string;
   privateKeyPath?: string;
   defaultDirectory?: string;
@@ -78,6 +80,7 @@ export function createConnectionProfile(
     port: partial.port,
     username: partial.username,
     authMethod: partial.authMethod,
+    askPasswordEachTime: partial.askPasswordEachTime,
     credentialRef: partial.credentialRef,
     privateKeyPath: partial.privateKeyPath,
     defaultDirectory: partial.defaultDirectory,

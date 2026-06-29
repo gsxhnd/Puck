@@ -25,6 +25,8 @@ pub struct OpenFileConnectionRequest {
     pub username: String,
     pub auth_method: String,
     pub private_key_path: Option<String>,
+    pub password: Option<String>,
+    pub passphrase: Option<String>,
     pub default_directory: Option<String>,
 }
 
@@ -37,6 +39,8 @@ fn to_ssh_request(request: &OpenFileConnectionRequest) -> SshConnectRequest {
         username: request.username.clone(),
         auth_method: request.auth_method.clone(),
         private_key_path: request.private_key_path.clone(),
+        password: request.password.clone(),
+        passphrase: request.passphrase.clone(),
         cols: 80,
         rows: 24,
     }

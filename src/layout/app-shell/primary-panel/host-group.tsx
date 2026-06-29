@@ -1,10 +1,8 @@
 import { useTranslation } from "react-i18next";
 import { useDroppable } from "@dnd-kit/react";
 import { ChevronRightIcon } from "lucide-react";
-import {
-  type SidebarDisplayGroup,
-  GROUP_DROP_PREFIX,
-} from "@/lib/sidebar-groups";
+import { GROUP_DROP_PREFIX } from "@/lib/sidebar-groups";
+import { type HostDisplayGroup } from "@/lib/hosts-groups";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -13,16 +11,9 @@ import {
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import { cn } from "@/lib/utils";
-import { SortableSessionTabItem } from "@/layout/app-shell/primary-panel/session-tab-item";
+import { SortableHostItem } from "@/layout/app-shell/primary-panel/host-item";
 
-/**
- * Drop target rendered for empty (or custom) groups.
- *
- * 空分组的拖拽落点。当某个分组没有会话时显示完整提示文案，作为拖拽目标；
- * 在自定义分组末尾还会以 `compact` 形式渲染一个更矮的落点，方便把会话
- * 拖入分组尾部。落点高亮由 dnd-kit 的 `isDropTarget` 控制。
- */
-function EmptyGroupDropZone({
+function EmptyHostGroupDropZone({
   groupId,
   compact = false,
 }: {
@@ -49,30 +40,24 @@ function EmptyGroupDropZone({
   );
 }
 
-/**
- * A collapsible group header plus its list of session rows.
- *
- * 主侧栏中的一个分组：可折叠的标题行加上其下的会话列表。自定义分组的标题
- * 提供重命名/删除右键菜单，内置分组则只显示标题。`sessionIndexOffset` 是
- * 该分组首个会话在全局拖拽序列中的偏移量，用于让 dnd-kit 在跨分组排序时
- * 仍能计算出正确的全局索引。
- */
-export function SessionGroup({
+export function HostGroup({
   group,
   collapsed,
   onToggle,
   onRename,
   onDelete,
-  onRenameSession,
-  sessionIndexOffset,
+  selectedProfileId,
+  profileIndexOffset,
+  onDeleteProfile,
 }: {
-  group: SidebarDisplayGroup;
+  group: HostDisplayGroup;
   collapsed: boolean;
   onToggle: () => void;
   onRename?: () => void;
   onDelete?: () => void;
-  onRenameSession: (sessionId: string) => void;
-  sessionIndexOffset: number;
+  selectedProfileId: string | null;
+  profileIndexOffset: number;
+  onDeleteProfile: (profileId: string) => void;
 }) {
   const { t } = useTranslation("connections");
   const showHeader = group.isCustom || group.name.length > 0;
@@ -97,20 +82,21 @@ export function SessionGroup({
 
   const content = (
     <div className={cn(showHeader && "space-y-0.5 pl-1")}>
-      {group.sessions.length === 0 ? (
-        <EmptyGroupDropZone groupId={group.id} />
+      {group.profiles.length === 0 ? (
+        <EmptyHostGroupDropZone groupId={group.id} />
       ) : (
         <>
-          {group.sessions.map((session, index) => (
-            <SortableSessionTabItem
-              key={session.id}
-              session={session}
-              index={sessionIndexOffset + index}
-              onRename={() => onRenameSession(session.id)}
+          {group.profiles.map((profile, index) => (
+            <SortableHostItem
+              key={profile.id}
+              profile={profile}
+              index={profileIndexOffset + index}
+              selectedProfileId={selectedProfileId}
+              onDelete={() => onDeleteProfile(profile.id)}
             />
           ))}
           {group.isCustom ? (
-            <EmptyGroupDropZone groupId={group.id} compact />
+            <EmptyHostGroupDropZone groupId={group.id} compact />
           ) : null}
         </>
       )}

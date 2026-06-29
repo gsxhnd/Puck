@@ -4,10 +4,10 @@ import { open } from "@tauri-apps/plugin-dialog";
 import type { AuthMethod, ConnectionProfile, ConnectionProtocol } from "@/types/connection";
 import { DEFAULT_PORTS } from "@/types/connection";
 import { useConnectionStore } from "@/stores/connection-store";
-import { useSessionStore } from "@/stores/session-store";
-import { buildProfileSessionRequest } from "@/lib/open-connection-profile";
+import { openProfileSession } from "@/lib/open-profile-session";
 import {
   deleteConnectionCredentials,
+  deleteCredential,
   saveCredential,
 } from "@/lib/tauri-ssh";
 import {
@@ -19,6 +19,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 
 type ConnectionDialogProps = {
@@ -35,6 +36,7 @@ type FormState = {
   port: string;
   username: string;
   authMethod: AuthMethod;
+  askPasswordEachTime: boolean;
   password: string;
   passphrase: string;
   privateKeyPath: string;
@@ -59,6 +61,7 @@ function profileToForm(profile: ConnectionProfile): FormState {
     port: String(profile.port ?? DEFAULT_PORTS.ssh),
     username: profile.username ?? "",
     authMethod: profile.authMethod ?? "password",
+    askPasswordEachTime: profile.askPasswordEachTime ?? false,
     password: "",
     passphrase: "",
     privateKeyPath: profile.privateKeyPath ?? "",
@@ -74,6 +77,7 @@ function emptyForm(): FormState {
     port: String(DEFAULT_PORTS.ssh),
     username: "",
     authMethod: "password",
+    askPasswordEachTime: false,
     password: "",
     passphrase: "",
     privateKeyPath: "",
@@ -90,6 +94,10 @@ function formToProfilePayload(form: FormState, untitledLabel: string) {
     port: Number.isFinite(port) ? port : DEFAULT_PORTS[form.protocol],
     username: form.username.trim(),
     authMethod: form.authMethod,
+    askPasswordEachTime:
+      form.authMethod === "password" || form.authMethod === "privateKey"
+        ? form.askPasswordEachTime
+        : undefined,
     privateKeyPath:
       form.authMethod === "privateKey" ? form.privateKeyPath.trim() : undefined,
     defaultDirectory: form.defaultDirectory.trim() || undefined,
@@ -97,6 +105,16 @@ function formToProfilePayload(form: FormState, untitledLabel: string) {
 }
 
 async function persistCredentials(connectionId: string, form: FormState) {
+  if (form.askPasswordEachTime) {
+    if (form.authMethod === "password") {
+      await deleteCredential(connectionId, "password");
+    }
+    if (form.authMethod === "privateKey") {
+      await deleteCredential(connectionId, "passphrase");
+    }
+    return;
+  }
+
   if (form.authMethod === "password" && form.password) {
     await saveCredential(connectionId, "password", form.password);
   }
@@ -116,7 +134,6 @@ export function ConnectionDialog({
   const addEphemeralProfile = useConnectionStore((state) => state.addEphemeralProfile);
   const updateProfile = useConnectionStore((state) => state.updateProfile);
   const removeProfile = useConnectionStore((state) => state.removeProfile);
-  const addSession = useSessionStore((state) => state.addSession);
   const profile = useConnectionStore((state) =>
     profileId ? state.getProfile(profileId) : undefined,
   );
@@ -188,7 +205,7 @@ export function ConnectionDialog({
       );
       const profile = addEphemeralProfile(payload);
       await persistCredentials(profile.id, form);
-      addSession(buildProfileSessionRequest(profile));
+      await openProfileSession(profile);
       onOpenChange(false);
     } finally {
       setSaving(false);
@@ -301,7 +318,19 @@ export function ConnectionDialog({
             </select>
           </label>
 
-          {form.authMethod === "password" ? (
+          {(form.authMethod === "password" || form.authMethod === "privateKey") ? (
+            <label className="flex items-center gap-2 text-sm">
+              <Checkbox
+                checked={form.askPasswordEachTime}
+                onCheckedChange={(checked) =>
+                  updateField("askPasswordEachTime", checked === true)
+                }
+              />
+              <span>{t("connections:auth.askPasswordEachTime")}</span>
+            </label>
+          ) : null}
+
+          {form.authMethod === "password" && !form.askPasswordEachTime ? (
             <label className="grid gap-1.5 text-sm">
               <span className="text-muted-foreground">
                 {t("connections:fields.password")}
@@ -315,6 +344,12 @@ export function ConnectionDialog({
                 onChange={(event) => updateField("password", event.target.value)}
               />
             </label>
+          ) : null}
+
+          {form.authMethod === "password" && form.askPasswordEachTime ? (
+            <p className="text-xs text-muted-foreground">
+              {t("connections:auth.askPasswordEachTimeHint")}
+            </p>
           ) : null}
 
           {form.authMethod === "privateKey" ? (
@@ -335,19 +370,25 @@ export function ConnectionDialog({
                   </Button>
                 </div>
               </div>
-              <label className="grid gap-1.5 text-sm">
-                <span className="text-muted-foreground">
-                  {t("connections:fields.passphrase")}
-                </span>
-                <Input
-                  type="password"
-                  value={form.passphrase}
-                  placeholder={
-                    isEditing ? t("connections:fields.passwordKeep") : undefined
-                  }
-                  onChange={(event) => updateField("passphrase", event.target.value)}
-                />
-              </label>
+              {!form.askPasswordEachTime ? (
+                <label className="grid gap-1.5 text-sm">
+                  <span className="text-muted-foreground">
+                    {t("connections:fields.passphrase")}
+                  </span>
+                  <Input
+                    type="password"
+                    value={form.passphrase}
+                    placeholder={
+                      isEditing ? t("connections:fields.passwordKeep") : undefined
+                    }
+                    onChange={(event) => updateField("passphrase", event.target.value)}
+                  />
+                </label>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  {t("connections:auth.askPassphraseEachTimeHint")}
+                </p>
+              )}
             </>
           ) : null}
 

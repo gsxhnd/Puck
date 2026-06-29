@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { openPathInApp } from "@/lib/open-in-app";
 import { openSettingsWindow } from "@/lib/open-settings-window";
-import { buildProfileSessionRequest } from "@/lib/open-connection-profile";
+import { openProfileSession } from "@/lib/open-profile-session";
 import { getSessionPathDisplay } from "@/lib/session-display";
 import { isTauri } from "@/lib/platform";
 import { useCommandPaletteStore } from "@/stores/command-palette-store";
@@ -23,30 +23,8 @@ import {
   type PalettePage,
 } from "@/components/command-palette/types";
 
-function openSavedConnection(
-  profile: ConnectionProfile,
-  openOrFocusSession: ReturnType<typeof useSessionStore.getState>["openOrFocusSession"],
-) {
-  const request = buildProfileSessionRequest(profile);
-  const state = useSessionStore.getState();
-
-  if (request.profileId) {
-    const existing = state.sessions.find(
-      (session) =>
-        session.profileId === request.profileId &&
-        session.kind === request.kind,
-    );
-    if (
-      existing &&
-      existing.status !== "connected" &&
-      existing.status !== "creating" &&
-      existing.status !== "reconnecting"
-    ) {
-      state.closeSession(existing.id);
-    }
-  }
-
-  openOrFocusSession(request);
+function openSavedConnection(profile: ConnectionProfile) {
+  void openProfileSession(profile);
 }
 
 function profileConnectLabel(profile: ConnectionProfile): string {
@@ -76,7 +54,6 @@ export function usePaletteCommands(
   const setDraftQuery = useCommandPaletteStore((state) => state.setDraftQuery);
 
   const profiles = useConnectionStore((state) => state.profiles);
-  const openOrFocusSession = useSessionStore((state) => state.openOrFocusSession);
 
   const sessions = useSessionStore((state) => state.sessions);
   const activeSessionId = useSessionStore((state) => state.activeSessionId);
@@ -270,10 +247,10 @@ export function usePaletteCommands(
           profile.protocol,
         ],
         run: () => {
-          openSavedConnection(profile, openOrFocusSession);
+          openSavedConnection(profile);
         },
       }));
-  }, [openOrFocusSession, profiles]);
+  }, [profiles]);
 
   const connectPrefix = parseConnectPrefix(query);
   const flatCommands = useMemo(() => {
