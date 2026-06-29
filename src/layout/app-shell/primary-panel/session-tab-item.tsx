@@ -97,22 +97,27 @@ export function SortableSessionTabItem({
           <div
             ref={ref}
             title={label}
+            role="button"
+            tabIndex={0}
+            onClick={() => setActiveSession(session.id)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                setActiveSession(session.id);
+              }
+            }}
             className={cn(
               "group/session-tab flex h-7 w-full cursor-grab items-center gap-1 rounded-md px-1 text-left text-[13px] transition-colors active:cursor-grabbing",
               isActive
-                ? "bg-foreground/12 text-foreground dark:bg-muted/80"
-                : "text-muted-foreground hover:bg-foreground/8 hover:text-foreground dark:hover:bg-muted/40",
+                ? "bg-foreground/12 text-foreground dark:bg-foreground/22 dark:text-foreground"
+                : "text-muted-foreground hover:bg-foreground/8 hover:text-foreground dark:hover:bg-foreground/14 dark:hover:text-foreground",
               isDragging && "opacity-50",
-              isDropTarget && "bg-foreground/10 dark:bg-muted/30",
+              isDropTarget && "bg-foreground/10 dark:bg-foreground/18",
             )}
           >
-            <button
-              type="button"
-              onClick={() => setActiveSession(session.id)}
-              className="flex min-w-0 flex-1 items-center px-1 text-left"
-            >
-              <span className="truncate font-mono">{label}</span>
-            </button>
+            <span className="min-w-0 flex-1 truncate px-1 font-mono">
+              {label}
+            </span>
             <div className="relative flex h-6 w-7 shrink-0 items-center justify-center">
               {isConnecting ? (
                 <Loader2Icon

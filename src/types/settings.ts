@@ -36,7 +36,7 @@ export const DEFAULT_TERMINAL_FONT_FAMILY =
 export const DEFAULT_APP_SETTINGS: AppSettings = {
   language: "zh-CN",
   colorTheme: DEFAULT_COLOR_THEME,
-  themeMode: "system",
+  themeMode: "dark",
   fontFamily: DEFAULT_TERMINAL_FONT_FAMILY,
   fontSize: 14,
   cursorBlink: true,
