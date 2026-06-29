@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { puckPersistStorage, PUCK_CONFIG_KEYS } from "@/lib/puck-config-storage";
 import {
   DEFAULT_COLOR_THEME,
   isColorThemeId,
@@ -128,7 +129,8 @@ export const useAppSettingsStore = create<AppSettingsState>()(
       reset: () => set({ ...DEFAULT_APP_SETTINGS }),
     }),
     {
-      name: "puck-app-settings",
+      name: PUCK_CONFIG_KEYS.appSettings,
+      storage: puckPersistStorage,
       version: 3,
       migrate: (persistedState) =>
         migratePersistedSettings(persistedState as PersistedAppSettings),

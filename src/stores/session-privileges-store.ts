@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { puckPersistStorage, PUCK_CONFIG_KEYS } from "@/lib/puck-config-storage";
 import { useAppSettingsStore } from "@/stores/app-settings-store";
 import {
   DEFAULT_SESSION_PRIVILEGES,
@@ -68,7 +69,8 @@ export const useSessionPrivilegesStore = create<SessionPrivilegesState>()(
       },
     }),
     {
-      name: "puck-session-privileges",
+      name: PUCK_CONFIG_KEYS.sessionPrivileges,
+      storage: puckPersistStorage,
       partialize: (state) => ({ bySessionId: state.bySessionId }),
     },
   ),

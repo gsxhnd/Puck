@@ -5,9 +5,9 @@ import { DragDropProvider, useDroppable } from "@dnd-kit/react";
 import type { DragEndEvent } from "@dnd-kit/dom";
 import { useSortable } from "@dnd-kit/react/sortable";
 import {
-  ArrowUpDownIcon,
   ChevronRightIcon,
   CopyIcon,
+  ListFilterIcon,
   PanelLeftIcon,
   PencilIcon,
   PlusIcon,
@@ -147,7 +147,7 @@ function SidebarHeaderActions({
             className={sidebarHeaderIconClass}
             aria-label={t("connections:sort.label")}
           >
-            <ArrowUpDownIcon />
+            <ListFilterIcon />
           </Button>
         }
       />

@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { puckPersistStorage, PUCK_CONFIG_KEYS } from "@/lib/puck-config-storage";
 import type { Session } from "@/types/connection";
 import {
   type CustomSidebarGroup,
@@ -200,6 +201,6 @@ export const useSidebarLayoutStore = create<SidebarLayoutStore>()(
         });
       },
     }),
-    { name: "puck-sidebar-layout" },
+    { name: PUCK_CONFIG_KEYS.sidebarLayout, storage: puckPersistStorage },
   ),
 );

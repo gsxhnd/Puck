@@ -5,6 +5,11 @@ import { MainPanel } from "@/layout/app-shell/main-panel";
 import { SecondPanel } from "@/layout/app-shell/second-panel";
 import { CommandPalette } from "@/components/command-palette/command-palette";
 import { openSettingsWindow } from "@/lib/open-settings-window";
+import {
+  PUCK_CONFIG_KEYS,
+  readPuckConfigValue,
+  writePuckConfigValue,
+} from "@/lib/puck-config-storage";
 import { getPlatform } from "@/lib/platform";
 import { useAppSettingsStore } from "@/stores/app-settings-store";
 import { useCommandPaletteStore } from "@/stores/command-palette-store";
@@ -17,7 +22,7 @@ import {
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
 
-const SHELL_LAYOUT_KEY = "puck-shell-layout";
+const SHELL_LAYOUT_KEY = PUCK_CONFIG_KEYS.shellLayout;
 
 /** Panel width constraints (px), aligned with shadcn default 16rem ≈ 256px */
 const SHELL_PANEL_SIZES = {
@@ -40,7 +45,7 @@ function migrateStoredLayout(
 
 function readStoredLayout(): Record<string, number> | undefined {
   try {
-    const raw = localStorage.getItem(SHELL_LAYOUT_KEY);
+    const raw = readPuckConfigValue(SHELL_LAYOUT_KEY);
     if (!raw) return undefined;
     return migrateStoredLayout(JSON.parse(raw) as Record<string, number>);
   } catch {
@@ -191,14 +196,10 @@ export function AppShell() {
           readStoredLayout() ?? { primary: 20, main: 55, second: 25 }
         }
         onLayoutChanged={(layout) => {
-          try {
-            localStorage.setItem(
-              SHELL_LAYOUT_KEY,
-              JSON.stringify(migrateStoredLayout(layout)),
-            );
-          } catch {
-            // Ignore quota or private browsing errors.
-          }
+          void writePuckConfigValue(
+            SHELL_LAYOUT_KEY,
+            JSON.stringify(migrateStoredLayout(layout)),
+          );
 
           const primarySize = layout.primary ?? layout.left ?? 0;
           const secondSize = layout.second ?? layout.right ?? 0;

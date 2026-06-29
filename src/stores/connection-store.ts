@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { puckPersistStorage, PUCK_CONFIG_KEYS } from "@/lib/puck-config-storage";
 import {
   type ConnectionProfile,
   createConnectionProfile,
@@ -99,7 +100,8 @@ export const useConnectionStore = create<ConnectionStore>()(
       getProfile: (id) => get().profiles.find((profile) => profile.id === id),
     }),
     {
-      name: "puck-connections",
+      name: PUCK_CONFIG_KEYS.connections,
+      storage: puckPersistStorage,
       merge: (persisted, current) => {
         const stored = persisted as Partial<ConnectionStore> | undefined;
         if (stored?.profiles && stored.profiles.length > 0) {

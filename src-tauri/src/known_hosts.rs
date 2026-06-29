@@ -1,45 +1,27 @@
-use std::fs;
-use std::path::PathBuf;
-use std::sync::Mutex;
+use std::sync::Arc;
 
-use serde::{Deserialize, Serialize};
 use russh::keys::{HashAlg, PublicKey};
 
-use crate::error::{host_key_prompt, HostKeyPrompt, PuckError, PuckResult};
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct KnownHostRecord {
-    pub host: String,
-    pub port: u16,
-    pub key_type: String,
-    pub public_key: String,
-    pub fingerprint: String,
-}
+use crate::config::{KnownHostRecord, PuckConfigStore};
+use crate::error::{host_key_prompt, HostKeyPrompt, PuckResult};
 
 pub struct KnownHostsStore {
-    path: PathBuf,
-    records: Mutex<Vec<KnownHostRecord>>,
+    config: Arc<PuckConfigStore>,
 }
 
 impl KnownHostsStore {
-    pub fn new() -> Self {
-        let path = app_data_path("known_hosts.json");
-        let records = load_records(&path);
-        Self {
-            path,
-            records: Mutex::new(records),
-        }
+    pub fn new(config: Arc<PuckConfigStore>) -> Self {
+        Self { config }
     }
 
     pub fn list(&self) -> Vec<KnownHostRecord> {
-        self.records.lock().unwrap().clone()
+        self.config.known_hosts()
     }
 
     pub fn is_trusted(&self, host: &str, port: u16, public_key: &PublicKey) -> bool {
         let key_text = public_key_to_openssh(public_key);
         let fingerprint = fingerprint_for_key(public_key);
-        self.records.lock().unwrap().iter().any(|record| {
+        self.config.known_hosts().iter().any(|record| {
             record.host == host
                 && record.port == port
                 && (record.public_key == key_text || record.fingerprint == fingerprint)
@@ -60,54 +42,33 @@ impl KnownHostsStore {
             fingerprint: fingerprint_for_key(public_key),
         };
 
-        let mut records = self.records.lock().unwrap();
-        if let Some(existing) = records.iter_mut().find(|item| item.host == host && item.port == port)
-        {
-            *existing = record.clone();
-        } else {
-            records.push(record.clone());
-        }
-        save_records(&self.path, &records)?;
+        self.config.update_known_hosts(|records| {
+            if let Some(existing) = records
+                .iter_mut()
+                .find(|item| item.host == host && item.port == port)
+            {
+                *existing = record.clone();
+            } else {
+                records.push(record.clone());
+            }
+        })?;
+
         Ok(record)
     }
 
     pub fn remove(&self, host: &str, port: u16) -> PuckResult<bool> {
-        let mut records = self.records.lock().unwrap();
-        let before = records.len();
-        records.retain(|record| !(record.host == host && record.port == port));
-        if records.len() == before {
-            return Ok(false);
-        }
-        save_records(&self.path, &records)?;
-        Ok(true)
+        let mut removed = false;
+        self.config.update_known_hosts(|records| {
+            let before = records.len();
+            records.retain(|record| !(record.host == host && record.port == port));
+            removed = records.len() != before;
+        })?;
+        Ok(removed)
     }
 
     pub fn prompt_for_key(host: &str, port: u16, public_key: &PublicKey) -> HostKeyPrompt {
         host_key_prompt(host, port, public_key)
     }
-}
-
-fn app_data_path(file_name: &str) -> PathBuf {
-    let base = dirs::data_dir()
-        .or_else(dirs::home_dir)
-        .unwrap_or_else(|| PathBuf::from("."));
-    let dir = base.join("puck");
-    let _ = fs::create_dir_all(&dir);
-    dir.join(file_name)
-}
-
-fn load_records(path: &PathBuf) -> Vec<KnownHostRecord> {
-    let Ok(content) = fs::read_to_string(path) else {
-        return Vec::new();
-    };
-    serde_json::from_str(&content).unwrap_or_default()
-}
-
-fn save_records(path: &PathBuf, records: &[KnownHostRecord]) -> PuckResult<()> {
-    let content = serde_json::to_string_pretty(records)
-        .map_err(|error| PuckError::Message(error.to_string()))?;
-    fs::write(path, content).map_err(PuckError::from)?;
-    Ok(())
 }
 
 pub fn public_key_to_openssh(public_key: &PublicKey) -> String {
@@ -119,13 +80,15 @@ pub fn fingerprint_for_key(public_key: &PublicKey) -> String {
 }
 
 #[tauri::command]
-pub fn list_known_hosts(state: tauri::State<'_, std::sync::Arc<KnownHostsStore>>) -> Vec<KnownHostRecord> {
+pub fn list_known_hosts(
+    state: tauri::State<'_, Arc<KnownHostsStore>>,
+) -> Vec<KnownHostRecord> {
     state.list()
 }
 
 #[tauri::command]
 pub fn delete_known_host(
-    state: tauri::State<'_, std::sync::Arc<KnownHostsStore>>,
+    state: tauri::State<'_, Arc<KnownHostsStore>>,
     host: String,
     port: u16,
 ) -> Result<bool, String> {
@@ -136,7 +99,7 @@ pub fn delete_known_host(
 
 #[tauri::command]
 pub fn trust_ssh_host_key(
-    state: tauri::State<'_, std::sync::Arc<KnownHostsStore>>,
+    state: tauri::State<'_, Arc<KnownHostsStore>>,
     host: String,
     port: u16,
     public_key: String,

@@ -1,3 +1,4 @@
+mod config;
 mod connections_window;
 mod credential;
 mod error;
@@ -14,6 +15,7 @@ mod workspace;
 
 use std::sync::Arc;
 
+use config::PuckConfigStore;
 use known_hosts::KnownHostsStore;
 
 #[cfg(target_os = "macos")]
@@ -57,10 +59,13 @@ fn apply_macos_window_chrome(
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let config_store = Arc::new(PuckConfigStore::new());
+
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
-        .manage(Arc::new(KnownHostsStore::new()))
+        .manage(config_store.clone())
+        .manage(Arc::new(KnownHostsStore::new(config_store)))
         .setup(|app| {
             #[cfg(target_os = "macos")]
             configure_macos_window(app);
@@ -86,6 +91,12 @@ pub fn run() {
             credential::has_credential,
             credential::delete_credential,
             credential::delete_connection_credentials,
+            config::get_config_dir,
+            config::get_config_file_path,
+            config::load_puck_config_sections,
+            config::get_puck_config_section,
+            config::set_puck_config_section,
+            config::remove_puck_config_section,
             known_hosts::list_known_hosts,
             known_hosts::delete_known_host,
             known_hosts::trust_ssh_host_key,
