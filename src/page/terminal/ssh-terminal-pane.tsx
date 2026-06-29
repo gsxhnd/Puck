@@ -47,6 +47,7 @@ import {
   resolveConnectionCredential,
   takeConnectionSecrets,
 } from "@/lib/resolve-connection-credential";
+import { closeSftpExplorerSession } from "@/lib/sftp-explorer-session";
 import { HostKeyDialog } from "@/components/ssh/host-key-dialog";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -258,6 +259,7 @@ export function SshTerminalPane({
       if (!disposed) {
         void closeBackendSession(sessionId);
       }
+      void closeSftpExplorerSession(sessionId);
       terminal.dispose();
       terminalRef.current = null;
       fitAddonRef.current = null;

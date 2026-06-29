@@ -8,11 +8,22 @@ import {
   FolderIcon,
   RefreshCwIcon,
 } from "lucide-react";
-import { listLocalDir } from "@/lib/tauri-workspace";
-import { getWorkspacePath } from "@/lib/use-active-local-session";
+import { listRemoteDir, type RemoteFileEntry } from "@/lib/tauri-sftp";
+import { useConnectionStore } from "@/stores/connection-store";
+import { useSessionStore } from "@/stores/session-store";
 import { parsePuckError } from "@/lib/puck-error";
+import { getRemoteExplorerCwd } from "@/lib/remote-explorer-path";
+import {
+  ensureSftpExplorerSession,
+  explorerSftpSessionId,
+} from "@/lib/sftp-explorer-session";
 import { shortenPath } from "@/lib/session-display";
-import type { Session } from "@/types/connection";
+import {
+  breadcrumbPath,
+  buildBreadcrumbs,
+  formatBytes,
+  sortRemoteEntries,
+} from "@/page/files/file-manager/utils";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -21,72 +32,100 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import type { LocalFileEntry } from "@/types/workspace";
+import type { Session } from "@/types/connection";
 
-function formatBytes(size: number) {
-  if (size < 1024) return `${size} B`;
-  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
-  return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+function filterRemoteEntries(
+  entries: RemoteFileEntry[],
+  showHidden: boolean,
+): RemoteFileEntry[] {
+  return entries.filter((entry) => {
+    if (entry.name === "." || entry.name === "..") return false;
+    if (!showHidden && entry.name.startsWith(".")) return false;
+    return true;
+  });
 }
 
-export function LocalFileExplorerPanel({
+export function RemoteFileExplorerPanel({
   activeSession,
 }: {
   activeSession: Session;
 }) {
   const { t } = useTranslation("info");
-  const workspacePath = getWorkspacePath(activeSession);
-  const [cwd, setCwd] = useState(workspacePath);
-  const [entries, setEntries] = useState<LocalFileEntry[]>([]);
+  const profile = useConnectionStore((state) =>
+    activeSession.profileId ? state.getProfile(activeSession.profileId) : undefined,
+  );
+  const liveSession = useSessionStore(
+    (state) =>
+      state.sessions.find((item) => item.id === activeSession.id) ??
+      activeSession,
+  );
+  const sessionStatus = liveSession.status;
+  const sftpSessionId = explorerSftpSessionId(activeSession.id);
+  const terminalCwd = getRemoteExplorerCwd(liveSession, profile);
+
+  const [cwd, setCwd] = useState(terminalCwd);
+  const [entries, setEntries] = useState<RemoteFileEntry[]>([]);
   const [loading, setLoading] = useState(false);
+  const [connecting, setConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showHidden, setShowHidden] = useState(false);
 
   useEffect(() => {
-    setCwd(workspacePath);
-  }, [workspacePath, activeSession.id]);
+    setCwd(terminalCwd);
+  }, [terminalCwd, activeSession.id]);
 
-  const breadcrumbs = useMemo(() => {
-    if (cwd === "~") return ["~"];
-    if (cwd.startsWith("~/")) {
-      return ["~", ...cwd.slice(2).split("/").filter(Boolean)];
-    }
-    if (cwd === "/") return ["/"];
-    return ["/", ...cwd.split("/").filter(Boolean)];
-  }, [cwd]);
+  const breadcrumbs = useMemo(() => buildBreadcrumbs(cwd), [cwd]);
+  const visibleEntries = useMemo(
+    () => filterRemoteEntries(entries, showHidden),
+    [entries, showHidden],
+  );
 
   const refresh = useCallback(async () => {
+    if (!profile) {
+      setError(t("filesRemoteNoProfile"));
+      return;
+    }
+
     setLoading(true);
     setError(null);
+    setConnecting(true);
     try {
-      const list = await listLocalDir(cwd, showHidden);
-      setEntries(list);
+      await ensureSftpExplorerSession(activeSession.id, profile);
+
+      const list = await listRemoteDir(sftpSessionId, cwd);
+      setEntries(sortRemoteEntries(list));
     } catch (err) {
-      setError(parsePuckError(err).message);
+      const message = parsePuckError(err).message;
+      if (message === "cancelled") {
+        setError(t("filesRemoteCancelled"));
+      } else {
+        setError(message);
+      }
+      setEntries([]);
     } finally {
+      setConnecting(false);
       setLoading(false);
     }
-  }, [cwd, showHidden]);
+  }, [activeSession.id, cwd, profile, sftpSessionId, t]);
 
   useEffect(() => {
+    if (sessionStatus !== "connected" && sessionStatus !== "creating") {
+      return;
+    }
     void refresh();
-  }, [refresh]);
+  }, [cwd, activeSession.id, profile?.id, sessionStatus, refresh]);
 
   const navigateTo = (path: string) => {
     setCwd(path);
   };
 
-  const resolveBreadcrumbPath = (index: number) => {
-    if (breadcrumbs[0] === "~") {
-      if (index === 0) return "~";
-      return `~/${breadcrumbs.slice(1, index + 1).join("/")}`;
-    }
-    if (breadcrumbs[0] === "/") {
-      if (index === 0) return "/";
-      return `/${breadcrumbs.slice(1, index + 1).join("/")}`;
-    }
-    return breadcrumbs.slice(0, index + 1).join("/");
-  };
+  if (!profile) {
+    return (
+      <div className="px-4 py-8 text-center text-sm text-muted-foreground">
+        {t("filesRemoteNoProfile")}
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -101,9 +140,9 @@ export function LocalFileExplorerPanel({
                 <button
                   type="button"
                   className="rounded px-1 py-0.5 text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
-                  onClick={() => navigateTo(resolveBreadcrumbPath(index))}
+                  onClick={() => navigateTo(breadcrumbPath(breadcrumbs, index))}
                 >
-                  {segment}
+                  {segment === "/" ? "/" : segment}
                 </button>
               </div>
             ))}
@@ -134,10 +173,10 @@ export function LocalFileExplorerPanel({
           variant="ghost"
           size="icon-sm"
           aria-label={t("refresh")}
-          disabled={loading}
+          disabled={loading || connecting}
           onClick={() => void refresh()}
         >
-          <RefreshCwIcon className={cn(loading && "animate-spin")} />
+          <RefreshCwIcon className={cn((loading || connecting) && "animate-spin")} />
         </Button>
       </div>
 
@@ -147,16 +186,11 @@ export function LocalFileExplorerPanel({
 
       <ScrollArea className="min-h-0 flex-1">
         <div className="py-1">
-          {cwd !== "~" && cwd !== "/" ? (
+          {cwd !== "/" ? (
             <button
               type="button"
               className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
               onClick={() => {
-                if (cwd.startsWith("~/")) {
-                  const parent = cwd.replace(/\/[^/]+$/, "");
-                  navigateTo(parent === "~" ? "~" : parent || "~");
-                  return;
-                }
                 const parent = cwd.replace(/\/[^/]+$/, "") || "/";
                 navigateTo(parent);
               }}
@@ -166,7 +200,7 @@ export function LocalFileExplorerPanel({
             </button>
           ) : null}
 
-          {entries.map((entry) => (
+          {visibleEntries.map((entry) => (
             <button
               key={entry.path}
               type="button"
@@ -194,7 +228,7 @@ export function LocalFileExplorerPanel({
             </button>
           ))}
 
-          {!loading && entries.length === 0 ? (
+          {!loading && !connecting && visibleEntries.length === 0 ? (
             <div className="px-3 py-6 text-center text-xs text-muted-foreground">
               {t("emptyDirectory")}
             </div>
@@ -203,7 +237,8 @@ export function LocalFileExplorerPanel({
       </ScrollArea>
 
       <div className="border-t border-border/60 px-3 py-1.5 text-xs text-muted-foreground">
-        {shortenPath(cwd)}
+        <div className="truncate">{shortenPath(cwd)}</div>
+        <div className="text-[10px] opacity-70">{t("filesRemoteFollowCwd")}</div>
       </div>
     </div>
   );

@@ -15,7 +15,7 @@ import {
 import { TransferQueueContent } from "@/components/files/transfer-queue";
 import { CommandOutlinePanel } from "@/components/workspace/command-outline-panel";
 import { GitPanel } from "@/components/workspace/git-panel";
-import { LocalFileExplorerPanel } from "@/components/workspace/local-file-explorer";
+import { FileExplorerPanel } from "@/components/workspace/file-explorer-panel";
 import { useSessionStore } from "@/stores/session-store";
 import { useShellUiStore } from "@/stores/shell-ui-store";
 import { getSessionPathDisplay, getShellBadge } from "@/lib/session-display";
@@ -282,7 +282,7 @@ export function SecondPanel({
                 transition={panelTransition}
                 className="flex min-h-0 flex-1 flex-col"
               >
-                <LocalFileExplorerPanel />
+                <FileExplorerPanel />
               </motion.div>
             ) : view === "git" ? (
               <motion.div
