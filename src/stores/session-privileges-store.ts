@@ -1,0 +1,72 @@
+import { create } from "zustand";
+import { persist } from "zustand/middleware";
+import {
+  DEFAULT_SESSION_PRIVILEGES,
+  type SessionPrivilegeKey,
+  type SessionPrivileges,
+} from "@/types/session-privileges";
+
+type SessionPrivilegesState = {
+  bySessionId: Record<string, SessionPrivileges>;
+  getPrivileges: (sessionId: string) => SessionPrivileges;
+  setPrivilege: (
+    sessionId: string,
+    key: SessionPrivilegeKey,
+    value: boolean,
+  ) => void;
+  togglePrivilege: (sessionId: string, key: SessionPrivilegeKey) => void;
+  pruneSessions: (activeSessionIds: string[]) => void;
+};
+
+function mergePrivileges(
+  sessionId: string,
+  current: Record<string, SessionPrivileges>,
+): SessionPrivileges {
+  return {
+    ...DEFAULT_SESSION_PRIVILEGES,
+    ...current[sessionId],
+  };
+}
+
+export const useSessionPrivilegesStore = create<SessionPrivilegesState>()(
+  persist(
+    (set, get) => ({
+      bySessionId: {},
+      getPrivileges: (sessionId) =>
+        mergePrivileges(sessionId, get().bySessionId),
+      setPrivilege: (sessionId, key, value) => {
+        set((state) => ({
+          bySessionId: {
+            ...state.bySessionId,
+            [sessionId]: {
+              ...mergePrivileges(sessionId, state.bySessionId),
+              [key]: value,
+            },
+          },
+        }));
+      },
+      togglePrivilege: (sessionId, key) => {
+        const current = get().getPrivileges(sessionId);
+        get().setPrivilege(sessionId, key, !current[key]);
+      },
+      pruneSessions: (activeSessionIds) => {
+        const active = new Set(activeSessionIds);
+        set((state) => {
+          const next: Record<string, SessionPrivileges> = {};
+          for (const [sessionId, privileges] of Object.entries(
+            state.bySessionId,
+          )) {
+            if (active.has(sessionId)) {
+              next[sessionId] = privileges;
+            }
+          }
+          return { bySessionId: next };
+        });
+      },
+    }),
+    {
+      name: "puck-session-privileges",
+      partialize: (state) => ({ bySessionId: state.bySessionId }),
+    },
+  ),
+);

@@ -39,6 +39,8 @@ type FileManagerProps = {
   sessionId: string;
   profileId?: string;
   active: boolean;
+  focused?: boolean;
+  layout?: "stack" | "pane";
 };
 
 function formatBytes(size: number) {
@@ -58,7 +60,12 @@ function joinRemotePath(base: string, name: string) {
   return `${base.replace(/\/$/, "")}/${name}`;
 }
 
-export function FileManager({ sessionId, profileId, active }: FileManagerProps) {
+export function FileManager({
+  sessionId,
+  profileId,
+  active,
+  layout = "stack",
+}: FileManagerProps) {
   const { t } = useTranslation(["files", "errors", "common"]);
   const profile = useConnectionStore((state) =>
     profileId ? state.getProfile(profileId) : undefined,
@@ -286,7 +293,9 @@ export function FileManager({ sessionId, profileId, active }: FileManagerProps) 
   return (
     <div
       className={cn(
-        "absolute inset-0 flex min-h-0 flex-col",
+        layout === "stack"
+          ? "absolute inset-0 flex min-h-0 flex-col"
+          : "flex h-full min-h-0 flex-col",
         !active && "pointer-events-none invisible",
       )}
     >

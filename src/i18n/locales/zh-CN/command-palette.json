@@ -1,0 +1,24 @@
+{
+  "searchPlaceholder": "搜索命令…",
+  "sections": {
+    "workingDirectory": "工作目录",
+    "view": "视图",
+    "openIn": "打开方式"
+  },
+  "commands": {
+    "copyPath": "复制路径",
+    "revealInFinder": "在 Finder 中显示",
+    "openIn": "打开方式",
+    "toggleTabsPanel": "切换标签面板",
+    "toggleDetailsPanel": "切换详情面板",
+    "detailsInfo": "详情：信息",
+    "detailsFiles": "详情：文件",
+    "detailsGit": "详情：Git",
+    "detailsOutline": "详情：大纲",
+    "detailsTransfers": "详情：传输",
+    "find": "查找",
+    "findInAllTabs": "在所有标签中查找",
+    "jumpToOutline": "跳转到大纲",
+    "openSettings": "打开设置"
+  }
+}

@@ -1,13 +1,15 @@
+import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { PanelRightIcon } from "lucide-react";
 import { PanelHeader } from "@/layout/app-shell/panel-header";
 import { MAIN_PANEL_TOOLBAR_SLOT_ID } from "@/layout/app-shell/main-panel-toolbar-slot";
 import { useSessionStore } from "@/stores/session-store";
-import { TerminalPane } from "@/page/terminal/terminal-pane";
-import { SshTerminalPane } from "@/page/terminal/ssh-terminal-pane";
-import { FileManager } from "@/page/files/file-manager";
 import { NewTerminalMenu } from "@/page/terminal/new-terminal-menu";
 import { TerminalPathBar } from "@/page/terminal/terminal-path-bar";
+import { TerminalWorkspace } from "@/page/terminal/terminal-workspace";
+import { useTerminalSearchStore } from "@/stores/terminal-search-store";
+import { useTerminalSplitStore } from "@/stores/terminal-split-store";
+import type { TerminalSplitDirection } from "@/types/terminal-split";
 import { Button } from "@/components/ui/button";
 import {
   Tooltip,
@@ -101,16 +103,57 @@ export function MainPanel({
   const activeSessionId = useSessionStore((state) => state.activeSessionId);
   const activeSession =
     sessions.find((session) => session.id === activeSessionId) ?? null;
+  const openSearch = useTerminalSearchStore((state) => state.openSearch);
+  const splitSession = useTerminalSplitStore((state) => state.splitSession);
+  const syncSplit = useTerminalSplitStore((state) => state.syncWithSessions);
 
-  const localTerminalSessions = sessions.filter(
-    (session) =>
-      session.kind === "terminal" &&
-      (!session.protocol || session.protocol === "local"),
-  );
-  const sshTerminalSessions = sessions.filter(
-    (session) => session.kind === "terminal" && session.protocol === "ssh",
-  );
-  const fileSessions = sessions.filter((session) => session.kind === "files");
+  useEffect(() => {
+    syncSplit(sessions.map((session) => session.id));
+  }, [sessions, syncSplit]);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (!(event.metaKey || event.ctrlKey) || activeSession?.kind !== "terminal") {
+        return;
+      }
+
+      const key = event.key.toLowerCase();
+
+      if (key === "d") {
+        event.preventDefault();
+        if (!activeSessionId) return;
+        const direction: TerminalSplitDirection = event.altKey && event.shiftKey
+          ? "up"
+          : event.shiftKey
+            ? "down"
+            : event.altKey
+              ? "left"
+              : "right";
+        splitSession(activeSessionId, direction);
+        return;
+      }
+
+      if (key === "f" && event.shiftKey && !event.altKey) {
+        event.preventDefault();
+        openSearch("all");
+        return;
+      }
+
+      if (key === "f" && !event.shiftKey && !event.altKey) {
+        event.preventDefault();
+        openSearch("tab");
+        return;
+      }
+
+      if (key === "j") {
+        event.preventDefault();
+        window.dispatchEvent(new CustomEvent("puck:focus-outline"));
+      }
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [activeSession?.kind, activeSessionId, openSearch, splitSession]);
 
   if (!activeSession) {
     return (
@@ -132,34 +175,7 @@ export function MainPanel({
         secondPanelOpen={secondPanelOpen}
         onToggleSecondPanel={onToggleSecondPanel}
       />
-      <div className="relative min-h-0 flex-1 overflow-hidden">
-        {localTerminalSessions.map((session) => (
-          <TerminalPane
-            key={session.id}
-            sessionId={session.id}
-            shellId={session.shellId}
-            active={session.id === activeSessionId}
-          />
-        ))}
-
-        {sshTerminalSessions.map((session) => (
-          <SshTerminalPane
-            key={session.id}
-            sessionId={session.id}
-            profileId={session.profileId}
-            active={session.id === activeSessionId}
-          />
-        ))}
-
-        {fileSessions.map((session) => (
-          <FileManager
-            key={session.id}
-            sessionId={session.id}
-            profileId={session.profileId}
-            active={session.id === activeSessionId}
-          />
-        ))}
-      </div>
+      <TerminalWorkspace activeSessionId={activeSessionId} />
     </div>
   );
 }

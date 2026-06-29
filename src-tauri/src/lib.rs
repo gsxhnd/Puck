@@ -92,6 +92,7 @@ pub fn run() {
             connections_window::open_connections_window,
             workspace::list_local_dir,
             workspace::git_status,
+            workspace::open_path_in_app,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

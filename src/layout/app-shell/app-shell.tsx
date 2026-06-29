@@ -1,12 +1,16 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import type { PanelImperativeHandle } from "react-resizable-panels";
 import { PrimaryPanel } from "@/layout/app-shell/primary-panel";
 import { MainPanel } from "@/layout/app-shell/main-panel";
 import { SecondPanel } from "@/layout/app-shell/second-panel";
+import { CommandPalette } from "@/components/command-palette/command-palette";
 import { openSettingsWindow } from "@/lib/open-settings-window";
 import { getPlatform } from "@/lib/platform";
 import { useAppSettingsStore } from "@/stores/app-settings-store";
+import { useCommandPaletteStore } from "@/stores/command-palette-store";
 import { useSessionStore } from "@/stores/session-store";
+import { useSessionPrivilegesStore } from "@/stores/session-privileges-store";
+import { useShellUiStore } from "@/stores/shell-ui-store";
 import {
   ResizableHandle,
   ResizablePanel,
@@ -45,14 +49,23 @@ function readStoredLayout(): Record<string, number> | undefined {
 }
 
 export function AppShell() {
-  const [primaryPanelOpen, setPrimaryPanelOpen] = useState(true);
-  const [secondPanelOpen, setSecondPanelOpen] = useState(true);
+  const primaryPanelOpen = useShellUiStore((state) => state.primaryPanelOpen);
+  const secondPanelOpen = useShellUiStore((state) => state.secondPanelOpen);
+  const setPrimaryPanelOpen = useShellUiStore((state) => state.setPrimaryPanelOpen);
+  const setSecondPanelOpen = useShellUiStore((state) => state.setSecondPanelOpen);
+  const togglePrimaryPanel = useShellUiStore((state) => state.togglePrimaryPanel);
+  const toggleSecondPanel = useShellUiStore((state) => state.toggleSecondPanel);
+  const openPalette = useCommandPaletteStore((state) => state.openPalette);
   const primaryPanelRef = useRef<PanelImperativeHandle>(null);
   const secondPanelRef = useRef<PanelImperativeHandle>(null);
   const openLocalOnStart = useAppSettingsStore(
     (state) => state.openLocalTerminalOnStart,
   );
   const addSession = useSessionStore((state) => state.addSession);
+  const sessions = useSessionStore((state) => state.sessions);
+  const prunePrivileges = useSessionPrivilegesStore(
+    (state) => state.pruneSessions,
+  );
   const hasBootstrappedRef = useRef(false);
 
   useEffect(() => {
@@ -67,15 +80,50 @@ export function AppShell() {
   }, [addSession, openLocalOnStart]);
 
   useEffect(() => {
+    prunePrivileges(sessions.map((session) => session.id));
+  }, [prunePrivileges, sessions]);
+
+  useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (!(event.metaKey || event.ctrlKey) || event.key !== ",") return;
-      event.preventDefault();
-      void openSettingsWindow();
+      if (!(event.metaKey || event.ctrlKey)) {
+        return;
+      }
+
+      const key = event.key.toLowerCase();
+
+      if (key === ",") {
+        event.preventDefault();
+        void openSettingsWindow();
+        return;
+      }
+
+      if ((key === "p" && event.shiftKey) || key === "k") {
+        event.preventDefault();
+        openPalette();
+        return;
+      }
+
+      if (key === "l" && event.shiftKey) {
+        event.preventDefault();
+        togglePrimaryPanel();
+        return;
+      }
+
+      if (key === "r" && event.shiftKey) {
+        event.preventDefault();
+        toggleSecondPanel();
+      }
     };
 
+    const onOpenPalette = () => openPalette();
+
     window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, []);
+    window.addEventListener("puck:command-palette", onOpenPalette);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("puck:command-palette", onOpenPalette);
+    };
+  }, [openPalette, togglePrimaryPanel, toggleSecondPanel]);
 
   useEffect(() => {
     if (primaryPanelOpen) {
@@ -145,7 +193,7 @@ export function AppShell() {
         >
           <PrimaryPanel
             collapsed={!primaryPanelOpen}
-            onToggleCollapsed={() => setPrimaryPanelOpen((open) => !open)}
+            onToggleCollapsed={togglePrimaryPanel}
           />
         </ResizablePanel>
         {primaryPanelOpen ? <ResizableHandle /> : null}
@@ -153,7 +201,7 @@ export function AppShell() {
           <MainPanel
             primaryPanelOpen={primaryPanelOpen}
             secondPanelOpen={secondPanelOpen}
-            onToggleSecondPanel={() => setSecondPanelOpen((open) => !open)}
+            onToggleSecondPanel={toggleSecondPanel}
           />
         </ResizablePanel>
         {secondPanelOpen ? <ResizableHandle /> : null}
@@ -169,10 +217,11 @@ export function AppShell() {
         >
           <SecondPanel
             secondPanelOpen={secondPanelOpen}
-            onToggleSecondPanel={() => setSecondPanelOpen((open) => !open)}
+            onToggleSecondPanel={toggleSecondPanel}
           />
         </ResizablePanel>
       </ResizablePanelGroup>
+      <CommandPalette />
     </div>
   );
 }

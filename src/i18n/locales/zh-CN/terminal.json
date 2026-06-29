@@ -5,6 +5,7 @@
   "pickShell": "选择 Shell",
   "sessionEnded": "会话已结束",
   "openFailed": "打开本地终端失败",
+  "pathUnknown": "~",
   "status": {
     "connected": "已连接",
     "disconnected": "已断开",
@@ -16,5 +17,68 @@
     "search": "搜索",
     "reconnect": "重新连接",
     "disconnect": "断开"
+  },
+  "titleMenu": {
+    "name": "名称",
+    "prefix": "前缀",
+    "resetTitle": "恢复默认标题",
+    "workingDirectory": "工作目录",
+    "copyPath": "复制路径",
+    "revealInFinder": "在 Finder 中显示",
+    "openIn": "打开方式",
+    "notificationsPrivileges": "通知与权限",
+    "splitView": "分屏",
+    "find": "查找",
+    "findInAllTabs": "在所有标签中查找",
+    "jumpTo": "跳转",
+    "commandPalette": "命令面板",
+    "findPlaceholder": "查找…",
+    "searchPlaceholder": "搜索",
+    "searchCaseSensitive": "区分大小写",
+    "searchWholeWord": "全字匹配",
+    "searchRegex": "正则表达式",
+    "searchPrevious": "上一个",
+    "searchNext": "下一个",
+    "searchInSelection": "在选区中查找",
+    "closeSearch": "关闭搜索",
+    "revealFailed": "无法在 Finder 中显示该路径",
+    "openInFailed": "无法用所选应用打开",
+    "commandPaletteSoon": "命令面板即将推出",
+    "splitSoon": "{{direction}}分屏即将推出",
+    "privileges": {
+      "sections": {
+        "sound": "声音",
+        "notification": "通知",
+        "tabBadge": "标签角标",
+        "caffeinate": "防休眠",
+        "mouse": "鼠标"
+      },
+      "soundMute": "静音",
+      "beepOnErrorExit": "出错退出时蜂鸣",
+      "allowTerminalBell": "允许终端响铃",
+      "notificationMute": "静音",
+      "notifyOnCommandFinish": "命令完成时通知",
+      "notifyOnErrorExit": "出错退出时通知",
+      "notifyOnWatchFinish": "监视完成时通知",
+      "allowAppNotifications": "允许应用通知",
+      "tabBadgeWhenCommandFinishes": "命令完成时",
+      "tabBadgeWhenCommandFails": "命令失败时",
+      "keepAwakeWhenTaskRunning": "任务运行时保持唤醒",
+      "allowMouseCapture": "允许鼠标捕获"
+    },
+    "apps": {
+      "vscode": "VS Code",
+      "cursor": "Cursor",
+      "xcode": "Xcode",
+      "zed": "Zed",
+      "finder": "Finder",
+      "terminal": "Terminal"
+    },
+    "split": {
+      "right": "向右分屏",
+      "left": "向左分屏",
+      "down": "向下分屏",
+      "up": "向上分屏"
+    }
   }
 }

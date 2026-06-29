@@ -1,0 +1,24 @@
+{
+  "searchPlaceholder": "Search commands…",
+  "sections": {
+    "workingDirectory": "Working Directory",
+    "view": "View",
+    "openIn": "Open in"
+  },
+  "commands": {
+    "copyPath": "Copy Path",
+    "revealInFinder": "Reveal in Finder",
+    "openIn": "Open in",
+    "toggleTabsPanel": "Toggle Tabs Panel",
+    "toggleDetailsPanel": "Toggle Details Panel",
+    "detailsInfo": "Details: Info",
+    "detailsFiles": "Details: Files",
+    "detailsGit": "Details: Git",
+    "detailsOutline": "Details: Outline",
+    "detailsTransfers": "Details: Transfers",
+    "find": "Find",
+    "findInAllTabs": "Find in All Tabs",
+    "jumpToOutline": "Jump to Outline",
+    "openSettings": "Open Settings"
+  }
+}

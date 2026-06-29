@@ -5,6 +5,7 @@ import {
   type Session,
   type SessionKind,
   type SessionStatus,
+  type SessionTitleMode,
 } from "@/types/connection";
 
 type SessionStore = {
@@ -19,6 +20,8 @@ type SessionStore = {
     shellName?: string;
     tabLabel?: string;
     customTitle?: string;
+    titleMode?: SessionTitleMode;
+    titlePrefix?: string;
     cwd?: string;
     status?: SessionStatus;
   }) => Session;
@@ -31,12 +34,23 @@ type SessionStore = {
     shellName?: string;
     tabLabel?: string;
     customTitle?: string;
+    titleMode?: SessionTitleMode;
+    titlePrefix?: string;
     cwd?: string;
     status?: SessionStatus;
   }) => Session;
   closeSession: (id: string) => void;
   setActiveSession: (id: string) => void;
   renameSession: (id: string, title: string) => void;
+  resetSessionTitle: (id: string) => void;
+  updateSessionTitle: (
+    id: string,
+    update: {
+      customTitle?: string;
+      titlePrefix?: string;
+      titleMode?: SessionTitleMode;
+    },
+  ) => void;
   updateSessionStatus: (id: string, status: SessionStatus) => void;
   updateSessionMeta: (
     id: string,
@@ -62,6 +76,8 @@ function createSession(
     shellName: partial.shellName,
     tabLabel: partial.tabLabel,
     customTitle: partial.customTitle,
+    titleMode: partial.titleMode,
+    titlePrefix: partial.titlePrefix,
     cwd: partial.cwd,
     status: partial.status ?? "connected",
     createdAt: new Date().toISOString(),
@@ -117,7 +133,30 @@ export const useSessionStore = create<SessionStore>()((set, get) => ({
   renameSession: (id, title) => {
     set((state) => ({
       sessions: state.sessions.map((session) =>
-        session.id === id ? { ...session, customTitle: title } : session,
+        session.id === id
+          ? { ...session, customTitle: title, titleMode: "name" as const }
+          : session,
+      ),
+    }));
+  },
+  resetSessionTitle: (id) => {
+    set((state) => ({
+      sessions: state.sessions.map((session) =>
+        session.id === id
+          ? {
+              ...session,
+              customTitle: undefined,
+              titlePrefix: undefined,
+              titleMode: undefined,
+            }
+          : session,
+      ),
+    }));
+  },
+  updateSessionTitle: (id, update) => {
+    set((state) => ({
+      sessions: state.sessions.map((session) =>
+        session.id === id ? { ...session, ...update } : session,
       ),
     }));
   },

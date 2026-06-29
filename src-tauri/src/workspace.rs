@@ -196,3 +196,60 @@ pub fn list_local_dir(path: String) -> Result<Vec<LocalFileEntry>, String> {
 pub fn git_status(path: String) -> Result<GitStatusResult, String> {
     git_status_inner(&path).map_err(to_invoke_error)
 }
+
+#[tauri::command]
+pub fn open_path_in_app(path: String, app: String) -> Result<(), String> {
+    open_path_in_app_inner(&path, &app).map_err(to_invoke_error)
+}
+
+fn open_path_in_app_inner(path: &str, app: &str) -> PuckResult<()> {
+    let resolved = resolve_path(path)?;
+    let target = if resolved.is_dir() {
+        resolved.clone()
+    } else {
+        resolved
+            .parent()
+            .map(Path::to_path_buf)
+            .ok_or_else(|| PuckError::config("Invalid path"))?
+    };
+
+    #[cfg(target_os = "macos")]
+    {
+        let mut command = Command::new("open");
+        match app {
+            "finder" => {
+                command.arg("-R").arg(&resolved);
+            }
+            "terminal" => {
+                command.args(["-a", "Terminal", &target.to_string_lossy()]);
+            }
+            "vscode" => {
+                command.args(["-a", "Visual Studio Code", &target.to_string_lossy()]);
+            }
+            "cursor" => {
+                command.args(["-a", "Cursor", &target.to_string_lossy()]);
+            }
+            "xcode" => {
+                command.args(["-a", "Xcode", &target.to_string_lossy()]);
+            }
+            "zed" => {
+                command.args(["-a", "Zed", &target.to_string_lossy()]);
+            }
+            _ => return Err(PuckError::config("Unknown application")),
+        }
+
+        command
+            .spawn()
+            .map_err(|error| PuckError::config(format!("Failed to open application: {error}")))?;
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = (target, app);
+        return Err(PuckError::config(
+            "Open in application is only supported on macOS",
+        ));
+    }
+
+    Ok(())
+}

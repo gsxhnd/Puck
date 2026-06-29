@@ -24,6 +24,8 @@ import { buildTabLabel, extractOsc7Cwd } from "@/lib/session-display";
 import { applyTerminalFont, applyTerminalTheme } from "@/lib/apply-terminal-appearance";
 import { registerTerminal, unregisterTerminal } from "@/lib/terminal-registry";
 import { trackTerminalCommandInput } from "@/lib/track-terminal-command";
+import { bindTerminalBell } from "@/lib/terminal-bell";
+import { useSessionPrivilegesStore } from "@/stores/session-privileges-store";
 import { useCommandOutlineStore } from "@/stores/command-outline-store";
 import { useTerminalTheme } from "@/hooks/use-terminal-theme";
 import { cn } from "@/lib/utils";
@@ -32,9 +34,18 @@ type TerminalPaneProps = {
   sessionId: string;
   shellId?: string;
   active: boolean;
+  focused?: boolean;
+  layout?: "stack" | "pane";
 };
 
-export function TerminalPane({ sessionId, shellId, active }: TerminalPaneProps) {
+export function TerminalPane({
+  sessionId,
+  shellId,
+  active,
+  focused: focusedProp,
+  layout = "stack",
+}: TerminalPaneProps) {
+  const focused = focusedProp ?? active;
   const { t } = useTranslation("terminal");
   const containerRef = useRef<HTMLDivElement>(null);
   const terminalRef = useRef<Terminal | null>(null);
@@ -48,6 +59,9 @@ export function TerminalPane({ sessionId, shellId, active }: TerminalPaneProps) 
   );
   const updateSessionMeta = useSessionStore((state) => state.updateSessionMeta);
   const removeSession = useSessionStore((state) => state.closeSession);
+  const sessionPrivileges = useSessionPrivilegesStore(
+    (state) => state.bySessionId[sessionId],
+  );
 
   const tRef = useRef(t);
   tRef.current = t;
@@ -67,17 +81,18 @@ export function TerminalPane({ sessionId, shellId, active }: TerminalPaneProps) 
     });
 
     const fitAddon = new FitAddon();
+    const searchAddon = new SearchAddon();
     terminal.loadAddon(fitAddon);
     terminal.loadAddon(
       new ClipboardAddon(undefined, new BrowserClipboardProvider()),
     );
     terminal.loadAddon(new WebLinksAddon());
-    terminal.loadAddon(new SearchAddon());
+    terminal.loadAddon(searchAddon);
     terminal.open(container);
 
     terminalRef.current = terminal;
     fitAddonRef.current = fitAddon;
-    registerTerminal(sessionId, terminal);
+    registerTerminal(sessionId, terminal, searchAddon);
 
     const dataDisposable = terminal.onData((data) => {
       trackTerminalCommandInput(sessionId, terminal, data, commandInputRef.current);
@@ -188,6 +203,15 @@ export function TerminalPane({ sessionId, shellId, active }: TerminalPaneProps) 
     if (!active || !openedRef.current) return;
     const terminal = terminalRef.current;
     if (!terminal) return;
+
+    const disposable = bindTerminalBell(terminal, sessionPrivileges);
+    return () => disposable.dispose();
+  }, [active, sessionPrivileges]);
+
+  useEffect(() => {
+    if (!active || !openedRef.current) return;
+    const terminal = terminalRef.current;
+    if (!terminal) return;
     applyTerminalTheme({ terminal, theme: terminalTheme });
   }, [active, terminalTheme]);
 
@@ -207,7 +231,7 @@ export function TerminalPane({ sessionId, shellId, active }: TerminalPaneProps) 
   }, [active, fontFamily, fontSize, sessionId]);
 
   useEffect(() => {
-    if (!active || !openedRef.current) return;
+    if (!focused || !openedRef.current) return;
     const fitAddon = fitAddonRef.current;
     const terminal = terminalRef.current;
     if (!fitAddon || !terminal) return;
@@ -217,12 +241,12 @@ export function TerminalPane({ sessionId, shellId, active }: TerminalPaneProps) 
       fitAddon.fit();
       void resizeTerminal(sessionId, terminal.cols, terminal.rows);
     });
-  }, [active, sessionId]);
+  }, [focused, sessionId]);
 
   return (
     <div
       className={cn(
-        "absolute inset-0 min-h-0",
+        layout === "stack" ? "absolute inset-0 min-h-0" : "h-full min-h-0",
         !active && "pointer-events-none invisible",
       )}
     >

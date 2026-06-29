@@ -95,10 +95,49 @@ export function getSessionGroupKey(session: Session): string {
   return cwd.slice(0, lastSlash) || "~";
 }
 
-export function formatSidebarLabel(session: Session): string {
+export function extractTabPrefix(tabLabel?: string): string {
+  if (!tabLabel) {
+    return "local";
+  }
+
+  const colon = tabLabel.indexOf(":");
+  return colon === -1 ? tabLabel : tabLabel.slice(0, colon);
+}
+
+export function getTerminalHeaderTitle(session: Session): string {
+  if (session.titleMode === "prefix") {
+    const prefix = session.titlePrefix ?? extractTabPrefix(session.tabLabel);
+    return `${prefix}:${getSessionCwd(session)}`;
+  }
+
   if (session.customTitle) {
     return session.customTitle;
   }
+
+  return session.tabLabel ?? resolveFallbackTitle(session.title);
+}
+
+export function getSessionTitleEditorValue(session: Session): string {
+  if (session.titleMode === "prefix") {
+    return session.titlePrefix ?? extractTabPrefix(session.tabLabel);
+  }
+
+  if (session.customTitle) {
+    return session.customTitle;
+  }
+
+  return session.tabLabel ?? resolveFallbackTitle(session.title);
+}
+
+export function formatSidebarLabel(session: Session): string {
+  if (session.customTitle && session.titleMode !== "prefix") {
+    return session.customTitle;
+  }
+
+  if (session.titleMode === "prefix") {
+    return getTerminalHeaderTitle(session);
+  }
+
   return session.tabLabel ?? resolveFallbackTitle(session.title);
 }
 

@@ -5,6 +5,7 @@
   "pickShell": "Choose Shell",
   "sessionEnded": "Session ended",
   "openFailed": "Failed to open local terminal",
+  "pathUnknown": "~",
   "status": {
     "connected": "Connected",
     "disconnected": "Disconnected",
@@ -16,5 +17,68 @@
     "search": "Search",
     "reconnect": "Reconnect",
     "disconnect": "Disconnect"
+  },
+  "titleMenu": {
+    "name": "Name",
+    "prefix": "Prefix",
+    "resetTitle": "Reset title",
+    "workingDirectory": "Working Directory",
+    "copyPath": "Copy Path",
+    "revealInFinder": "Reveal in Finder",
+    "openIn": "Open in",
+    "notificationsPrivileges": "Notifications & Privileges",
+    "splitView": "Split View",
+    "find": "Find",
+    "findInAllTabs": "Find in All Tabs",
+    "jumpTo": "Jump to",
+    "commandPalette": "Command Palette",
+    "findPlaceholder": "Find…",
+    "searchPlaceholder": "Search",
+    "searchCaseSensitive": "Case sensitive",
+    "searchWholeWord": "Whole word",
+    "searchRegex": "Regular expression",
+    "searchPrevious": "Previous match",
+    "searchNext": "Next match",
+    "searchInSelection": "Find in selection",
+    "closeSearch": "Close search",
+    "revealFailed": "Could not reveal path in Finder",
+    "openInFailed": "Could not open with the selected app",
+    "commandPaletteSoon": "Command palette is coming soon",
+    "splitSoon": "{{direction}} split view is coming soon",
+    "privileges": {
+      "sections": {
+        "sound": "Sound",
+        "notification": "Notification",
+        "tabBadge": "Tab Badge",
+        "caffeinate": "Caffeinate",
+        "mouse": "Mouse"
+      },
+      "soundMute": "Mute",
+      "beepOnErrorExit": "Beep on Error Exit",
+      "allowTerminalBell": "Allow Terminal Bell",
+      "notificationMute": "Mute",
+      "notifyOnCommandFinish": "Notify on Command Finish",
+      "notifyOnErrorExit": "Notify on Error Exit",
+      "notifyOnWatchFinish": "Notify on Watch Finish",
+      "allowAppNotifications": "Allow App Notifications",
+      "tabBadgeWhenCommandFinishes": "When Command Finishes",
+      "tabBadgeWhenCommandFails": "When Command Fails",
+      "keepAwakeWhenTaskRunning": "Keep Awake When Task Running",
+      "allowMouseCapture": "Allow Mouse Capture"
+    },
+    "apps": {
+      "vscode": "VS Code",
+      "cursor": "Cursor",
+      "xcode": "Xcode",
+      "zed": "Zed",
+      "finder": "Finder",
+      "terminal": "Terminal"
+    },
+    "split": {
+      "right": "Split Right",
+      "left": "Split Left",
+      "down": "Split Down",
+      "up": "Split Up"
+    }
   }
 }

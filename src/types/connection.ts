@@ -28,6 +28,8 @@ export type SessionStatus =
 
 export type SessionKind = "terminal" | "files";
 
+export type SessionTitleMode = "name" | "prefix";
+
 export type Session = {
   id: string;
   kind: SessionKind;
@@ -38,6 +40,8 @@ export type Session = {
   shellName?: string;
   tabLabel?: string;
   customTitle?: string;
+  titleMode?: SessionTitleMode;
+  titlePrefix?: string;
   cwd?: string;
   status: SessionStatus;
   createdAt: string;

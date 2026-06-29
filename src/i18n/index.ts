@@ -7,6 +7,7 @@ import zhCNConnections from "./locales/zh-CN/connections.json";
 import zhCNTerminal from "./locales/zh-CN/terminal.json";
 import zhCNFiles from "./locales/zh-CN/files.json";
 import zhCNSettings from "./locales/zh-CN/settings.json";
+import zhCNCommandPalette from "./locales/zh-CN/command-palette.json";
 import zhCNErrors from "./locales/zh-CN/errors.json";
 
 import enUSInfo from "./locales/en-US/info.json";
@@ -15,6 +16,7 @@ import enUSConnections from "./locales/en-US/connections.json";
 import enUSTerminal from "./locales/en-US/terminal.json";
 import enUSFiles from "./locales/en-US/files.json";
 import enUSSettings from "./locales/en-US/settings.json";
+import enUSCommandPalette from "./locales/en-US/command-palette.json";
 import enUSErrors from "./locales/en-US/errors.json";
 
 const resources = {
@@ -26,6 +28,7 @@ const resources = {
     files: zhCNFiles,
     settings: zhCNSettings,
     errors: zhCNErrors,
+    commandPalette: zhCNCommandPalette,
   },
   "en-US": {
     info: enUSInfo,
@@ -35,6 +38,7 @@ const resources = {
     files: enUSFiles,
     settings: enUSSettings,
     errors: enUSErrors,
+    commandPalette: enUSCommandPalette,
   },
 } as const;
 
@@ -43,7 +47,7 @@ void i18n.use(initReactI18next).init({
   lng: "zh-CN",
   fallbackLng: "en-US",
   defaultNS: "common",
-  ns: ["common", "connections", "terminal", "files", "settings", "errors", "info"],
+  ns: ["common", "connections", "terminal", "files", "settings", "errors", "info", "commandPalette"],
   interpolation: {
     escapeValue: false,
   },

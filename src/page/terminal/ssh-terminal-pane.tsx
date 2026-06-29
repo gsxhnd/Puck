@@ -37,6 +37,8 @@ import { applyTerminalFont, applyTerminalTheme } from "@/lib/apply-terminal-appe
 import { registerTerminal, unregisterTerminal } from "@/lib/terminal-registry";
 import { trackTerminalCommandInput } from "@/lib/track-terminal-command";
 import { useCommandOutlineStore } from "@/stores/command-outline-store";
+import { bindTerminalBell } from "@/lib/terminal-bell";
+import { useSessionPrivilegesStore } from "@/stores/session-privileges-store";
 import { HostKeyDialog } from "@/components/ssh/host-key-dialog";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -46,13 +48,18 @@ type SshTerminalPaneProps = {
   sessionId: string;
   profileId?: string;
   active: boolean;
+  focused?: boolean;
+  layout?: "stack" | "pane";
 };
 
 export function SshTerminalPane({
   sessionId,
   profileId,
   active,
+  focused: focusedProp,
+  layout = "stack",
 }: SshTerminalPaneProps) {
+  const focused = focusedProp ?? active;
   const { t } = useTranslation(["terminal", "errors"]);
   const containerRef = useRef<HTMLDivElement>(null);
   const terminalRef = useRef<Terminal | null>(null);
@@ -78,6 +85,9 @@ export function SshTerminalPane({
   const removeSession = useSessionStore((state) => state.closeSession);
   const sessionStatus = useSessionStore((state) =>
     state.sessions.find((item) => item.id === sessionId)?.status,
+  );
+  const sessionPrivileges = useSessionPrivilegesStore(
+    (state) => state.bySessionId[sessionId],
   );
 
   const tRef = useRef(t);
@@ -127,16 +137,17 @@ export function SshTerminalPane({
       scrollback: 5000,
     });
     const fitAddon = new FitAddon();
+    const searchAddon = new SearchAddon();
     terminal.loadAddon(fitAddon);
     terminal.loadAddon(
       new ClipboardAddon(undefined, new BrowserClipboardProvider()),
     );
     terminal.loadAddon(new WebLinksAddon());
-    terminal.loadAddon(new SearchAddon());
+    terminal.loadAddon(searchAddon);
     terminal.open(container);
     terminalRef.current = terminal;
     fitAddonRef.current = fitAddon;
-    registerTerminal(sessionId, terminal);
+    registerTerminal(sessionId, terminal, searchAddon);
 
     const dataDisposable = terminal.onData((data) => {
       trackTerminalCommandInput(sessionId, terminal, data, commandInputRef.current);
@@ -235,6 +246,15 @@ export function SshTerminalPane({
     if (!active || !openedRef.current) return;
     const terminal = terminalRef.current;
     if (!terminal) return;
+
+    const disposable = bindTerminalBell(terminal, sessionPrivileges);
+    return () => disposable.dispose();
+  }, [active, sessionPrivileges]);
+
+  useEffect(() => {
+    if (!active || !openedRef.current) return;
+    const terminal = terminalRef.current;
+    if (!terminal) return;
     applyTerminalTheme({ terminal, theme: terminalTheme });
   }, [active, terminalTheme]);
 
@@ -254,7 +274,7 @@ export function SshTerminalPane({
   }, [active, fontFamily, fontSize, sessionId]);
 
   useEffect(() => {
-    if (!active || !openedRef.current) return;
+    if (!focused || !openedRef.current) return;
     const fitAddon = fitAddonRef.current;
     const terminal = terminalRef.current;
     if (!fitAddon || !terminal) return;
@@ -263,7 +283,7 @@ export function SshTerminalPane({
       fitAddon.fit();
       void resizeTerminal(sessionId, terminal.cols, terminal.rows);
     });
-  }, [active, sessionId]);
+  }, [focused, sessionId]);
 
   const handleTrustHostKey = async () => {
     if (!hostKeyPrompt || !pendingConnect) return;
@@ -284,7 +304,9 @@ export function SshTerminalPane({
   return (
     <div
       className={cn(
-        "absolute inset-0 flex min-h-0 flex-col",
+        layout === "stack"
+          ? "absolute inset-0 flex min-h-0 flex-col"
+          : "flex h-full min-h-0 flex-col",
         !active && "pointer-events-none invisible",
       )}
     >

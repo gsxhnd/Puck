@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { AnimatePresence, LayoutGroup, motion } from "motion/react";
@@ -17,6 +17,7 @@ import { CommandOutlinePanel } from "@/components/workspace/command-outline-pane
 import { GitPanel } from "@/components/workspace/git-panel";
 import { LocalFileExplorerPanel } from "@/components/workspace/local-file-explorer";
 import { useSessionStore } from "@/stores/session-store";
+import { useShellUiStore } from "@/stores/shell-ui-store";
 import { getSessionPathDisplay, getShellBadge } from "@/lib/session-display";
 import { isTauri } from "@/lib/platform";
 import { Button } from "@/components/ui/button";
@@ -30,8 +31,6 @@ import { cn } from "@/lib/utils";
 import { PanelHeader } from "@/layout/app-shell/panel-header";
 import { WindowControls } from "@/layout/app-shell/window-controls";
 import { getPlatform } from "@/lib/platform";
-
-type PanelView = "info" | "files" | "git" | "outline" | "transfers";
 
 const tabTransition = { duration: 0.2, ease: [0.25, 0.1, 0.25, 1] } as const;
 const panelTransition = { duration: 0.22, ease: [0.25, 0.1, 0.25, 1] } as const;
@@ -153,7 +152,14 @@ export function SecondPanel({
   onToggleSecondPanel?: () => void;
 }) {
   const { t } = useTranslation(["info", "common"]);
-  const [view, setView] = useState<PanelView>("info");
+  const view = useShellUiStore((state) => state.secondPanelView);
+  const setSecondPanelView = useShellUiStore((state) => state.setSecondPanelView);
+
+  useEffect(() => {
+    const onFocusOutline = () => setSecondPanelView("outline");
+    window.addEventListener("puck:focus-outline", onFocusOutline);
+    return () => window.removeEventListener("puck:focus-outline", onFocusOutline);
+  }, [setSecondPanelView]);
 
   const headerActions = useMemo(
     () =>
@@ -188,7 +194,7 @@ export function SecondPanel({
                           ? "bg-muted text-foreground"
                           : "text-muted-foreground",
                       )}
-                      onClick={() => setView(action.id)}
+                      onClick={() => setSecondPanelView(action.id)}
                     >
                       <action.icon />
                       <AnimatePresence initial={false} mode="popLayout">
