@@ -21,5 +21,7 @@
   "detachedHead": "Detached HEAD",
   "refresh": "Refresh",
   "emptyDirectory": "Empty directory",
+  "showHiddenFiles": "Show hidden files",
+  "hideHiddenFiles": "Hide hidden files",
   "outlineEmpty": "Commands you run will appear here"
 }

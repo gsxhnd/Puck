@@ -51,7 +51,7 @@ fn resolve_path(path: &str) -> PuckResult<PathBuf> {
     Ok(expanded)
 }
 
-fn list_local_dir_inner(path: &str) -> PuckResult<Vec<LocalFileEntry>> {
+fn list_local_dir_inner(path: &str, show_hidden: bool) -> PuckResult<Vec<LocalFileEntry>> {
     let resolved = resolve_path(path)?;
     if !resolved.is_dir() {
         return Err(PuckError::config("Path is not a directory"));
@@ -63,7 +63,7 @@ fn list_local_dir_inner(path: &str) -> PuckResult<Vec<LocalFileEntry>> {
         let metadata = entry.metadata().map_err(PuckError::from)?;
         let name = entry.file_name().to_string_lossy().into_owned();
 
-        if name.starts_with('.') {
+        if !show_hidden && name.starts_with('.') {
             continue;
         }
 
@@ -188,8 +188,8 @@ fn to_invoke_error(error: PuckError) -> String {
 }
 
 #[tauri::command]
-pub fn list_local_dir(path: String) -> Result<Vec<LocalFileEntry>, String> {
-    list_local_dir_inner(&path).map_err(to_invoke_error)
+pub fn list_local_dir(path: String, show_hidden: Option<bool>) -> Result<Vec<LocalFileEntry>, String> {
+    list_local_dir_inner(&path, show_hidden.unwrap_or(false)).map_err(to_invoke_error)
 }
 
 #[tauri::command]

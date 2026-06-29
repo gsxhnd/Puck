@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ChevronRightIcon,
+  EyeIcon,
+  EyeOffIcon,
   FileIcon,
   FolderIcon,
   RefreshCwIcon,
@@ -12,6 +14,11 @@ import { parsePuckError } from "@/lib/puck-error";
 import { shortenPath } from "@/lib/session-display";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import type { LocalFileEntry } from "@/types/workspace";
 
@@ -28,6 +35,7 @@ export function LocalFileExplorerPanel() {
   const [entries, setEntries] = useState<LocalFileEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showHidden, setShowHidden] = useState(false);
 
   useEffect(() => {
     setCwd(workspacePath);
@@ -46,14 +54,14 @@ export function LocalFileExplorerPanel() {
     setLoading(true);
     setError(null);
     try {
-      const list = await listLocalDir(cwd);
+      const list = await listLocalDir(cwd, showHidden);
       setEntries(list);
     } catch (err) {
       setError(parsePuckError(err).message);
     } finally {
       setLoading(false);
     }
-  }, [cwd]);
+  }, [cwd, showHidden]);
 
   useEffect(() => {
     if (!isLocal) return;
@@ -113,6 +121,27 @@ export function LocalFileExplorerPanel() {
             ))}
           </div>
         </ScrollArea>
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label={
+                  showHidden ? t("hideHiddenFiles") : t("showHiddenFiles")
+                }
+                aria-pressed={showHidden}
+                className={cn(showHidden && "text-foreground")}
+                onClick={() => setShowHidden((visible) => !visible)}
+              >
+                {showHidden ? <EyeIcon /> : <EyeOffIcon />}
+              </Button>
+            }
+          />
+          <TooltipContent side="bottom">
+            {showHidden ? t("hideHiddenFiles") : t("showHiddenFiles")}
+          </TooltipContent>
+        </Tooltip>
         <Button
           variant="ghost"
           size="icon-sm"
@@ -153,7 +182,10 @@ export function LocalFileExplorerPanel() {
             <button
               key={entry.path}
               type="button"
-              className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm transition-colors hover:bg-muted/50"
+              className={cn(
+                "flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm transition-colors hover:bg-muted/50",
+                entry.name.startsWith(".") && "text-muted-foreground",
+              )}
               onClick={() => {
                 if (entry.isDir) {
                   navigateTo(entry.path);

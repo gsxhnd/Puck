@@ -21,5 +21,7 @@
   "detachedHead": "游离 HEAD",
   "refresh": "刷新",
   "emptyDirectory": "空目录",
+  "showHiddenFiles": "显示隐藏文件",
+  "hideHiddenFiles": "不显示隐藏文件",
   "outlineEmpty": "输入的命令会显示在这里"
 }
