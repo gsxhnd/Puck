@@ -7,8 +7,8 @@ import {
 import { onSessionStatus } from "@/lib/tauri-ssh";
 import { parsePuckError } from "@/lib/puck-error";
 import {
-  resolveConnectionCredential,
-  type ConnectionSecrets,
+  markConnectionEstablished,
+  resolveSecretsForConnection,
 } from "@/lib/resolve-connection-credential";
 import { closeSession } from "@/lib/tauri-terminal";
 
@@ -61,6 +61,7 @@ export async function ensureSftpExplorerSession(
 
   try {
     await listRemoteDir(sessionId, "/");
+    markConnectionEstablished(profile.id, "sftp", ["ssh", "sftp"]);
     return;
   } catch (error) {
     if (!isMissingSftpSession(error)) {
@@ -68,13 +69,9 @@ export async function ensureSftpExplorerSession(
     }
   }
 
-  let secrets: ConnectionSecrets = {};
-  if (profile.askPasswordEachTime) {
-    const resolved = await resolveConnectionCredential(profile);
-    if (resolved === null) {
-      throw new Error("cancelled");
-    }
-    secrets = resolved;
+  const secrets = await resolveSecretsForConnection(profile);
+  if (secrets === null) {
+    throw new Error("cancelled");
   }
 
   const connected = waitForSessionStatus(sessionId, "connected");
@@ -83,6 +80,7 @@ export async function ensureSftpExplorerSession(
     ...secrets,
   });
   await connected;
+  markConnectionEstablished(profile.id, "sftp", ["ssh", "sftp"]);
 }
 
 export async function closeSftpExplorerSession(

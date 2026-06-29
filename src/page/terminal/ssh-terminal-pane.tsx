@@ -44,8 +44,10 @@ import { RECONNECT_SESSION_EVENT } from "@/lib/reconnect-session";
 import { useSessionPrivilegesStore } from "@/stores/session-privileges-store";
 import { useShellUiStore } from "@/stores/shell-ui-store";
 import {
-  resolveConnectionCredential,
-  takeConnectionSecrets,
+  clearConnectionSecrets,
+  markConnectionEstablished,
+  resetConnectionEstablishment,
+  resolveSecretsForConnection,
 } from "@/lib/resolve-connection-credential";
 import { closeSftpExplorerSession } from "@/lib/sftp-explorer-session";
 import { HostKeyDialog } from "@/components/ssh/host-key-dialog";
@@ -113,14 +115,10 @@ export function SshTerminalPane({
     }
     updateSessionStatus(sessionId, "creating");
 
-    let secrets = takeConnectionSecrets(profile.id);
-    if (profile.askPasswordEachTime) {
-      const resolved = await resolveConnectionCredential(profile);
-      if (resolved === null) {
-        updateSessionStatus(sessionId, "failed");
-        return;
-      }
-      secrets = resolved;
+    const secrets = await resolveSecretsForConnection(profile);
+    if (secrets === null) {
+      updateSessionStatus(sessionId, "failed");
+      return;
     }
 
     void openSshTerminal({
@@ -217,6 +215,7 @@ export function SshTerminalPane({
         if (event.status === "connected") {
           openedRef.current = true;
           if (profile) {
+            markConnectionEstablished(profile.id, "ssh", ["ssh", "sftp"]);
             updateSessionMeta(sessionId, {
               shellName: "ssh",
               tabLabel: profileTabLabel(profile),
@@ -225,6 +224,10 @@ export function SshTerminalPane({
         }
         if (event.status === "failed") {
           openedRef.current = false;
+          if (profile) {
+            clearConnectionSecrets(profile.id);
+            resetConnectionEstablishment(profile.id);
+          }
           if (event.message) {
             const payload = {
               code: event.errorCode ?? "unknown_error",
@@ -260,6 +263,8 @@ export function SshTerminalPane({
         void closeBackendSession(sessionId);
       }
       void closeSftpExplorerSession(sessionId);
+      clearConnectionSecrets(profile.id);
+      resetConnectionEstablishment(profile.id);
       terminal.dispose();
       terminalRef.current = null;
       fitAddonRef.current = null;

@@ -7,7 +7,10 @@ export type ConnectionSecrets = {
   passphrase?: string;
 };
 
+type ConnectionEstablishmentKind = "ssh" | "sftp";
+
 const pendingSecrets = new Map<string, ConnectionSecrets>();
+const establishmentFlags = new Map<string, Set<ConnectionEstablishmentKind>>();
 
 export function stashConnectionSecrets(
   profileId: string,
@@ -16,12 +19,54 @@ export function stashConnectionSecrets(
   pendingSecrets.set(profileId, secrets);
 }
 
-export function takeConnectionSecrets(
+export function peekConnectionSecrets(
   profileId: string,
 ): ConnectionSecrets | undefined {
-  const secrets = pendingSecrets.get(profileId);
+  return pendingSecrets.get(profileId);
+}
+
+export function clearConnectionSecrets(profileId: string): void {
   pendingSecrets.delete(profileId);
-  return secrets;
+}
+
+export function resetConnectionEstablishment(profileId: string): void {
+  establishmentFlags.delete(profileId);
+}
+
+/** Clears stashed secrets once every required connection leg has succeeded. */
+export function markConnectionEstablished(
+  profileId: string,
+  kind: ConnectionEstablishmentKind,
+  required: ConnectionEstablishmentKind[],
+): void {
+  const flags = establishmentFlags.get(profileId) ?? new Set();
+  flags.add(kind);
+  establishmentFlags.set(profileId, flags);
+
+  if (required.every((item) => flags.has(item))) {
+    clearConnectionSecrets(profileId);
+    establishmentFlags.delete(profileId);
+  }
+}
+
+/**
+ * Returns stashed secrets for the current connection attempt, prompting at most once.
+ * Secrets stay in memory until all required connections finish or the session is reset.
+ */
+export async function resolveSecretsForConnection(
+  profile: ConnectionProfile,
+): Promise<ConnectionSecrets | null> {
+  if (pendingSecrets.has(profile.id)) {
+    return peekConnectionSecrets(profile.id)!;
+  }
+
+  const resolved = await resolveConnectionCredential(profile);
+  if (resolved === null) {
+    return null;
+  }
+
+  stashConnectionSecrets(profile.id, resolved);
+  return resolved;
 }
 
 export async function resolveConnectionCredential(
@@ -71,14 +116,10 @@ export async function prepareProfileConnection(
     return true;
   }
 
-  const secrets = await resolveConnectionCredential(profile);
-  if (secrets === null) {
-    return false;
+  resetConnectionEstablishment(profile.id);
+  if (profile.askPasswordEachTime) {
+    clearConnectionSecrets(profile.id);
   }
 
-  if (secrets.password || secrets.passphrase) {
-    stashConnectionSecrets(profile.id, secrets);
-  }
-
-  return true;
+  return (await resolveSecretsForConnection(profile)) !== null;
 }

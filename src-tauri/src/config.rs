@@ -1,10 +1,10 @@
 //! Unified on-disk configuration store backed by `config.toml`.
 //!
 //! 应用的统一配置中心。所有持久化的 UI 状态（应用设置、连接、侧栏布局、
-//! 会话权限、Shell 布局）以及 SSH known hosts 都集中保存在
-//! `~/.config/puck/config.toml` 中。本模块负责加载/保存该文件、按"区段"
-//! 读写 JSON 字符串以供前端 Zustand 持久化使用，并把旧版分散的 JSON 文件
-//! 一次性迁移到新的 TOML 结构。
+//! 会话权限、Shell 布局）都保存在 `~/.config/puck/config.toml` 中。
+//! SSH known hosts 单独保存在同目录下的 `known_hosts.json`（见 `known_hosts` 模块）。
+//! 本模块负责加载/保存该文件、按"区段"读写 JSON 字符串以供前端 Zustand 持久化使用，
+//! 并把旧版分散的 JSON 文件一次性迁移到新的 TOML 结构。
 
 use std::collections::HashMap;
 use std::fs;
@@ -68,7 +68,8 @@ pub struct PuckConfigFile {
     pub session_privileges: Option<Value>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub shell_layout: Option<Value>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    /// Legacy field: only read for one-time migration into `known_hosts.json`.
+    #[serde(default, skip_serializing)]
     pub known_hosts: Vec<KnownHostRecord>,
 }
 
@@ -139,17 +140,15 @@ impl PuckConfigStore {
         sections
     }
 
-    pub fn known_hosts(&self) -> Vec<KnownHostRecord> {
-        self.config.lock().unwrap().known_hosts.clone()
-    }
-
-    pub fn update_known_hosts<F>(&self, update: F) -> PuckResult<()>
-    where
-        F: FnOnce(&mut Vec<KnownHostRecord>),
-    {
+    /// Removes embedded known hosts from `config.toml` after migrating to `known_hosts.json`.
+    pub fn drain_known_hosts(&self) -> Vec<KnownHostRecord> {
         let mut config = self.config.lock().unwrap();
-        update(&mut config.known_hosts);
-        save_config(&self.path, &config).map_err(Into::into)
+        if config.known_hosts.is_empty() {
+            return Vec::new();
+        }
+        let hosts = std::mem::take(&mut config.known_hosts);
+        let _ = save_config(&self.path, &config);
+        hosts
     }
 }
 
@@ -226,17 +225,6 @@ fn migrate_legacy_json_files() -> (PuckConfigFile, bool) {
         }
     }
 
-    let known_hosts_path = dir.join("known_hosts.json");
-    if known_hosts_path.exists() {
-        if let Ok(content) = fs::read_to_string(&known_hosts_path) {
-            let records: Vec<KnownHostRecord> = serde_json::from_str(&content).unwrap_or_default();
-            if !records.is_empty() {
-                config.known_hosts = records;
-                migrated = true;
-            }
-        }
-    }
-
     (config, migrated)
 }
 
@@ -253,7 +241,6 @@ fn cleanup_legacy_json_files() {
         "puck-sidebar-layout.json",
         "puck-session-privileges.json",
         "puck-shell-layout.json",
-        "known_hosts.json",
     ];
 
     for file_name in legacy_files {

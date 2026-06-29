@@ -112,6 +112,7 @@ pub fn run() {
             config::get_puck_config_section,
             config::set_puck_config_section,
             config::remove_puck_config_section,
+            known_hosts::get_known_hosts_file_path,
             known_hosts::list_known_hosts,
             known_hosts::delete_known_host,
             known_hosts::trust_ssh_host_key,

@@ -8,8 +8,10 @@ import { useTransferStore } from "@/stores/transfer-store";
 import { closeSession } from "@/lib/tauri-terminal";
 import { RECONNECT_SESSION_EVENT } from "@/lib/reconnect-session";
 import {
-  resolveConnectionCredential,
-  takeConnectionSecrets,
+  clearConnectionSecrets,
+  markConnectionEstablished,
+  resetConnectionEstablishment,
+  resolveSecretsForConnection,
 } from "@/lib/resolve-connection-credential";
 import {
   deleteRemote,
@@ -102,14 +104,10 @@ export function FileManager({
     updateSessionStatus(sessionId, "creating");
     setError(null);
 
-    let secrets = takeConnectionSecrets(profile.id);
-    if (profile.askPasswordEachTime) {
-      const resolved = await resolveConnectionCredential(profile);
-      if (resolved === null) {
-        updateSessionStatus(sessionId, "failed");
-        return;
-      }
-      secrets = resolved;
+    const secrets = await resolveSecretsForConnection(profile);
+    if (secrets === null) {
+      updateSessionStatus(sessionId, "failed");
+      return;
     }
 
     void openFileConnection({
@@ -142,11 +140,14 @@ export function FileManager({
         }
         if (event.status === "connected") {
           setConnected(true);
+          markConnectionEstablished(profile.id, "sftp", ["sftp"]);
           const initial = profile.defaultDirectory?.trim() || "/";
           setCwd(initial);
           updateSessionStatus(sessionId, "connected");
         }
         if (event.status === "failed") {
+          clearConnectionSecrets(profile.id);
+          resetConnectionEstablishment(profile.id);
           updateSessionStatus(sessionId, "failed");
           setError(event.message ?? t("errors:unknown_error"));
         }
