@@ -1,15 +1,26 @@
 import { useTranslation } from "react-i18next";
 import { useSortable } from "@dnd-kit/react/sortable";
-import { PlugIcon } from "lucide-react";
+import {
+  CopyIcon,
+  FolderIcon,
+  PencilIcon,
+  PlugIcon,
+} from "lucide-react";
 import type { ConnectionProfile } from "@/types/connection";
 import { requestOpenConnectionProfile } from "@/lib/connection-bridge";
-import { HOST_SORTABLE_GROUP } from "@/lib/hosts-groups";
+import { HOST_SORTABLE_GROUP, HOST_DEFAULT_GROUP } from "@/lib/hosts-groups";
+import { openProfileSession } from "@/lib/open-profile-session";
+import { useConnectionStore } from "@/stores/connection-store";
+import { useHostsLayoutStore } from "@/stores/hosts-layout-store";
 import { useShellUiStore } from "@/stores/shell-ui-store";
 import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
   ContextMenuSeparator,
+  ContextMenuSub,
+  ContextMenuSubContent,
+  ContextMenuSubTrigger,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import { cn } from "@/lib/utils";
@@ -26,14 +37,21 @@ export function SortableHostItem({
   index,
   selectedProfileId,
   onDelete,
+  remoteProfiles,
 }: {
   profile: ConnectionProfile;
   index: number;
   selectedProfileId: string | null;
   onDelete: () => void;
+  remoteProfiles: ConnectionProfile[];
 }) {
   const { t } = useTranslation(["connections", "common"]);
   const openHostEditor = useShellUiStore((state) => state.openHostEditor);
+  const duplicateProfile = useConnectionStore((state) => state.duplicateProfile);
+  const customGroups = useHostsLayoutStore((state) => state.customGroups);
+  const moveProfileToGroup = useHostsLayoutStore(
+    (state) => state.moveProfileToGroup,
+  );
   const { ref, isDragging, isDropTarget } = useSortable({
     id: profile.id,
     index,
@@ -42,6 +60,33 @@ export function SortableHostItem({
   });
 
   const isSelected = profile.id === selectedProfileId;
+  const isFileProtocol =
+    profile.protocol === "sftp" ||
+    profile.protocol === "ftp" ||
+    profile.protocol === "ftps";
+
+  const handleConnect = () => {
+    if (isFileProtocol) {
+      void openProfileSession(profile);
+      return;
+    }
+    void requestOpenConnectionProfile(profile.id);
+  };
+
+  const handleOpenSftp = () => {
+    void openProfileSession({ ...profile, protocol: "sftp" });
+  };
+
+  const handleDuplicate = () => {
+    const copy = duplicateProfile(profile.id);
+    if (copy) {
+      openHostEditor(copy.id);
+    }
+  };
+
+  const handleMoveToGroup = (groupId: string) => {
+    moveProfileToGroup(remoteProfiles, "custom", profile.id, groupId);
+  };
 
   return (
     <ContextMenu>
@@ -86,13 +131,48 @@ export function SortableHostItem({
           </div>
         }
       />
-      <ContextMenuContent className="w-44">
-        <ContextMenuItem
-          onClick={() => void requestOpenConnectionProfile(profile.id)}
-        >
-          <PlugIcon />
-          {t("connections:manager.connect")}
+      <ContextMenuContent className="w-48">
+        <ContextMenuItem onClick={() => openHostEditor(profile.id)}>
+          <PencilIcon />
+          {t("connections:contextMenu.edit")}
         </ContextMenuItem>
+        <ContextMenuItem onClick={handleConnect}>
+          <PlugIcon />
+          {isFileProtocol
+            ? t("connections:actions.openFiles")
+            : t("connections:manager.connect")}
+        </ContextMenuItem>
+        {profile.protocol === "ssh" ? (
+          <ContextMenuItem onClick={handleOpenSftp}>
+            <FolderIcon />
+            {t("connections:actions.openSftp")}
+          </ContextMenuItem>
+        ) : null}
+        <ContextMenuItem onClick={handleDuplicate}>
+          <CopyIcon />
+          {t("connections:contextMenu.duplicate")}
+        </ContextMenuItem>
+        {customGroups.length > 0 ? (
+          <ContextMenuSub>
+            <ContextMenuSubTrigger>
+              {t("connections:contextMenu.moveToGroup")}
+            </ContextMenuSubTrigger>
+            <ContextMenuSubContent className="w-44">
+              <ContextMenuItem onClick={() => handleMoveToGroup(HOST_DEFAULT_GROUP)}>
+                {t("connections:contextMenu.ungrouped")}
+              </ContextMenuItem>
+              <ContextMenuSeparator />
+              {customGroups.map((group) => (
+                <ContextMenuItem
+                  key={group.id}
+                  onClick={() => handleMoveToGroup(group.id)}
+                >
+                  {group.name}
+                </ContextMenuItem>
+              ))}
+            </ContextMenuSubContent>
+          </ContextMenuSub>
+        ) : null}
         <ContextMenuSeparator />
         <ContextMenuItem variant="destructive" onClick={onDelete}>
           {t("common:actions.delete")}

@@ -1,10 +1,13 @@
 {
   "searchPlaceholder": "搜索命令…（connect / 连接）",
+  "terminalPickerPlaceholder": "选择终端或远程主机…",
   "sections": {
     "workingDirectory": "工作目录",
     "view": "视图",
     "openIn": "打开方式",
-    "connections": "连接"
+    "connections": "远程主机",
+    "terminal": "本地终端",
+    "actions": "操作"
   },
   "commands": {
     "copyPath": "复制路径",
@@ -21,6 +24,12 @@
     "findInAllTabs": "在所有标签中查找",
     "jumpToOutline": "跳转到大纲",
     "openSettings": "打开设置",
-    "browseConnections": "连接已保存的主机…"
+    "browseConnections": "连接已保存的主机…",
+    "newLocalTerminal": "新建本地终端",
+    "pickTerminal": "选择终端…",
+    "quickConnect": "快速连接",
+    "newConnection": "新建连接",
+    "showSessionsTab": "显示会话标签",
+    "showHostsTab": "显示远程主机"
   }
 }

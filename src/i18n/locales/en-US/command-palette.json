@@ -1,10 +1,13 @@
 {
   "searchPlaceholder": "Search commands… (connect / 连接)",
+  "terminalPickerPlaceholder": "Pick a terminal or remote host…",
   "sections": {
     "workingDirectory": "Working Directory",
     "view": "View",
     "openIn": "Open in",
-    "connections": "Connections"
+    "connections": "Remote Hosts",
+    "terminal": "Local Terminal",
+    "actions": "Actions"
   },
   "commands": {
     "copyPath": "Copy Path",
@@ -21,6 +24,12 @@
     "findInAllTabs": "Find in All Tabs",
     "jumpToOutline": "Jump to Outline",
     "openSettings": "Open Settings",
-    "browseConnections": "Connect to Saved Host…"
+    "browseConnections": "Connect to Saved Host…",
+    "newLocalTerminal": "New Local Terminal",
+    "pickTerminal": "Pick Terminal…",
+    "quickConnect": "Quick Connect",
+    "newConnection": "New Connection",
+    "showSessionsTab": "Show Sessions Tab",
+    "showHostsTab": "Show Remote Hosts Tab"
   }
 }

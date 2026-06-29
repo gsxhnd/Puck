@@ -1,16 +1,6 @@
 import { useTranslation } from "react-i18next";
-import { PanelLeftIcon, PlusIcon } from "lucide-react";
+import { PanelLeftIcon, PlusIcon, SquareTerminalIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {
   Tooltip,
   TooltipContent,
@@ -19,7 +9,6 @@ import {
 import { cn } from "@/lib/utils";
 import type { PrimaryPanelTab } from "@/types/shell-ui";
 import { sidebarPanelIconClass } from "@/layout/app-shell/primary-panel/sidebar-panel-toolbar";
-import type { ShellInfo } from "@/types/shell";
 
 function SidebarCollapseToggle({
   collapsed,
@@ -54,95 +43,60 @@ function SidebarCollapseToggle({
 
 export type SidebarCollapsedActionsProps = {
   tab: PrimaryPanelTab;
-  shells: ShellInfo[];
   onToggleCollapsed?: () => void;
-  onQuickConnect: () => void;
-  onNewConnection: () => void;
-  onCreateGroup: () => void;
-  onCreateHostGroup: () => void;
-  onOpenDefaultTerminal: () => void;
-  onOpenShellTerminal: (shell: ShellInfo) => void;
+  onPrimaryAdd: () => void;
+  onOpenTerminalPalette: () => void;
 };
 
 export function SidebarCollapsedActions({
   tab,
-  shells,
   onToggleCollapsed,
-  onQuickConnect,
-  onNewConnection,
-  onCreateGroup,
-  onCreateHostGroup,
-  onOpenDefaultTerminal,
-  onOpenShellTerminal,
+  onPrimaryAdd,
+  onOpenTerminalPalette,
 }: SidebarCollapsedActionsProps) {
-  const { t } = useTranslation(["connections", "common", "terminal"]);
+  const { t } = useTranslation(["common", "commandPalette"]);
 
-  const newMenu = (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        render={
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            className={sidebarPanelIconClass}
-            aria-label={t("connections:newMenu.quickConnect")}
-          >
-            <PlusIcon />
-          </Button>
-        }
-      />
-      <DropdownMenuContent align="start" className="w-56">
-        {tab === "hosts" ? (
-          <>
-            <DropdownMenuItem onClick={onNewConnection}>
-              {t("common:actions.newConnection")}
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={onQuickConnect}>
-              {t("connections:newMenu.quickConnect")}
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={onCreateHostGroup}>
-              {t("connections:sidebarGroups.new")}
-            </DropdownMenuItem>
-          </>
-        ) : (
-          <>
-            <DropdownMenuItem onClick={onQuickConnect}>
-              {t("connections:newMenu.quickConnect")}
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={onCreateGroup}>
-              {t("connections:sidebarGroups.new")}
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuSub>
-              <DropdownMenuSubTrigger>
-                {t("connections:newMenu.localTerminal")}
-              </DropdownMenuSubTrigger>
-              <DropdownMenuSubContent className="w-56">
-                <DropdownMenuItem onClick={onOpenDefaultTerminal}>
-                  {t("terminal:localDefault")}
-                </DropdownMenuItem>
-                {shells.map((shell) => (
-                  <DropdownMenuItem
-                    key={shell.id}
-                    onClick={() => onOpenShellTerminal(shell)}
-                  >
-                    <span className="truncate">{shell.name}</span>
-                    <span className="ml-auto text-xs text-muted-foreground uppercase">
-                      {shell.kind}
-                    </span>
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuSubContent>
-            </DropdownMenuSub>
-          </>
-        )}
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
+  const primaryAddLabel =
+    tab === "hosts"
+      ? t("common:actions.newConnection")
+      : t("common:actions.newTerminal");
 
   return (
     <>
-      {newMenu}
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className={sidebarPanelIconClass}
+              aria-label={primaryAddLabel}
+              onClick={onPrimaryAdd}
+            >
+              <PlusIcon />
+            </Button>
+          }
+        />
+        <TooltipContent side="bottom">{primaryAddLabel}</TooltipContent>
+      </Tooltip>
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className={sidebarPanelIconClass}
+              aria-label={t("commandPalette:commands.pickTerminal")}
+              onClick={onOpenTerminalPalette}
+            >
+              <SquareTerminalIcon />
+            </Button>
+          }
+        />
+        <TooltipContent side="bottom">
+          {t("commandPalette:commands.pickTerminal")}
+        </TooltipContent>
+      </Tooltip>
       <SidebarCollapseToggle collapsed onToggle={onToggleCollapsed} />
     </>
   );

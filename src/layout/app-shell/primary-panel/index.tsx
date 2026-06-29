@@ -3,17 +3,18 @@ import { useTranslation } from "react-i18next";
 import { DragDropProvider } from "@dnd-kit/react";
 import type { DragEndEvent } from "@dnd-kit/dom";
 import { ConnectionDialog } from "@/components/connections/connection-dialog";
+import { useCommandPaletteStore } from "@/stores/command-palette-store";
 import { useSessionStore } from "@/stores/session-store";
 import { useSidebarLayoutStore } from "@/stores/sidebar-layout-store";
 import { useHostsLayoutStore } from "@/stores/hosts-layout-store";
 import { useShellUiStore } from "@/stores/shell-ui-store";
-import { listShells } from "@/lib/tauri-terminal";
 import { PrimaryPanelHeader } from "@/layout/app-shell/primary-panel/primary-panel-header";
 import { PrimaryPanelTabs } from "@/layout/app-shell/primary-panel/primary-panel-tabs";
 import { SessionGroup } from "@/layout/app-shell/primary-panel/session-group";
 import { NameInputDialog } from "@/layout/app-shell/primary-panel/name-input-dialog";
 import { RemoteHostsPanel } from "@/layout/app-shell/primary-panel/remote-hosts-panel";
 import { SidebarPanelToolbar } from "@/layout/app-shell/primary-panel/sidebar-panel-toolbar";
+import { SidebarPanelContextMenu } from "@/layout/app-shell/primary-panel/sidebar-panel-context-menu";
 import type { PrimaryPanelTab } from "@/types/shell-ui";
 import {
   type SessionSort,
@@ -22,7 +23,6 @@ import {
   isGroupDropId,
 } from "@/lib/sidebar-groups";
 import type { HostSort } from "@/lib/hosts-groups";
-import type { ShellInfo } from "@/types/shell";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { formatSidebarLabel } from "@/lib/session-display";
 
@@ -82,7 +82,6 @@ export function PrimaryPanel({
   const [hostSort, setHostSort] = useState<HostSort>("nameAsc");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingProfileId, setEditingProfileId] = useState<string | null>(null);
-  const [shells, setShells] = useState<ShellInfo[]>([]);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(
     () => new Set(),
   );
@@ -91,6 +90,9 @@ export function PrimaryPanel({
   const [renameGroupId, setRenameGroupId] = useState<string | null>(null);
   const [renameHostGroupId, setRenameHostGroupId] = useState<string | null>(null);
   const [renameSessionId, setRenameSessionId] = useState<string | null>(null);
+  const openTerminalPalette = useCommandPaletteStore(
+    (state) => state.openTerminalPalette,
+  );
 
   const sidebarSessions = useMemo(
     () =>
@@ -123,13 +125,6 @@ export function PrimaryPanel({
   );
 
   useEffect(() => {
-    void listShells()
-      .then(setShells)
-      .catch(() => setShells([]));
-  }, []);
-
-  // 清理已关闭会话在侧栏布局中残留的分组归属与排序信息。
-  useEffect(() => {
     pruneSessions(sidebarSessions.map((session) => session.id));
   }, [pruneSessions, sidebarSessions]);
 
@@ -138,8 +133,30 @@ export function PrimaryPanel({
     setDialogOpen(true);
   };
 
+  useEffect(() => {
+    const onQuickConnect = () => openQuickConnectDialog();
+    window.addEventListener("puck:quick-connect", onQuickConnect);
+    return () => window.removeEventListener("puck:quick-connect", onQuickConnect);
+  }, []);
+
   const openNewConnection = () => {
     openHostEditor(null);
+  };
+
+  const handlePrimaryAdd = () => {
+    if (primaryPanelTab === "hosts") {
+      openNewConnection();
+      return;
+    }
+    openDefaultTerminal();
+  };
+
+  const handleCreateGroup = () => {
+    if (primaryPanelTab === "hosts") {
+      setCreateHostGroupOpen(true);
+      return;
+    }
+    setCreateGroupOpen(true);
   };
 
   const handlePanelTabChange = (tab: PrimaryPanelTab) => {
@@ -152,17 +169,6 @@ export function PrimaryPanel({
       kind: "terminal",
       title: "__local__",
       protocol: "local",
-    });
-  };
-
-  const openShellTerminal = (shell: ShellInfo) => {
-    showSessionPanel();
-    addSession({
-      kind: "terminal",
-      title: shell.name,
-      protocol: "local",
-      shellId: shell.id,
-      shellName: shell.kind,
     });
   };
 
@@ -232,13 +238,8 @@ export function PrimaryPanel({
         collapsed={collapsed}
         onToggleCollapsed={onToggleCollapsed}
         tab={primaryPanelTab}
-        shells={shells}
-        onQuickConnect={openQuickConnectDialog}
-        onNewConnection={openNewConnection}
-        onCreateGroup={() => setCreateGroupOpen(true)}
-        onCreateHostGroup={() => setCreateHostGroupOpen(true)}
-        onOpenDefaultTerminal={openDefaultTerminal}
-        onOpenShellTerminal={openShellTerminal}
+        onPrimaryAdd={handlePrimaryAdd}
+        onOpenTerminalPalette={openTerminalPalette}
       />
 
       {!collapsed ? (
@@ -256,18 +257,20 @@ export function PrimaryPanel({
                 setSessionGroupingEnabled={setSessionGroupingEnabled}
                 hostGroupingEnabled={hostGroupingEnabled}
                 setHostGroupingEnabled={setHostGroupingEnabled}
-                shells={shells}
-                onQuickConnect={openQuickConnectDialog}
-                onNewConnection={openNewConnection}
-                onCreateGroup={() => setCreateGroupOpen(true)}
-                onCreateHostGroup={() => setCreateHostGroupOpen(true)}
-                onOpenDefaultTerminal={openDefaultTerminal}
-                onOpenShellTerminal={openShellTerminal}
+                onPrimaryAdd={handlePrimaryAdd}
+                onOpenTerminalPalette={openTerminalPalette}
               />
             </div>
           </div>
           <ScrollArea className="min-h-0 flex-1 px-2 py-1">
-            {primaryPanelTab === "sessions" ? (
+            <SidebarPanelContextMenu
+              tab={primaryPanelTab}
+              onPrimaryAdd={handlePrimaryAdd}
+              onOpenTerminalPalette={openTerminalPalette}
+              onQuickConnect={openQuickConnectDialog}
+              onCreateGroup={handleCreateGroup}
+            >
+              {primaryPanelTab === "sessions" ? (
               <DragDropProvider onDragEnd={handleDragEnd}>
                 {displayGroups.length === 0 ? (
                   <div className="px-2 py-6 text-center text-xs text-muted-foreground">
@@ -303,6 +306,7 @@ export function PrimaryPanel({
                 onRenameGroup={setRenameHostGroupId}
               />
             )}
+            </SidebarPanelContextMenu>
           </ScrollArea>
         </>
       ) : null}

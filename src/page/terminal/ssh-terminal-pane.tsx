@@ -10,8 +10,8 @@ import { WebLinksAddon } from "@xterm/addon-web-links";
 import { SearchAddon } from "@xterm/addon-search";
 import "@xterm/xterm/css/xterm.css";
 import { useAppSettingsStore } from "@/stores/app-settings-store";
-import { useConnectionStore } from "@/stores/connection-store";
 import { useSessionStore } from "@/stores/session-store";
+import { useConnectionStore } from "@/stores/connection-store";
 import {
   closeSession as closeBackendSession,
   onTerminalData,
@@ -84,9 +84,6 @@ export function SshTerminalPane({
     cols: number;
     rows: number;
   } | null>(null);
-  const profile = useConnectionStore((state) =>
-    profileId ? state.getProfile(profileId) : undefined,
-  );
   const fontFamily = useAppSettingsStore((state) => state.fontFamily);
   const fontSize = useAppSettingsStore((state) => state.fontSize);
   const cursorBlink = useAppSettingsStore((state) => state.cursorBlink);
@@ -108,31 +105,44 @@ export function SshTerminalPane({
   const tRef = useRef(t);
   tRef.current = t;
   const commandInputRef = useRef({ buffer: "" });
-
-  const connect = async (cols: number, rows: number) => {
-    if (!profile) {
-      updateSessionStatus(sessionId, "failed");
-      return;
-    }
-    updateSessionStatus(sessionId, "creating");
-
-    const secrets =
-      peekConnectionSecrets(profile.id) ??
-      (await resolveSecretsForConnection(profile));
-    if (secrets === null) {
-      updateSessionStatus(sessionId, "failed");
-      return;
-    }
-
-    void openSshTerminal({
-      ...profileToSshRequest(sessionId, profile, cols, rows),
-      ...secrets,
-    });
-  };
+  const connectRef = useRef<(cols: number, rows: number) => Promise<void>>(
+    async () => {},
+  );
 
   useEffect(() => {
     const container = containerRef.current;
-    if (!container || !profile) return;
+    if (!container || !profileId) return;
+
+    const getProfile = () => useConnectionStore.getState().getProfile(profileId);
+
+    const connect = async (cols: number, rows: number) => {
+      const currentProfile = getProfile();
+      if (!currentProfile) {
+        updateSessionStatus(sessionId, "failed");
+        return;
+      }
+      if (openedRef.current) {
+        return;
+      }
+      updateSessionStatus(sessionId, "creating");
+
+      const secrets =
+        peekConnectionSecrets(currentProfile.id) ??
+        (await resolveSecretsForConnection(currentProfile));
+      if (secrets === null) {
+        updateSessionStatus(sessionId, "failed");
+        return;
+      }
+
+      void openSshTerminal({
+        ...profileToSshRequest(sessionId, currentProfile, cols, rows),
+        ...secrets,
+      });
+    };
+    connectRef.current = connect;
+
+    const currentProfile = getProfile();
+    if (!currentProfile) return;
 
     const terminal = new Terminal(
       buildTerminalOptions(
@@ -174,15 +184,18 @@ export function SshTerminalPane({
         terminal.write(event.data);
 
         const osc7 = extractOsc7Cwd(event.data);
-        if (osc7 && profile) {
-          updateSessionMeta(sessionId, {
-            cwd: osc7.cwd,
-            tabLabel: buildTabLabel(
-              profile.username || "user",
-              osc7.hostname || profile.host || "host",
-              osc7.cwd,
-            ),
-          });
+        if (osc7) {
+          const liveProfile = getProfile();
+          if (liveProfile) {
+            updateSessionMeta(sessionId, {
+              cwd: osc7.cwd,
+              tabLabel: buildTabLabel(
+                liveProfile.username || "user",
+                osc7.hostname || liveProfile.host || "host",
+                osc7.cwd,
+              ),
+            });
+          }
         }
       });
       unlistenExit = await onTerminalExit((event) => {
@@ -204,6 +217,9 @@ export function SshTerminalPane({
           updateSessionStatus(sessionId, "creating");
           return;
         }
+        if (event.status === "failed" && openedRef.current) {
+          return;
+        }
         if (
           event.status === "connected" ||
           event.status === "failed" ||
@@ -217,19 +233,21 @@ export function SshTerminalPane({
         }
         if (event.status === "connected") {
           openedRef.current = true;
-          if (profile) {
-            markConnectionEstablished(profile.id, "ssh", ["ssh", "sftp"]);
+          const liveProfile = getProfile();
+          if (liveProfile) {
+            markConnectionEstablished(liveProfile.id, "ssh", ["ssh", "sftp"]);
             updateSessionMeta(sessionId, {
               shellName: "ssh",
-              tabLabel: profileTabLabel(profile),
+              tabLabel: profileTabLabel(liveProfile),
             });
           }
         }
         if (event.status === "failed") {
           openedRef.current = false;
-          if (profile) {
-            clearConnectionSecrets(profile.id);
-            resetConnectionEstablishment(profile.id);
+          const liveProfile = getProfile();
+          if (liveProfile) {
+            clearConnectionSecrets(liveProfile.id);
+            resetConnectionEstablishment(liveProfile.id);
           }
           if (event.message) {
             const payload = {
@@ -262,16 +280,17 @@ export function SshTerminalPane({
       unlistenData?.();
       unlistenExit?.();
       unlistenStatus?.();
-      if (!disposed) {
+      if (openedRef.current) {
         void closeBackendSession(sessionId);
       }
       void closeSftpExplorerSession(sessionId);
       const sessionStillOpen = useSessionStore
         .getState()
         .sessions.some((session) => session.id === sessionId);
-      if (!sessionStillOpen) {
-        clearConnectionSecrets(profile.id);
-        resetConnectionEstablishment(profile.id);
+      const liveProfile = getProfile();
+      if (!sessionStillOpen && liveProfile) {
+        clearConnectionSecrets(liveProfile.id);
+        resetConnectionEstablishment(liveProfile.id);
       }
       terminal.dispose();
       terminalRef.current = null;
@@ -282,7 +301,6 @@ export function SshTerminalPane({
       useCommandOutlineStore.getState().removeSession(sessionId);
     };
   }, [
-    profile,
     profileId,
     sessionId,
     removeSession,
@@ -361,7 +379,8 @@ export function SshTerminalPane({
     const terminal = terminalRef.current;
     const cols = pendingConnect?.cols ?? Math.max(terminal?.cols ?? 80, 2);
     const rows = pendingConnect?.rows ?? Math.max(terminal?.rows ?? 24, 2);
-    connect(cols, rows);
+    openedRef.current = false;
+    void connectRef.current(cols, rows);
     setPendingConnect(null);
   };
 
@@ -372,14 +391,19 @@ export function SshTerminalPane({
     fitAddon.fit();
     const cols = Math.max(terminal.cols, 2);
     const rows = Math.max(terminal.rows, 2);
+    openedRef.current = false;
 
-    if (profile?.askPasswordEachTime) {
-      void connect(cols, rows);
+    const liveProfile = profileId
+      ? useConnectionStore.getState().getProfile(profileId)
+      : undefined;
+
+    if (liveProfile?.askPasswordEachTime) {
+      void connectRef.current(cols, rows);
       return;
     }
 
     void reconnectSshTerminal(sessionId, cols, rows).catch(() => {
-      void connect(cols, rows);
+      void connectRef.current(cols, rows);
     });
   };
   const handleReconnectRef = useRef(handleReconnect);

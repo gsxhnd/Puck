@@ -3,6 +3,7 @@ import { useDroppable } from "@dnd-kit/react";
 import { ChevronRightIcon } from "lucide-react";
 import { GROUP_DROP_PREFIX } from "@/lib/sidebar-groups";
 import { type HostDisplayGroup } from "@/lib/hosts-groups";
+import type { ConnectionProfile } from "@/types/connection";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -49,6 +50,7 @@ export function HostGroup({
   selectedProfileId,
   profileIndexOffset,
   onDeleteProfile,
+  remoteProfiles,
 }: {
   group: HostDisplayGroup;
   collapsed: boolean;
@@ -58,6 +60,7 @@ export function HostGroup({
   selectedProfileId: string | null;
   profileIndexOffset: number;
   onDeleteProfile: (profileId: string) => void;
+  remoteProfiles: ConnectionProfile[];
 }) {
   const { t } = useTranslation("connections");
   const showHeader = group.isCustom || group.name.length > 0;
@@ -93,6 +96,7 @@ export function HostGroup({
               index={profileIndexOffset + index}
               selectedProfileId={selectedProfileId}
               onDelete={() => onDeleteProfile(profile.id)}
+              remoteProfiles={remoteProfiles}
             />
           ))}
           {group.isCustom ? (

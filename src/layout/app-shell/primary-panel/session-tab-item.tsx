@@ -1,9 +1,16 @@
 import { useTranslation } from "react-i18next";
 import { useSortable } from "@dnd-kit/react/sortable";
-import { CopyIcon, Loader2Icon, PencilIcon, RefreshCwIcon, XIcon } from "lucide-react";
+import {
+  CopyIcon,
+  Loader2Icon,
+  PencilIcon,
+  RefreshCwIcon,
+  XIcon,
+} from "lucide-react";
 import type { Session } from "@/types/connection";
 import { useSessionStore } from "@/stores/session-store";
 import { useShellUiStore } from "@/stores/shell-ui-store";
+import { useSidebarLayoutStore } from "@/stores/sidebar-layout-store";
 import { formatSidebarLabel, getShellBadge } from "@/lib/session-display";
 import {
   canReconnectSession,
@@ -16,18 +23,13 @@ import {
   ContextMenuContent,
   ContextMenuItem,
   ContextMenuSeparator,
+  ContextMenuSub,
+  ContextMenuSubContent,
+  ContextMenuSubTrigger,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import { cn } from "@/lib/utils";
 
-/**
- * A draggable session row in the primary panel with a context menu.
- *
- * 主侧栏中的单个会话条目。支持拖拽排序（通过 dnd-kit 的 useSortable，
- * `index` 为该会话在全部会话中的全局序号），点击切换激活会话，悬停时
- * 将 shell 徽标替换为关闭按钮，并通过右键菜单提供重命名、复制、关闭、
- * 关闭其它终端等操作。
- */
 export function SortableSessionTabItem({
   session,
   index,
@@ -44,6 +46,10 @@ export function SortableSessionTabItem({
   const showSessionPanel = useShellUiStore((state) => state.showSessionPanel);
   const closeSession = useSessionStore((state) => state.closeSession);
   const addSession = useSessionStore((state) => state.addSession);
+  const customGroups = useSidebarLayoutStore((state) => state.customGroups);
+  const moveSessionToGroup = useSidebarLayoutStore(
+    (state) => state.moveSessionToGroup,
+  );
   const { ref, isDragging, isDropTarget } = useSortable({
     id: session.id,
     index,
@@ -51,14 +57,19 @@ export function SortableSessionTabItem({
     transition: { idle: true },
   });
 
+  const sidebarSessions = sessions.filter(
+    (item) => item.kind === "terminal" || item.kind === "files",
+  );
+
   const isActive = session.id === activeSessionId;
   const label = formatSidebarLabel(session);
   const shellBadge = getShellBadge(session);
   const isConnecting =
     session.status === "creating" || session.status === "reconnecting";
   const showReconnect = canReconnectSession(session);
-  const otherSessionCount = sessions.filter(
-    (item) => item.kind === session.kind && item.id !== session.id,
+  const sameKindSessions = sessions.filter((item) => item.kind === session.kind);
+  const otherSessionCount = sameKindSessions.filter(
+    (item) => item.id !== session.id,
   ).length;
 
   const handleClose = () => {
@@ -67,10 +78,17 @@ export function SortableSessionTabItem({
 
   const handleCloseOthers = () => {
     setActiveSession(session.id);
-    const otherIds = sessions
-      .filter((item) => item.kind === session.kind && item.id !== session.id)
+    const otherIds = sameKindSessions
+      .filter((item) => item.id !== session.id)
       .map((item) => item.id);
     for (const id of otherIds) {
+      closeSession(id);
+    }
+  };
+
+  const handleCloseAll = () => {
+    const ids = sameKindSessions.map((item) => item.id);
+    for (const id of ids) {
       closeSession(id);
     }
   };
@@ -90,6 +108,10 @@ export function SortableSessionTabItem({
           ? "creating"
           : undefined,
     });
+  };
+
+  const handleMoveToGroup = (groupId: string) => {
+    moveSessionToGroup(sidebarSessions, "custom", session.id, groupId);
   };
 
   return (
@@ -170,6 +192,23 @@ export function SortableSessionTabItem({
             {t("connections:contextMenu.reconnect")}
           </ContextMenuItem>
         ) : null}
+        {customGroups.length > 0 ? (
+          <ContextMenuSub>
+            <ContextMenuSubTrigger>
+              {t("connections:contextMenu.moveToGroup")}
+            </ContextMenuSubTrigger>
+            <ContextMenuSubContent className="w-44">
+              {customGroups.map((group) => (
+                <ContextMenuItem
+                  key={group.id}
+                  onClick={() => handleMoveToGroup(group.id)}
+                >
+                  {group.name}
+                </ContextMenuItem>
+              ))}
+            </ContextMenuSubContent>
+          </ContextMenuSub>
+        ) : null}
         <ContextMenuSeparator />
         <ContextMenuItem onClick={handleClose}>
           <XIcon />
@@ -180,6 +219,12 @@ export function SortableSessionTabItem({
           disabled={otherSessionCount === 0}
         >
           {t("connections:contextMenu.closeOthers")}
+        </ContextMenuItem>
+        <ContextMenuItem
+          onClick={handleCloseAll}
+          disabled={sameKindSessions.length === 0}
+        >
+          {t("connections:contextMenu.closeAll")}
         </ContextMenuItem>
       </ContextMenuContent>
     </ContextMenu>

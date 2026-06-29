@@ -56,10 +56,14 @@
   "contextMenu": {
     "close": "Close Tab",
     "closeOthers": "Close Other Tabs",
+    "closeAll": "Close All Tabs",
     "duplicate": "Duplicate Tab",
     "reconnect": "Reconnect",
     "rename": "Rename Tab",
-    "renameDescription": "Enter a new name for this tab."
+    "renameDescription": "Enter a new name for this tab.",
+    "edit": "Edit Connection",
+    "moveToGroup": "Move to Group",
+    "ungrouped": "Ungrouped"
   },
   "credentialPrompt": {
     "passwordTitle": "Enter Password",

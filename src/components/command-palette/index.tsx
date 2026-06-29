@@ -77,7 +77,7 @@ export function CommandPalette() {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         event.preventDefault();
-        if (page === "open-in") {
+        if (page === "open-in" || page === "new-terminal") {
           setPage("root");
           setQuery("");
           return;
@@ -153,7 +153,11 @@ export function CommandPalette() {
                 }
               }
             }}
-            placeholder={t("commandPalette:searchPlaceholder")}
+            placeholder={
+              page === "new-terminal"
+                ? t("commandPalette:terminalPickerPlaceholder")
+                : t("commandPalette:searchPlaceholder")
+            }
             className="h-8 min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
           />
         </div>

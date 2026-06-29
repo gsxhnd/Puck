@@ -1,10 +1,16 @@
 import type { OpenInAppId } from "@/lib/open-in-app";
 
 /** Top-level palette pages; "open-in" is a nested app picker. */
-export type PalettePage = "root" | "open-in";
+export type PalettePage = "root" | "open-in" | "new-terminal";
 
 /** Command grouping keys used for section headers. */
-export type CommandSection = "workingDirectory" | "view" | "openIn" | "connections";
+export type CommandSection =
+  | "workingDirectory"
+  | "view"
+  | "openIn"
+  | "connections"
+  | "terminal"
+  | "actions";
 
 /** A single executable entry in the command palette. */
 export type PaletteCommand = {

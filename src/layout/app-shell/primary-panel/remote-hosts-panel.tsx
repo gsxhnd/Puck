@@ -160,6 +160,7 @@ export function RemoteHostsPanel({
             selectedProfileId={selectedProfileId}
             profileIndexOffset={groupOffsets.get(group.id) ?? 0}
             onDeleteProfile={(profileId) => void handleDelete(profileId)}
+            remoteProfiles={remoteProfiles}
           />
         ))}
       </div>

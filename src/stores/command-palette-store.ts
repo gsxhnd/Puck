@@ -6,13 +6,14 @@
  */
 import { create } from "zustand";
 
-export type CommandPalettePage = "root" | "open-in";
+export type CommandPalettePage = "root" | "open-in" | "new-terminal";
 
 type CommandPaletteStore = {
   open: boolean;
   page: CommandPalettePage;
   draftQuery: string;
   openPalette: (draftQuery?: string) => void;
+  openTerminalPalette: () => void;
   closePalette: () => void;
   setPage: (page: CommandPalettePage) => void;
   setDraftQuery: (query: string) => void;
@@ -25,6 +26,8 @@ export const useCommandPaletteStore = create<CommandPaletteStore>()((set) => ({
   draftQuery: "",
   openPalette: (draftQuery = "") =>
     set({ open: true, page: "root", draftQuery }),
+  openTerminalPalette: () =>
+    set({ open: true, page: "new-terminal", draftQuery: "" }),
   closePalette: () => set({ open: false, page: "root", draftQuery: "" }),
   setPage: (page) => set({ page }),
   setDraftQuery: (query) => set({ draftQuery: query }),
