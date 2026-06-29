@@ -1,3 +1,10 @@
+/**
+ * Top-level three-pane application shell.
+ *
+ * 应用主窗口的整体布局外壳：用可拖拽分隔的三栏组织主侧栏、主面板与次面板，
+ * 协调面板的折叠/展开与持久化宽度，注册全局快捷键（命令面板、切换面板、打开
+ * 设置等），并在运行时与已保存设置之间同步面板可见性。
+ */
 import { useEffect, useRef } from "react";
 import type { PanelImperativeHandle } from "react-resizable-panels";
 import { PrimaryPanel } from "@/layout/app-shell/primary-panel";

@@ -1,3 +1,11 @@
+/**
+ * Global application settings store (theme, terminal, language, panels).
+ *
+ * 全局应用设置 store：主题模式与配色、终端外观（字体、字号、光标闪烁、回滚
+ * 行数、选中即复制）、界面语言、面板可见性以及默认会话权限。带版本号的迁移
+ * 逻辑负责把历史持久化数据规整为当前结构，并对非法值（如越界的回滚行数）做
+ * 归一化处理。
+ */
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { puckPersistStorage, PUCK_CONFIG_KEYS } from "@/lib/puck-config-storage";

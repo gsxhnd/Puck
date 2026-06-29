@@ -1,3 +1,11 @@
+//! Unified on-disk configuration store backed by `config.toml`.
+//!
+//! 应用的统一配置中心。所有持久化的 UI 状态（应用设置、连接、侧栏布局、
+//! 会话权限、Shell 布局）以及 SSH known hosts 都集中保存在
+//! `~/.config/puck/config.toml` 中。本模块负责加载/保存该文件、按"区段"
+//! 读写 JSON 字符串以供前端 Zustand 持久化使用，并把旧版分散的 JSON 文件
+//! 一次性迁移到新的 TOML 结构。
+
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -26,6 +34,10 @@ const UI_SECTIONS: [&str; 5] = [
     SECTION_SHELL_LAYOUT,
 ];
 
+/// A trusted SSH host key entry.
+///
+/// 一条已信任的 SSH 主机公钥记录。host + port 唯一标识一个远端端点，
+/// 同时保留 OpenSSH 文本格式公钥与其指纹用于后续校验。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct KnownHostRecord {
@@ -36,6 +48,11 @@ pub struct KnownHostRecord {
     pub fingerprint: String,
 }
 
+/// Typed representation of the whole `config.toml` file.
+///
+/// `config.toml` 文件的强类型映射。各 UI 区段以不透明的 `serde_json::Value`
+/// 存储，从而无需在 Rust 侧重复定义前端的状态结构；缺省字段在序列化时被
+/// 跳过，使配置文件保持精简。
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct PuckConfigFile {
@@ -71,6 +88,11 @@ pub fn config_file_path() -> PathBuf {
     config_dir().join(CONFIG_FILE_NAME)
 }
 
+/// Thread-safe, in-memory cache of the config file with write-through saves.
+///
+/// 配置文件的线程安全内存缓存。整个配置在内存中由 `Mutex` 保护，任何写操作
+/// 都会立即回写磁盘（write-through）；作为 Tauri 的全局 state 在多个命令与
+/// 窗口间共享。
 pub struct PuckConfigStore {
     path: PathBuf,
     config: Mutex<PuckConfigFile>,
@@ -153,6 +175,11 @@ fn set_section_value(config: &mut PuckConfigFile, section: &str, value: Option<V
     }
 }
 
+/// Loads the config file, falling back to a one-time legacy migration.
+///
+/// 读取配置文件；若文件不存在或解析失败，则尝试从旧版分散的 JSON 文件迁移
+/// 一次，迁移成功后写出新的 TOML 并清理旧文件。任何失败都会安全回退到默认
+/// 配置，确保应用始终能正常启动。
 fn load_config(path: &Path) -> PuckConfigFile {
     if path.exists() {
         if let Ok(content) = fs::read_to_string(path) {
@@ -236,6 +263,10 @@ fn cleanup_legacy_json_files() {
         }
     }
 }
+
+// 以下 Tauri 命令是前端访问配置的入口：返回配置目录/文件路径，批量加载所有
+// UI 区段用于启动期 hydration，以及按区段读取、写入、删除。写入与删除后会
+// 广播 `puck:config-changed` 事件，让其它窗口同步刷新对应状态。
 
 #[tauri::command]
 pub fn get_config_dir() -> String {

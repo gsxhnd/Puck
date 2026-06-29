@@ -1,3 +1,9 @@
+//! Tauri application entry point and command registry.
+//!
+//! Puck 桌面端的 Rust 入口。聚合所有功能模块（终端、SSH、SFTP、凭据、配置、
+//! known hosts、窗口管理等），初始化共享的全局 state，应用 macOS 窗口效果，
+//! 并把全部 `#[tauri::command]` 注册到调用处理器中供前端 invoke 调用。
+
 mod config;
 mod connections_window;
 mod credential;
@@ -18,6 +24,10 @@ use std::sync::Arc;
 use config::PuckConfigStore;
 use known_hosts::KnownHostsStore;
 
+/// Applies the translucent vibrancy material to a macOS window.
+///
+/// 为 macOS 窗口应用半透明的"窗口背景"材质（vibrancy），实现毛玻璃效果；
+/// 在非 macOS 平台上为一个空实现。
 #[cfg(target_os = "macos")]
 pub(crate) fn apply_macos_window_effects(window: &tauri::WebviewWindow) {
     use tauri::window::{Effect, EffectState, EffectsBuilder};
@@ -57,6 +67,11 @@ fn apply_macos_window_chrome(
     Ok(())
 }
 
+/// Builds and runs the Tauri application until the last window closes.
+///
+/// 构建并启动 Tauri 应用：创建共享配置存储与 known hosts 存储并注册为全局
+/// state，安装对话框/opener 插件，完成 macOS 窗口装饰，注册所有命令后进入
+/// 事件循环，直到应用退出。
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let config_store = Arc::new(PuckConfigStore::new());

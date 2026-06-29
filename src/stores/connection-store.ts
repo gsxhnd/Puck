@@ -1,3 +1,10 @@
+/**
+ * Persistent CRUD store for saved connection profiles.
+ *
+ * 已保存连接配置（SSH/SFTP/FTP 等）的持久化 store，提供新增、更新、删除、
+ * 复制、查询等操作。首次使用时以一组示例连接做种子数据；持久化时若磁盘已有
+ * 非空数据则优先采用磁盘数据，避免示例覆盖用户已保存的连接。
+ */
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { puckPersistStorage, PUCK_CONFIG_KEYS } from "@/lib/puck-config-storage";
@@ -22,6 +29,7 @@ type ConnectionStore = {
   getProfile: (id: string) => ConnectionProfile | undefined;
 };
 
+// 首次启动时的示例连接，帮助用户了解可配置的协议与字段。
 const seedProfiles = (): ConnectionProfile[] => [
   createLocalProfile(),
   createConnectionProfile({

@@ -1,3 +1,11 @@
+/**
+ * Persistent state for custom sidebar groups and manual session ordering.
+ *
+ * 主侧栏自定义分组与手动排序的持久化 store。保存用户创建的分组、每个会话
+ * 归属的分组、分组顺序以及各分组内的会话顺序。拖拽相关的复杂排序计算委托给
+ * `sidebar-groups` 中的纯函数（先展开成扁平列表再写回），本 store 只负责状态
+ * 编排与持久化；`pruneSessions` 用于清理已关闭会话残留的布局数据。
+ */
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { puckPersistStorage, PUCK_CONFIG_KEYS } from "@/lib/puck-config-storage";
@@ -14,6 +22,8 @@ import {
   reorderFlatItems,
 } from "@/lib/sidebar-groups";
 
+// 一旦存在自定义分组或已分配的会话，拖拽就必须以 "custom" 排序为基准，
+// 否则内置排序会覆盖用户的手动布局。
 function layoutSortForDrag(
   state: {
     customGroups: CustomSidebarGroup[];
