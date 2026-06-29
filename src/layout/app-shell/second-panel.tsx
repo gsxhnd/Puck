@@ -4,8 +4,8 @@ import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { AnimatePresence, LayoutGroup, motion } from "motion/react";
 import {
   CopyIcon,
+  FolderIcon,
   FolderOpenIcon,
-  FolderTreeIcon,
   GitBranchIcon,
   InfoIcon,
   ListIcon,
@@ -165,7 +165,7 @@ export function SecondPanel({
     () =>
       [
         { id: "info" as const, icon: InfoIcon, label: t("info:title") },
-        { id: "files" as const, icon: FolderTreeIcon, label: t("info:files") },
+        { id: "files" as const, icon: FolderIcon, label: t("info:files") },
         { id: "git" as const, icon: GitBranchIcon, label: t("info:git") },
         { id: "outline" as const, icon: ListTreeIcon, label: t("info:outline") },
         { id: "transfers" as const, icon: ListIcon, label: t("info:transfers") },

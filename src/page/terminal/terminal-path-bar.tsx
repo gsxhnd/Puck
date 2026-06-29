@@ -169,7 +169,7 @@ export function TerminalPathBar({ session }: { session: Session }) {
     >
       <PopoverTrigger
         className={cn(
-          "inline-flex max-w-md items-center rounded-md px-2 py-1 font-mono text-xs text-muted-foreground transition-colors",
+          "window-title-bar-interactive inline-flex max-w-md items-center rounded-md px-2 py-1 font-mono text-xs text-muted-foreground transition-colors",
           "hover:bg-muted/60 hover:text-foreground data-popup-open:bg-muted/60 data-popup-open:text-foreground",
         )}
       >

@@ -150,7 +150,15 @@ html[data-window-chrome="macos-tauri"] [data-app-shell] {
   app-region: drag;
 }
 
-.window-title-bar button {
+/* Interactive controls inside the title bar must not initiate window drag. */
+.window-title-bar button,
+.window-title-bar .window-title-bar-interactive,
+.window-title-bar [data-slot="popover-trigger"],
+.window-title-bar input,
+.window-title-bar textarea,
+.window-title-bar select,
+.window-title-bar a,
+.window-title-bar [role="button"] {
   -webkit-app-region: no-drag;
   app-region: no-drag;
 }
