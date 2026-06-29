@@ -22,9 +22,11 @@ import {
 } from "@/lib/tauri-terminal";
 import { buildTabLabel, extractOsc7Cwd } from "@/lib/session-display";
 import { applyTerminalFont, applyTerminalTheme } from "@/lib/apply-terminal-appearance";
+import { buildTerminalOptions } from "@/lib/terminal-options";
 import { registerTerminal, unregisterTerminal } from "@/lib/terminal-registry";
 import { trackTerminalCommandInput } from "@/lib/track-terminal-command";
 import { bindTerminalBell } from "@/lib/terminal-bell";
+import { bindCopyOnSelect } from "@/lib/terminal-copy-on-select";
 import { useSessionPrivilegesStore } from "@/stores/session-privileges-store";
 import { useCommandOutlineStore } from "@/stores/command-outline-store";
 import { useTerminalTheme } from "@/hooks/use-terminal-theme";
@@ -53,6 +55,9 @@ export function TerminalPane({
   const openedRef = useRef(false);
   const fontFamily = useAppSettingsStore((state) => state.fontFamily);
   const fontSize = useAppSettingsStore((state) => state.fontSize);
+  const cursorBlink = useAppSettingsStore((state) => state.cursorBlink);
+  const scrollback = useAppSettingsStore((state) => state.scrollback);
+  const copyOnSelect = useAppSettingsStore((state) => state.copyOnSelect);
   const terminalTheme = useTerminalTheme();
   const updateSessionStatus = useSessionStore(
     (state) => state.updateSessionStatus,
@@ -71,14 +76,12 @@ export function TerminalPane({
     const container = containerRef.current;
     if (!container) return;
 
-    const terminal = new Terminal({
-      fontFamily,
-      fontSize,
-      theme: terminalTheme,
-      cursorBlink: true,
-      allowProposedApi: true,
-      scrollback: 5000,
-    });
+    const terminal = new Terminal(
+      buildTerminalOptions(
+        { fontFamily, fontSize, cursorBlink, scrollback, copyOnSelect },
+        terminalTheme,
+      ),
+    );
 
     const fitAddon = new FitAddon();
     const searchAddon = new SearchAddon();
@@ -197,7 +200,7 @@ export function TerminalPane({
       commandInputRef.current.buffer = "";
       useCommandOutlineStore.getState().removeSession(sessionId);
     };
-  }, [sessionId, shellId, removeSession, updateSessionMeta, updateSessionStatus]);
+  }, [sessionId, shellId, removeSession, updateSessionMeta, updateSessionStatus, fontFamily, fontSize, cursorBlink, scrollback, terminalTheme]);
 
   useEffect(() => {
     if (!active || !openedRef.current) return;
@@ -207,6 +210,15 @@ export function TerminalPane({
     const disposable = bindTerminalBell(terminal, sessionPrivileges);
     return () => disposable.dispose();
   }, [active, sessionPrivileges]);
+
+  useEffect(() => {
+    if (!active || !openedRef.current) return;
+    const terminal = terminalRef.current;
+    if (!terminal) return;
+
+    const disposable = bindCopyOnSelect(terminal, copyOnSelect);
+    return () => disposable.dispose();
+  }, [active, copyOnSelect]);
 
   useEffect(() => {
     if (!active || !openedRef.current) return;

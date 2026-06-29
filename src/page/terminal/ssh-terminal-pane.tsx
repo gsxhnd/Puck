@@ -34,10 +34,12 @@ import {
 } from "@/lib/session-display";
 import { isHostKeyError, parsePuckError } from "@/lib/puck-error";
 import { applyTerminalFont, applyTerminalTheme } from "@/lib/apply-terminal-appearance";
+import { buildTerminalOptions } from "@/lib/terminal-options";
 import { registerTerminal, unregisterTerminal } from "@/lib/terminal-registry";
 import { trackTerminalCommandInput } from "@/lib/track-terminal-command";
 import { useCommandOutlineStore } from "@/stores/command-outline-store";
 import { bindTerminalBell } from "@/lib/terminal-bell";
+import { bindCopyOnSelect } from "@/lib/terminal-copy-on-select";
 import { useSessionPrivilegesStore } from "@/stores/session-privileges-store";
 import { HostKeyDialog } from "@/components/ssh/host-key-dialog";
 import { Button } from "@/components/ui/button";
@@ -77,6 +79,9 @@ export function SshTerminalPane({
   );
   const fontFamily = useAppSettingsStore((state) => state.fontFamily);
   const fontSize = useAppSettingsStore((state) => state.fontSize);
+  const cursorBlink = useAppSettingsStore((state) => state.cursorBlink);
+  const scrollback = useAppSettingsStore((state) => state.scrollback);
+  const copyOnSelect = useAppSettingsStore((state) => state.copyOnSelect);
   const terminalTheme = useTerminalTheme();
   const updateSessionStatus = useSessionStore(
     (state) => state.updateSessionStatus,
@@ -128,14 +133,12 @@ export function SshTerminalPane({
     const container = containerRef.current;
     if (!container || !profile) return;
 
-    const terminal = new Terminal({
-      fontFamily,
-      fontSize,
-      theme: terminalTheme,
-      cursorBlink: true,
-      allowProposedApi: true,
-      scrollback: 5000,
-    });
+    const terminal = new Terminal(
+      buildTerminalOptions(
+        { fontFamily, fontSize, cursorBlink, scrollback, copyOnSelect },
+        terminalTheme,
+      ),
+    );
     const fitAddon = new FitAddon();
     const searchAddon = new SearchAddon();
     terminal.loadAddon(fitAddon);
@@ -240,6 +243,11 @@ export function SshTerminalPane({
     removeSession,
     updateSessionMeta,
     updateSessionStatus,
+    fontFamily,
+    fontSize,
+    cursorBlink,
+    scrollback,
+    terminalTheme,
   ]);
 
   useEffect(() => {
@@ -250,6 +258,15 @@ export function SshTerminalPane({
     const disposable = bindTerminalBell(terminal, sessionPrivileges);
     return () => disposable.dispose();
   }, [active, sessionPrivileges]);
+
+  useEffect(() => {
+    if (!active || !openedRef.current) return;
+    const terminal = terminalRef.current;
+    if (!terminal) return;
+
+    const disposable = bindCopyOnSelect(terminal, copyOnSelect);
+    return () => disposable.dispose();
+  }, [active, copyOnSelect]);
 
   useEffect(() => {
     if (!active || !openedRef.current) return;

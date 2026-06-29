@@ -45,6 +45,13 @@ export function profileToSshRequest(
   };
 }
 
+export function hasCredential(
+  connectionId: string,
+  field: "password" | "passphrase",
+): Promise<boolean> {
+  return invoke("has_credential", { connectionId, field });
+}
+
 export function saveCredential(
   connectionId: string,
   field: "password" | "passphrase",
@@ -55,6 +62,14 @@ export function saveCredential(
 
 export function deleteConnectionCredentials(connectionId: string): Promise<void> {
   return invoke("delete_connection_credentials", { connectionId });
+}
+
+export function listKnownHosts(): Promise<KnownHostRecord[]> {
+  return invoke("list_known_hosts");
+}
+
+export function deleteKnownHost(host: string, port: number): Promise<boolean> {
+  return invoke("delete_known_host", { host, port });
 }
 
 export function trustSshHostKey(prompt: HostKeyPrompt): Promise<KnownHostRecord> {

@@ -61,12 +61,47 @@ export function AppShell() {
   const openLocalOnStart = useAppSettingsStore(
     (state) => state.openLocalTerminalOnStart,
   );
+  const savedPrimaryPanelOpen = useAppSettingsStore(
+    (state) => state.primaryPanelOpen,
+  );
+  const savedSecondPanelOpen = useAppSettingsStore(
+    (state) => state.secondPanelOpen,
+  );
+  const setSavedPrimaryPanelOpen = useAppSettingsStore(
+    (state) => state.setPrimaryPanelOpen,
+  );
+  const setSavedSecondPanelOpen = useAppSettingsStore(
+    (state) => state.setSecondPanelOpen,
+  );
   const addSession = useSessionStore((state) => state.addSession);
   const sessions = useSessionStore((state) => state.sessions);
   const prunePrivileges = useSessionPrivilegesStore(
     (state) => state.pruneSessions,
   );
   const hasBootstrappedRef = useRef(false);
+  const hasHydratedPanelsRef = useRef(false);
+
+  useEffect(() => {
+    if (hasHydratedPanelsRef.current) return;
+    hasHydratedPanelsRef.current = true;
+    setPrimaryPanelOpen(savedPrimaryPanelOpen);
+    setSecondPanelOpen(savedSecondPanelOpen);
+  }, [
+    savedPrimaryPanelOpen,
+    savedSecondPanelOpen,
+    setPrimaryPanelOpen,
+    setSecondPanelOpen,
+  ]);
+
+  useEffect(() => {
+    if (!hasHydratedPanelsRef.current) return;
+    setSavedPrimaryPanelOpen(primaryPanelOpen);
+  }, [primaryPanelOpen, setSavedPrimaryPanelOpen]);
+
+  useEffect(() => {
+    if (!hasHydratedPanelsRef.current) return;
+    setSavedSecondPanelOpen(secondPanelOpen);
+  }, [secondPanelOpen, setSavedSecondPanelOpen]);
 
   useEffect(() => {
     if (hasBootstrappedRef.current) return;

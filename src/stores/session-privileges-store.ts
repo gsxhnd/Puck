@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { useAppSettingsStore } from "@/stores/app-settings-store";
 import {
   DEFAULT_SESSION_PRIVILEGES,
   type SessionPrivilegeKey,
@@ -22,8 +23,10 @@ function mergePrivileges(
   sessionId: string,
   current: Record<string, SessionPrivileges>,
 ): SessionPrivileges {
+  const defaults = useAppSettingsStore.getState().defaultSessionPrivileges;
   return {
     ...DEFAULT_SESSION_PRIVILEGES,
+    ...defaults,
     ...current[sessionId],
   };
 }

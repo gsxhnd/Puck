@@ -18,6 +18,11 @@ pub fn save_credential(
 }
 
 #[tauri::command]
+pub fn has_credential(connection_id: String, field: String) -> Result<bool, String> {
+    Ok(read_credential(&connection_id, &field)?.is_some())
+}
+
+#[tauri::command]
 pub fn delete_credential(connection_id: String, field: String) -> Result<(), String> {
     let entry = keyring::Entry::new(SERVICE, &entry_key(&connection_id, &field))
         .map_err(|error| error.to_string())?;

@@ -3,6 +3,7 @@
   "sections": {
     "general": "General",
     "appearance": "Appearance",
+    "terminal": "Terminal",
     "connections": "Connections",
     "keyboard": "Keyboard",
     "about": "About"
@@ -11,7 +12,14 @@
     "language": "Language",
     "languageDescription": "Switch the application UI language",
     "openLocalOnStart": "Open local terminal on start",
-    "openLocalOnStartDescription": "Automatically create a local terminal tab when the app launches"
+    "openLocalOnStartDescription": "Automatically create a local terminal tab when the app launches",
+    "showPrimaryPanel": "Show primary panel on start",
+    "showPrimaryPanelDescription": "Keep the connections and sessions sidebar visible when the app opens",
+    "showSecondPanel": "Show second panel on start",
+    "showSecondPanelDescription": "Keep the info and transfer panel visible when the app opens",
+    "resetSettings": "Reset settings",
+    "resetSettingsDescription": "Restore all preferences to their default values",
+    "resetSettingsAction": "Reset to defaults"
   },
   "appearance": {
     "colorTheme": "Color theme",
@@ -21,24 +29,62 @@
     "fontFamily": "Terminal Font",
     "fontSize": "Terminal Font Size"
   },
+  "terminal": {
+    "cursorBlink": "Blinking cursor",
+    "cursorBlinkDescription": "Animate the terminal cursor",
+    "copyOnSelect": "Copy on select",
+    "copyOnSelectDescription": "Copy selected text to the clipboard automatically",
+    "scrollback": "Scrollback lines",
+    "scrollbackDescription": "Number of lines kept in terminal history (1000–50000)",
+    "defaultPrivileges": "Default session privileges",
+    "defaultPrivilegesDescription": "Applied to new terminal sessions; per-session overrides remain available",
+    "privileges": {
+      "allowTerminalBell": "Allow terminal bell",
+      "notifyOnErrorExit": "Notify on error exit",
+      "notifyOnCommandFinish": "Notify when command finishes",
+      "tabBadgeWhenCommandFinishes": "Tab badge when command finishes",
+      "keepAwakeWhenTaskRunning": "Keep awake while task runs"
+    }
+  },
   "connections": {
     "credentials": "Credential Management",
     "credentialsDescription": "Passwords and key passphrases are stored in the system keychain",
+    "credentialsEmpty": "No remote connections yet. Create one to store credentials securely.",
+    "credentialsDesktopOnly": "Credential management is available in the desktop app.",
+    "credentialFields": {
+      "password": "Password",
+      "passphrase": "Passphrase"
+    },
+    "credentialStored": "Stored",
+    "credentialMissing": "Not stored",
+    "noCredentialsRequired": "No stored credentials required for this connection",
+    "manageConnections": "Manage connections",
     "hostKeys": "Host Key Management",
-    "hostKeysDescription": "SSH first-connect confirmations will be implemented in Milestone 3"
+    "hostKeysDescription": "Trusted SSH host keys for first-connect verification",
+    "hostKeysEmpty": "No trusted host keys yet. Keys are added when you confirm a new SSH host.",
+    "hostKeysDesktopOnly": "Host key management is available in the desktop app."
   },
   "keyboard": {
     "title": "Shortcuts",
-    "description": "Planned MVP shortcuts; customization will come in a later release",
+    "description": "Keyboard shortcuts for the main workspace",
     "newTerminal": "New local terminal",
     "closeTab": "Close current tab",
     "commandPalette": "Open command palette",
     "openSettings": "Open settings",
-    "search": "Search terminal or file list"
+    "togglePrimaryPanel": "Toggle primary panel",
+    "toggleSecondPanel": "Toggle second panel",
+    "search": "Search in current tab",
+    "searchAllTabs": "Search in all tabs",
+    "jumpToOutline": "Jump to command outline",
+    "splitRight": "Split right",
+    "splitLeft": "Split left",
+    "splitDown": "Split down",
+    "splitUp": "Split up"
   },
   "about": {
     "version": "Version",
-    "description": "A cross-platform terminal and file transfer workspace built with Tauri"
+    "description": "A cross-platform terminal and file transfer workspace built with Tauri",
+    "manageConnections": "Open connection manager"
   },
   "colorThemes": {
     "default": "Default",

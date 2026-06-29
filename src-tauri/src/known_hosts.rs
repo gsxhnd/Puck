@@ -71,6 +71,17 @@ impl KnownHostsStore {
         Ok(record)
     }
 
+    pub fn remove(&self, host: &str, port: u16) -> PuckResult<bool> {
+        let mut records = self.records.lock().unwrap();
+        let before = records.len();
+        records.retain(|record| !(record.host == host && record.port == port));
+        if records.len() == before {
+            return Ok(false);
+        }
+        save_records(&self.path, &records)?;
+        Ok(true)
+    }
+
     pub fn prompt_for_key(host: &str, port: u16, public_key: &PublicKey) -> HostKeyPrompt {
         host_key_prompt(host, port, public_key)
     }
@@ -110,6 +121,17 @@ pub fn fingerprint_for_key(public_key: &PublicKey) -> String {
 #[tauri::command]
 pub fn list_known_hosts(state: tauri::State<'_, std::sync::Arc<KnownHostsStore>>) -> Vec<KnownHostRecord> {
     state.list()
+}
+
+#[tauri::command]
+pub fn delete_known_host(
+    state: tauri::State<'_, std::sync::Arc<KnownHostsStore>>,
+    host: String,
+    port: u16,
+) -> Result<bool, String> {
+    state
+        .remove(&host, port)
+        .map_err(|error| serde_json::to_string(&error.to_payload()).unwrap())
 }
 
 #[tauri::command]

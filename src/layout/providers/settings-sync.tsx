@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { useAppSettingsStore } from "@/stores/app-settings-store";
+import { useShellUiStore } from "@/stores/shell-ui-store";
 
 const SETTINGS_STORAGE_KEY = "puck-app-settings";
 
@@ -10,11 +11,14 @@ export function SettingsSync() {
       if (event.key !== SETTINGS_STORAGE_KEY) return;
       void (async () => {
         await useAppSettingsStore.persist.rehydrate();
-        const { language } = useAppSettingsStore.getState();
+        const { language, primaryPanelOpen, secondPanelOpen } =
+          useAppSettingsStore.getState();
         const { default: i18n } = await import("@/i18n");
         if (i18n.language !== language) {
           await i18n.changeLanguage(language);
         }
+        useShellUiStore.getState().setPrimaryPanelOpen(primaryPanelOpen);
+        useShellUiStore.getState().setSecondPanelOpen(secondPanelOpen);
       })();
     };
 

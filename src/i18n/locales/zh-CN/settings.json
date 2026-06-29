@@ -3,6 +3,7 @@
   "sections": {
     "general": "通用",
     "appearance": "外观",
+    "terminal": "终端",
     "connections": "连接",
     "keyboard": "快捷键",
     "about": "关于"
@@ -11,7 +12,14 @@
     "language": "界面语言",
     "languageDescription": "切换应用界面显示语言",
     "openLocalOnStart": "启动时打开本地终端",
-    "openLocalOnStartDescription": "应用启动后自动创建本地终端标签"
+    "openLocalOnStartDescription": "应用启动后自动创建本地终端标签",
+    "showPrimaryPanel": "启动时显示主侧栏",
+    "showPrimaryPanelDescription": "应用打开时保持连接与会话侧栏可见",
+    "showSecondPanel": "启动时显示副侧栏",
+    "showSecondPanelDescription": "应用打开时保持信息与传输面板可见",
+    "resetSettings": "重置设置",
+    "resetSettingsDescription": "将所有偏好恢复为默认值",
+    "resetSettingsAction": "恢复默认"
   },
   "appearance": {
     "colorTheme": "配色方案",
@@ -21,24 +29,62 @@
     "fontFamily": "终端字体",
     "fontSize": "终端字号"
   },
+  "terminal": {
+    "cursorBlink": "光标闪烁",
+    "cursorBlinkDescription": "终端光标是否闪烁",
+    "copyOnSelect": "选中即复制",
+    "copyOnSelectDescription": "选中文本后自动复制到剪贴板",
+    "scrollback": "回滚行数",
+    "scrollbackDescription": "终端历史保留行数（1000–50000）",
+    "defaultPrivileges": "默认会话权限",
+    "defaultPrivilegesDescription": "应用于新建终端会话；仍可在单个会话中单独覆盖",
+    "privileges": {
+      "allowTerminalBell": "允许终端响铃",
+      "notifyOnErrorExit": "出错退出时通知",
+      "notifyOnCommandFinish": "命令完成时通知",
+      "tabBadgeWhenCommandFinishes": "命令完成时显示标签角标",
+      "keepAwakeWhenTaskRunning": "任务运行时保持唤醒"
+    }
+  },
   "connections": {
     "credentials": "凭据管理",
     "credentialsDescription": "密码与私钥口令将存储在系统钥匙串中",
+    "credentialsEmpty": "尚无远程连接。创建连接后可安全存储凭据。",
+    "credentialsDesktopOnly": "凭据管理仅在桌面应用中可用。",
+    "credentialFields": {
+      "password": "密码",
+      "passphrase": "口令"
+    },
+    "credentialStored": "已存储",
+    "credentialMissing": "未存储",
+    "noCredentialsRequired": "此连接无需存储凭据",
+    "manageConnections": "管理连接",
     "hostKeys": "Host Key 管理",
-    "hostKeysDescription": "SSH 首次连接确认记录将在 Milestone 3 中实现"
+    "hostKeysDescription": "SSH 首次连接验证所信任的主机密钥",
+    "hostKeysEmpty": "尚无信任的主机密钥。确认新 SSH 主机时会自动添加。",
+    "hostKeysDesktopOnly": "Host Key 管理仅在桌面应用中可用。"
   },
   "keyboard": {
     "title": "快捷键",
-    "description": "以下为 MVP 计划快捷键，自定义将在后续版本支持",
+    "description": "主工作区的键盘快捷键",
     "newTerminal": "新建本地终端",
     "closeTab": "关闭当前标签",
     "commandPalette": "打开命令面板",
     "openSettings": "打开设置",
-    "search": "搜索终端或文件列表"
+    "togglePrimaryPanel": "切换主侧栏",
+    "toggleSecondPanel": "切换副侧栏",
+    "search": "在当前标签中搜索",
+    "searchAllTabs": "在所有标签中搜索",
+    "jumpToOutline": "跳转到命令大纲",
+    "splitRight": "向右分屏",
+    "splitLeft": "向左分屏",
+    "splitDown": "向下分屏",
+    "splitUp": "向上分屏"
   },
   "about": {
     "version": "版本",
-    "description": "基于 Tauri 的跨平台终端与文件传输工作台"
+    "description": "基于 Tauri 的跨平台终端与文件传输工作台",
+    "manageConnections": "打开连接管理"
   },
   "colorThemes": {
     "default": "默认",
