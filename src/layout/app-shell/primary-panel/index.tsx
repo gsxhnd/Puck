@@ -6,8 +6,15 @@ import { ConnectionDialog } from "@/components/connections/connection-dialog";
 import { useSessionStore } from "@/stores/session-store";
 import { useSidebarLayoutStore } from "@/stores/sidebar-layout-store";
 import { listShells } from "@/lib/tauri-terminal";
-import { openConnectionsWindow } from "@/lib/open-connections-window";
-import { formatSidebarLabel } from "@/lib/session-display";
+import { PrimaryPanelHeader } from "@/layout/app-shell/primary-panel/primary-panel-header";
+import { PrimaryPanelTabs } from "@/layout/app-shell/primary-panel/primary-panel-tabs";
+import { SessionGroup } from "@/layout/app-shell/primary-panel/session-group";
+import { NameInputDialog } from "@/layout/app-shell/primary-panel/name-input-dialog";
+import { RemoteHostsPanel } from "@/layout/app-shell/primary-panel/remote-hosts-panel";
+import {
+  SidebarPanelToolbar,
+  type PrimaryPanelTab,
+} from "@/layout/app-shell/primary-panel/sidebar-panel-toolbar";
 import {
   type SessionSort,
   buildSidebarGroups,
@@ -16,9 +23,7 @@ import {
 } from "@/lib/sidebar-groups";
 import type { ShellInfo } from "@/types/shell";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { PrimaryPanelHeader } from "@/layout/app-shell/primary-panel/primary-panel-header";
-import { SessionGroup } from "@/layout/app-shell/primary-panel/session-group";
-import { NameInputDialog } from "@/layout/app-shell/primary-panel/name-input-dialog";
+import { formatSidebarLabel } from "@/lib/session-display";
 
 /**
  * The left-hand sidebar listing terminal sessions grouped and sortable.
@@ -54,8 +59,11 @@ export function PrimaryPanel({
   );
   const pruneSessions = useSidebarLayoutStore((state) => state.pruneSessions);
   const [sort, setSort] = useState<SessionSort>("recent");
+  const [panelTab, setPanelTab] = useState<PrimaryPanelTab>("sessions");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingProfileId, setEditingProfileId] = useState<string | null>(null);
+  const [profileDialogOpen, setProfileDialogOpen] = useState(false);
+  const [profileDialogId, setProfileDialogId] = useState<string | null>(null);
   const [shells, setShells] = useState<ShellInfo[]>([]);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(
     () => new Set(),
@@ -106,6 +114,16 @@ export function PrimaryPanel({
   const openQuickConnectDialog = () => {
     setEditingProfileId(null);
     setDialogOpen(true);
+  };
+
+  const openNewConnectionDialog = () => {
+    setProfileDialogId(null);
+    setProfileDialogOpen(true);
+  };
+
+  const openEditConnectionDialog = (profileId: string) => {
+    setProfileDialogId(profileId);
+    setProfileDialogOpen(true);
   };
 
   const openDefaultTerminal = () => {
@@ -188,45 +206,68 @@ export function PrimaryPanel({
       <PrimaryPanelHeader
         collapsed={collapsed}
         onToggleCollapsed={onToggleCollapsed}
-        sort={sort}
-        setSort={setSort}
+        tab={panelTab}
         shells={shells}
         onQuickConnect={openQuickConnectDialog}
+        onNewConnection={openNewConnectionDialog}
         onCreateGroup={() => setCreateGroupOpen(true)}
         onOpenDefaultTerminal={openDefaultTerminal}
         onOpenShellTerminal={openShellTerminal}
-        onOpenConnectionsWindow={() => void openConnectionsWindow()}
       />
 
       {!collapsed ? (
-      <ScrollArea className="min-h-0 flex-1 px-2 py-1">
-        <DragDropProvider onDragEnd={handleDragEnd}>
-          {displayGroups.length === 0 ? (
-            <div className="px-2 py-6 text-center text-xs text-muted-foreground">
-              {t("common:empty.noSessions")}
+        <>
+          <div className="flex shrink-0 items-center justify-between px-2 py-1">
+            <PrimaryPanelTabs tab={panelTab} onTabChange={setPanelTab} />
+            <div className="flex items-center justify-end gap-0.5">
+              <SidebarPanelToolbar
+                tab={panelTab}
+                sort={sort}
+                setSort={setSort}
+                shells={shells}
+                onQuickConnect={openQuickConnectDialog}
+                onNewConnection={openNewConnectionDialog}
+                onCreateGroup={() => setCreateGroupOpen(true)}
+                onOpenDefaultTerminal={openDefaultTerminal}
+                onOpenShellTerminal={openShellTerminal}
+              />
             </div>
-          ) : (
-            <div className="space-y-2 pb-2">
-              {displayGroups.map((group) => (
-                <SessionGroup
-                  key={group.id}
-                  group={group}
-                  collapsed={collapsedGroups.has(group.id)}
-                  onToggle={() => toggleGroup(group.id)}
-                  onRename={
-                    group.isCustom ? () => setRenameGroupId(group.id) : undefined
-                  }
-                  onDelete={
-                    group.isCustom ? () => deleteGroup(group.id) : undefined
-                  }
-                  onRenameSession={setRenameSessionId}
-                  sessionIndexOffset={groupOffsets.get(group.id) ?? 0}
-                />
-              ))}
-            </div>
-          )}
-        </DragDropProvider>
-      </ScrollArea>
+          </div>
+          <ScrollArea className="min-h-0 flex-1 px-2 py-1">
+            {panelTab === "sessions" ? (
+              <DragDropProvider onDragEnd={handleDragEnd}>
+                {displayGroups.length === 0 ? (
+                  <div className="px-2 py-6 text-center text-xs text-muted-foreground">
+                    {t("common:empty.noSessions")}
+                  </div>
+                ) : (
+                  <div className="space-y-2 pb-2">
+                    {displayGroups.map((group) => (
+                      <SessionGroup
+                        key={group.id}
+                        group={group}
+                        collapsed={collapsedGroups.has(group.id)}
+                        onToggle={() => toggleGroup(group.id)}
+                        onRename={
+                          group.isCustom
+                            ? () => setRenameGroupId(group.id)
+                            : undefined
+                        }
+                        onDelete={
+                          group.isCustom ? () => deleteGroup(group.id) : undefined
+                        }
+                        onRenameSession={setRenameSessionId}
+                        sessionIndexOffset={groupOffsets.get(group.id) ?? 0}
+                      />
+                    ))}
+                  </div>
+                )}
+              </DragDropProvider>
+            ) : (
+              <RemoteHostsPanel onEditProfile={openEditConnectionDialog} />
+            )}
+          </ScrollArea>
+        </>
       ) : null}
 
       <ConnectionDialog
@@ -234,6 +275,12 @@ export function PrimaryPanel({
         profileId={editingProfileId}
         mode="quickConnect"
         onOpenChange={setDialogOpen}
+      />
+
+      <ConnectionDialog
+        open={profileDialogOpen}
+        profileId={profileDialogId}
+        onOpenChange={setProfileDialogOpen}
       />
 
       <NameInputDialog

@@ -82,6 +82,12 @@
     "localTerminal": "Local Terminal",
     "remoteManager": "Remote Management"
   },
+  "primaryPanel": {
+    "tabs": {
+      "sessions": "Sessions",
+      "hosts": "Remote Hosts"
+    }
+  },
   "manager": {
     "title": "Remote Management",
     "description": "Manage remote connection profiles and connect from the main window.",

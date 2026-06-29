@@ -1,61 +1,32 @@
 import { useTranslation } from "react-i18next";
-import { PanelLeftIcon, PlusIcon } from "lucide-react";
+import { ListFilterIcon, PlusIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuSub,
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { cn } from "@/lib/utils";
-import type { PrimaryPanelTab } from "@/layout/app-shell/primary-panel/sidebar-panel-toolbar";
-import { sidebarPanelIconClass } from "@/layout/app-shell/primary-panel/sidebar-panel-toolbar";
+import type { SessionSort } from "@/lib/sidebar-groups";
 import type { ShellInfo } from "@/types/shell";
 
-function SidebarCollapseToggle({
-  collapsed,
-  onToggle,
-}: {
-  collapsed: boolean;
-  onToggle?: () => void;
-}) {
-  const { t } = useTranslation("common");
+export const sidebarPanelIconClass =
+  "text-muted-foreground/50 hover:bg-muted/30 hover:text-muted-foreground/75";
 
-  return (
-    <Tooltip>
-      <TooltipTrigger
-        render={
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            className={cn(sidebarPanelIconClass, collapsed && "text-muted-foreground")}
-            aria-label={t("nav.togglePrimaryPanel")}
-            onClick={onToggle}
-          >
-            <PanelLeftIcon />
-          </Button>
-        }
-      />
-      <TooltipContent side="bottom">
-        {t("nav.togglePrimaryPanel")}
-      </TooltipContent>
-    </Tooltip>
-  );
-}
+export type PrimaryPanelTab = "sessions" | "hosts";
 
-export type SidebarCollapsedActionsProps = {
+export type SidebarPanelToolbarProps = {
   tab: PrimaryPanelTab;
+  sort: SessionSort;
+  setSort: (sort: SessionSort) => void;
   shells: ShellInfo[];
-  onToggleCollapsed?: () => void;
   onQuickConnect: () => void;
   onNewConnection: () => void;
   onCreateGroup: () => void;
@@ -63,17 +34,58 @@ export type SidebarCollapsedActionsProps = {
   onOpenShellTerminal: (shell: ShellInfo) => void;
 };
 
-export function SidebarCollapsedActions({
+export function SidebarPanelToolbar({
   tab,
+  sort,
+  setSort,
   shells,
-  onToggleCollapsed,
   onQuickConnect,
   onNewConnection,
   onCreateGroup,
   onOpenDefaultTerminal,
   onOpenShellTerminal,
-}: SidebarCollapsedActionsProps) {
+}: SidebarPanelToolbarProps) {
   const { t } = useTranslation(["connections", "common", "terminal"]);
+
+  const sortMenu =
+    tab === "sessions" ? (
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          render={
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className={sidebarPanelIconClass}
+              aria-label={t("connections:sort.label")}
+            >
+              <ListFilterIcon />
+            </Button>
+          }
+        />
+        <DropdownMenuContent align="end" className="w-44">
+          <DropdownMenuRadioGroup
+            value={sort}
+            onValueChange={(value) => setSort(value as SessionSort)}
+          >
+            <DropdownMenuLabel>{t("connections:sort.label")}</DropdownMenuLabel>
+            <DropdownMenuRadioItem value="recent">
+              {t("connections:sort.recent")}
+            </DropdownMenuRadioItem>
+            <DropdownMenuRadioItem value="nameAsc">
+              {t("connections:sort.nameAsc")}
+            </DropdownMenuRadioItem>
+            <DropdownMenuRadioItem value="nameDesc">
+              {t("connections:sort.nameDesc")}
+            </DropdownMenuRadioItem>
+            {sort === "custom" ? (
+              <DropdownMenuRadioItem value="custom">
+                {t("connections:sort.custom")}
+              </DropdownMenuRadioItem>
+            ) : null}
+          </DropdownMenuRadioGroup>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    ) : null;
 
   const newMenu = (
     <DropdownMenu>
@@ -89,7 +101,7 @@ export function SidebarCollapsedActions({
           </Button>
         }
       />
-      <DropdownMenuContent align="start" className="w-56">
+      <DropdownMenuContent align="end" className="w-56">
         {tab === "hosts" ? (
           <>
             <DropdownMenuItem onClick={onNewConnection}>
@@ -137,8 +149,8 @@ export function SidebarCollapsedActions({
 
   return (
     <>
+      {sortMenu}
       {newMenu}
-      <SidebarCollapseToggle collapsed onToggle={onToggleCollapsed} />
     </>
   );
 }

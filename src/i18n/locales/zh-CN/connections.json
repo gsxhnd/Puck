@@ -82,6 +82,12 @@
     "localTerminal": "本地终端",
     "remoteManager": "远程管理"
   },
+  "primaryPanel": {
+    "tabs": {
+      "sessions": "会话",
+      "hosts": "远程主机"
+    }
+  },
   "manager": {
     "title": "远程管理",
     "description": "管理远程连接配置，添加、编辑或删除后可在主窗口快速连接。",
