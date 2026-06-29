@@ -58,7 +58,7 @@
     "credentialStored": "Stored",
     "credentialMissing": "Not stored",
     "noCredentialsRequired": "No stored credentials required for this connection",
-    "manageConnections": "Manage connections",
+    "manageConnections": "Remote management",
     "hostKeys": "Host Key Management",
     "hostKeysDescription": "Trusted SSH host keys for first-connect verification",
     "hostKeysEmpty": "No trusted host keys yet. Keys are added when you confirm a new SSH host.",
@@ -84,7 +84,7 @@
   "about": {
     "version": "Version",
     "description": "A cross-platform terminal and file transfer workspace built with Tauri",
-    "manageConnections": "Open connection manager"
+    "manageConnections": "Open remote management"
   },
   "colorThemes": {
     "default": "Default",

@@ -14,7 +14,7 @@ pub fn ensure_connections_window(app: &tauri::AppHandle) -> Result<(), String> {
         CONNECTIONS_WINDOW_LABEL,
         WebviewUrl::App("/?window=connections".into()),
     )
-    .title("Connections")
+    .title("Remote Management")
     .inner_size(720.0, 560.0)
     .min_inner_size(480.0, 400.0)
     .center()

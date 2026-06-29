@@ -27,6 +27,7 @@ import {
   trustSshHostKey,
 } from "@/lib/tauri-ssh";
 import { useTerminalTheme } from "@/hooks/use-terminal-theme";
+import { getTerminalThemeSnapshot } from "@/lib/terminal-theme-bridge";
 import {
   buildTabLabel,
   extractOsc7Cwd,
@@ -136,7 +137,7 @@ export function SshTerminalPane({
     const terminal = new Terminal(
       buildTerminalOptions(
         { fontFamily, fontSize, cursorBlink, scrollback, copyOnSelect },
-        terminalTheme,
+        getTerminalThemeSnapshot(),
       ),
     );
     const fitAddon = new FitAddon();
@@ -243,12 +244,26 @@ export function SshTerminalPane({
     removeSession,
     updateSessionMeta,
     updateSessionStatus,
-    fontFamily,
-    fontSize,
-    cursorBlink,
-    scrollback,
-    terminalTheme,
   ]);
+
+  useEffect(() => {
+    if (!openedRef.current) return;
+    const terminal = terminalRef.current;
+    if (!terminal) return;
+
+    requestAnimationFrame(() => {
+      if (terminalRef.current !== terminal) return;
+      applyTerminalTheme({ terminal, theme: terminalTheme });
+    });
+  }, [terminalTheme]);
+
+  useEffect(() => {
+    if (!openedRef.current) return;
+    const terminal = terminalRef.current;
+    if (!terminal) return;
+    terminal.options.cursorBlink = cursorBlink;
+    terminal.options.scrollback = scrollback;
+  }, [cursorBlink, scrollback]);
 
   useEffect(() => {
     if (!active || !openedRef.current) return;
@@ -269,14 +284,7 @@ export function SshTerminalPane({
   }, [active, copyOnSelect]);
 
   useEffect(() => {
-    if (!active || !openedRef.current) return;
-    const terminal = terminalRef.current;
-    if (!terminal) return;
-    applyTerminalTheme({ terminal, theme: terminalTheme });
-  }, [active, terminalTheme]);
-
-  useEffect(() => {
-    if (!active || !openedRef.current) return;
+    if (!openedRef.current) return;
     const terminal = terminalRef.current;
     if (!terminal) return;
     applyTerminalFont({
@@ -288,7 +296,7 @@ export function SshTerminalPane({
         void resizeTerminal(sessionId, cols, rows);
       },
     });
-  }, [active, fontFamily, fontSize, sessionId]);
+  }, [fontFamily, fontSize, sessionId]);
 
   useEffect(() => {
     if (!focused || !openedRef.current) return;
@@ -339,7 +347,9 @@ export function SshTerminalPane({
           </Button>
         </div>
       )}
-      <div ref={containerRef} className="min-h-0 flex-1" />
+      <div className="xterm-host min-h-0 flex-1">
+        <div ref={containerRef} className="h-full w-full" />
+      </div>
       <HostKeyDialog
         open={Boolean(hostKeyPrompt)}
         prompt={hostKeyPrompt}

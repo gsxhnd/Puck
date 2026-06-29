@@ -30,6 +30,7 @@ import { bindCopyOnSelect } from "@/lib/terminal-copy-on-select";
 import { useSessionPrivilegesStore } from "@/stores/session-privileges-store";
 import { useCommandOutlineStore } from "@/stores/command-outline-store";
 import { useTerminalTheme } from "@/hooks/use-terminal-theme";
+import { getTerminalThemeSnapshot } from "@/lib/terminal-theme-bridge";
 import { cn } from "@/lib/utils";
 
 type TerminalPaneProps = {
@@ -79,7 +80,7 @@ export function TerminalPane({
     const terminal = new Terminal(
       buildTerminalOptions(
         { fontFamily, fontSize, cursorBlink, scrollback, copyOnSelect },
-        terminalTheme,
+        getTerminalThemeSnapshot(),
       ),
     );
 
@@ -200,7 +201,26 @@ export function TerminalPane({
       commandInputRef.current.buffer = "";
       useCommandOutlineStore.getState().removeSession(sessionId);
     };
-  }, [sessionId, shellId, removeSession, updateSessionMeta, updateSessionStatus, fontFamily, fontSize, cursorBlink, scrollback, terminalTheme]);
+  }, [sessionId, shellId, removeSession, updateSessionMeta, updateSessionStatus]);
+
+  useEffect(() => {
+    if (!openedRef.current) return;
+    const terminal = terminalRef.current;
+    if (!terminal) return;
+
+    requestAnimationFrame(() => {
+      if (terminalRef.current !== terminal) return;
+      applyTerminalTheme({ terminal, theme: terminalTheme });
+    });
+  }, [terminalTheme]);
+
+  useEffect(() => {
+    if (!openedRef.current) return;
+    const terminal = terminalRef.current;
+    if (!terminal) return;
+    terminal.options.cursorBlink = cursorBlink;
+    terminal.options.scrollback = scrollback;
+  }, [cursorBlink, scrollback]);
 
   useEffect(() => {
     if (!active || !openedRef.current) return;
@@ -221,14 +241,7 @@ export function TerminalPane({
   }, [active, copyOnSelect]);
 
   useEffect(() => {
-    if (!active || !openedRef.current) return;
-    const terminal = terminalRef.current;
-    if (!terminal) return;
-    applyTerminalTheme({ terminal, theme: terminalTheme });
-  }, [active, terminalTheme]);
-
-  useEffect(() => {
-    if (!active || !openedRef.current) return;
+    if (!openedRef.current) return;
     const terminal = terminalRef.current;
     if (!terminal) return;
     applyTerminalFont({
@@ -240,7 +253,7 @@ export function TerminalPane({
         void resizeTerminal(sessionId, cols, rows);
       },
     });
-  }, [active, fontFamily, fontSize, sessionId]);
+  }, [fontFamily, fontSize, sessionId]);
 
   useEffect(() => {
     if (!focused || !openedRef.current) return;
@@ -262,7 +275,9 @@ export function TerminalPane({
         !active && "pointer-events-none invisible",
       )}
     >
-      <div ref={containerRef} className="h-full w-full" />
+      <div className="xterm-host">
+        <div ref={containerRef} className="h-full w-full" />
+      </div>
     </div>
   );
 }

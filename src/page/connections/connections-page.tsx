@@ -15,14 +15,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 
-function profileSubtitle(
-  profile: ConnectionProfile,
-  t: (key: string) => string,
-): string {
-  if (profile.protocol === "local") {
-    return t("common:protocol.local");
-  }
-
+function profileSubtitle(profile: ConnectionProfile): string {
   const user = profile.username || "user";
   const host = profile.host || "host";
   const port = profile.port ? `:${profile.port}` : "";
@@ -41,7 +34,6 @@ function ConnectionRow({
   onConnect: () => void;
 }) {
   const { t } = useTranslation(["connections", "common"]);
-  const isLocal = profile.protocol === "local";
 
   return (
     <div className="flex items-center gap-3 rounded-lg border bg-card px-3 py-2.5">
@@ -56,7 +48,7 @@ function ConnectionRow({
           >
             {t(`common:protocol.${profile.protocol}`)}
           </span>
-          <span className="truncate">{profileSubtitle(profile, t)}</span>
+          <span className="truncate">{profileSubtitle(profile)}</span>
         </div>
       </div>
       <div className="flex shrink-0 items-center gap-1">
@@ -68,26 +60,22 @@ function ConnectionRow({
           <PlugIcon />
           {t("connections:manager.connect")}
         </Button>
-        {!isLocal ? (
-          <>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label={t("common:actions.edit")}
-              onClick={onEdit}
-            >
-              <PencilIcon />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label={t("common:actions.delete")}
-              onClick={onDelete}
-            >
-              <Trash2Icon />
-            </Button>
-          </>
-        ) : null}
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          aria-label={t("common:actions.edit")}
+          onClick={onEdit}
+        >
+          <PencilIcon />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          aria-label={t("common:actions.delete")}
+          onClick={onDelete}
+        >
+          <Trash2Icon />
+        </Button>
       </div>
     </div>
   );
@@ -102,9 +90,11 @@ export function ConnectionsPage() {
 
   const sortedProfiles = useMemo(
     () =>
-      [...profiles].sort((a, b) =>
-        a.name.localeCompare(b.name, undefined, { sensitivity: "base" }),
-      ),
+      [...profiles]
+        .filter((profile) => profile.protocol !== "local")
+        .sort((a, b) =>
+          a.name.localeCompare(b.name, undefined, { sensitivity: "base" }),
+        ),
     [profiles],
   );
 
@@ -120,7 +110,7 @@ export function ConnectionsPage() {
 
   const handleDelete = async (profileId: string) => {
     const profile = profiles.find((item) => item.id === profileId);
-    if (!profile || profile.protocol === "local") return;
+    if (!profile) return;
     if (!window.confirm(t("connections:manager.deleteConfirm"))) return;
     await deleteConnectionCredentials(profileId);
     removeProfile(profileId);

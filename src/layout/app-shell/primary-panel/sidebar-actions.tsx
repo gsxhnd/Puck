@@ -95,7 +95,7 @@ export type SidebarHeaderActionsProps = {
  * Renders the sort menu, the "new" menu, and the collapse toggle.
  *
  * 渲染主侧栏头部的三个动作：排序菜单、"新建"菜单（新建连接 / 分组 /
- * 本地终端 / 已保存连接窗口）以及折叠按钮。组件本身无状态，所有数据与
+ * 本地终端 / 远程管理窗口）以及折叠按钮。组件本身无状态，所有数据与
  * 回调均由父组件传入；折叠态下会隐藏排序菜单并切换菜单对齐方向。
  */
 export function SidebarHeaderActions({
@@ -198,7 +198,7 @@ export function SidebarHeaderActions({
           </DropdownMenuSubContent>
         </DropdownMenuSub>
         <DropdownMenuItem onClick={onOpenConnectionsWindow}>
-          {t("connections:newMenu.savedConnections")}
+          {t("connections:newMenu.remoteManager")}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

@@ -7,20 +7,13 @@
  */
 import { useEffect } from "react";
 import { listen } from "@tauri-apps/api/event";
-import { useConnectionStore } from "@/stores/connection-store";
+import { rehydrateConnections } from "@/lib/rehydrate-connections";
 import {
   PUCK_CONFIG_KEYS,
-  reloadPuckConfigKey,
 } from "@/lib/puck-config-storage";
 import { isTauri } from "@/lib/platform";
 
 export const CONNECTION_STORAGE_KEY = PUCK_CONFIG_KEYS.connections;
-
-// 先从磁盘/后端重新拉取连接区段到缓存，再触发 Zustand rehydrate。
-async function rehydrateConnections() {
-  await reloadPuckConfigKey(CONNECTION_STORAGE_KEY);
-  await useConnectionStore.persist.rehydrate();
-}
 
 /** Rehydrate persisted connections when another window updates config files. */
 export function ConnectionSync() {

@@ -218,6 +218,15 @@ html[data-window-chrome="macos-tauri"] [data-app-shell] {
   letter-spacing: 0;
 }
 
+/* Inset around xterm via host wrapper — not on .xterm itself */
+.xterm-host {
+  box-sizing: border-box;
+  height: 100%;
+  width: 100%;
+  padding: 8px 10px;
+  background-color: var(--background);
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

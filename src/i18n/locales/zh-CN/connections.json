@@ -74,13 +74,13 @@
   "lastConnected": "最近连接：{{time}}",
   "newMenu": {
     "localTerminal": "本地终端",
-    "savedConnections": "保存的连接"
+    "remoteManager": "远程管理"
   },
   "manager": {
-    "title": "保存的连接",
-    "description": "管理连接配置，添加、编辑或删除后可在主窗口快速连接。",
+    "title": "远程管理",
+    "description": "管理远程连接配置，添加、编辑或删除后可在主窗口快速连接。",
     "connect": "连接",
-    "empty": "暂无连接配置，点击「新建连接」添加。",
+    "empty": "暂无远程连接，点击「新建连接」添加。",
     "deleteConfirm": "确定删除此连接？相关凭据也会一并移除。"
   }
 }

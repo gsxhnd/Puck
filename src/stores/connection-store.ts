@@ -11,7 +11,6 @@ import { puckPersistStorage, PUCK_CONFIG_KEYS } from "@/lib/puck-config-storage"
 import {
   type ConnectionProfile,
   createConnectionProfile,
-  createLocalProfile,
 } from "@/types/connection";
 
 type ConnectionStore = {
@@ -31,7 +30,6 @@ type ConnectionStore = {
 
 // 首次启动时的示例连接，帮助用户了解可配置的协议与字段。
 const seedProfiles = (): ConnectionProfile[] => [
-  createLocalProfile(),
   createConnectionProfile({
     name: "Dev Server",
     protocol: "ssh",
@@ -113,7 +111,12 @@ export const useConnectionStore = create<ConnectionStore>()(
       merge: (persisted, current) => {
         const stored = persisted as Partial<ConnectionStore> | undefined;
         if (stored?.profiles && stored.profiles.length > 0) {
-          return { ...current, profiles: stored.profiles };
+          return {
+            ...current,
+            profiles: stored.profiles.filter(
+              (profile) => profile.protocol !== "local",
+            ),
+          };
         }
         return current;
       },

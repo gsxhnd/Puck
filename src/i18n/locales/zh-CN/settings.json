@@ -58,7 +58,7 @@
     "credentialStored": "已存储",
     "credentialMissing": "未存储",
     "noCredentialsRequired": "此连接无需存储凭据",
-    "manageConnections": "管理连接",
+    "manageConnections": "远程管理",
     "hostKeys": "Host Key 管理",
     "hostKeysDescription": "SSH 首次连接验证所信任的主机密钥",
     "hostKeysEmpty": "尚无信任的主机密钥。确认新 SSH 主机时会自动添加。",
@@ -84,7 +84,7 @@
   "about": {
     "version": "版本",
     "description": "基于 Tauri 的跨平台终端与文件传输工作台",
-    "manageConnections": "打开连接管理"
+    "manageConnections": "打开远程管理"
   },
   "colorThemes": {
     "default": "默认",

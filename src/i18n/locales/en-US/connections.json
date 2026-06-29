@@ -74,13 +74,13 @@
   "lastConnected": "Last connected: {{time}}",
   "newMenu": {
     "localTerminal": "Local Terminal",
-    "savedConnections": "Saved Connections"
+    "remoteManager": "Remote Management"
   },
   "manager": {
-    "title": "Saved Connections",
-    "description": "Manage connection profiles and connect from the main window.",
+    "title": "Remote Management",
+    "description": "Manage remote connection profiles and connect from the main window.",
     "connect": "Connect",
-    "empty": "No connection profiles yet. Use New Connection to add one.",
+    "empty": "No remote connections yet. Use New Connection to add one.",
     "deleteConfirm": "Delete this connection? Saved credentials will also be removed."
   }
 }

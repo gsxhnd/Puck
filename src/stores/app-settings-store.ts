@@ -27,6 +27,7 @@ import {
   type SessionPrivileges,
 } from "@/types/session-privileges";
 import i18n from "@/i18n";
+import { applyUiTheme } from "@/lib/apply-ui-theme";
 
 type AppSettingsState = AppSettings & {
   setLanguage: (language: AppLanguage) => void;
@@ -115,8 +116,16 @@ export const useAppSettingsStore = create<AppSettingsState>()(
         void i18n.changeLanguage(language);
         set({ language });
       },
-      setColorTheme: (colorTheme) => set({ colorTheme }),
-      setThemeMode: (themeMode) => set({ themeMode }),
+      setColorTheme: (colorTheme) => {
+        set({ colorTheme });
+        const { themeMode } = useAppSettingsStore.getState();
+        applyUiTheme(themeMode, colorTheme);
+      },
+      setThemeMode: (themeMode) => {
+        set({ themeMode });
+        const { colorTheme } = useAppSettingsStore.getState();
+        applyUiTheme(themeMode, colorTheme);
+      },
       setFontFamily: (fontFamily) => set({ fontFamily }),
       setFontSize: (fontSize) => set({ fontSize }),
       setCursorBlink: (cursorBlink) => set({ cursorBlink }),
@@ -134,7 +143,13 @@ export const useAppSettingsStore = create<AppSettingsState>()(
             [key]: value,
           },
         })),
-      reset: () => set({ ...DEFAULT_APP_SETTINGS }),
+      reset: () => {
+        set({ ...DEFAULT_APP_SETTINGS });
+        applyUiTheme(
+          DEFAULT_APP_SETTINGS.themeMode,
+          DEFAULT_APP_SETTINGS.colorTheme,
+        );
+      },
     }),
     {
       name: PUCK_CONFIG_KEYS.appSettings,
@@ -143,7 +158,9 @@ export const useAppSettingsStore = create<AppSettingsState>()(
       migrate: (persistedState) =>
         migratePersistedSettings(persistedState as PersistedAppSettings),
       onRehydrateStorage: () => (state) => {
-        if (state?.language) {
+        if (!state) return;
+        applyUiTheme(state.themeMode, state.colorTheme);
+        if (state.language) {
           void i18n.changeLanguage(state.language);
         }
       },

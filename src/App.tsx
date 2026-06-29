@@ -2,6 +2,7 @@ import { AppShell } from "@/layout/app-shell/app-shell";
 import { AppProviders } from "@/layout/providers/app-providers";
 import { ConnectionBridgeListener } from "@/layout/providers/connection-bridge-listener";
 import { ConnectionSync } from "@/layout/providers/connection-sync";
+import { AuxiliaryWindowSync } from "@/layout/providers/auxiliary-window-sync";
 import { MacWindowChrome } from "@/layout/providers/mac-window-chrome";
 import { SettingsSync } from "@/layout/providers/settings-sync";
 import { ThemeSync } from "@/layout/providers/theme-sync";
@@ -18,6 +19,7 @@ function App() {
       <ThemeSync />
       <SettingsSync />
       <ConnectionSync />
+      <AuxiliaryWindowSync />
       <MacWindowChrome />
       <ConnectionBridgeListener />
       {mode === "settings" ? (
