@@ -5,6 +5,7 @@ import { useConnectionStore } from "@/stores/connection-store";
 import { useSessionStore } from "@/stores/session-store";
 import { useTransferStore } from "@/stores/transfer-store";
 import { closeSession } from "@/lib/tauri-terminal";
+import { RECONNECT_SESSION_EVENT } from "@/lib/reconnect-session";
 import {
   deleteRemote,
   listRemoteDir,
@@ -18,8 +19,8 @@ import {
   startTransfer,
   type RemoteFileEntry,
 } from "@/lib/tauri-sftp";
-import { trustSshHostKey } from "@/lib/tauri-ssh";
-import { isHostKeyError, parsePuckError } from "@/lib/puck-error";
+import { onSessionStatus, trustSshHostKey } from "@/lib/tauri-ssh";
+import { parsePuckError } from "@/lib/puck-error";
 import type { HostKeyPrompt } from "@/lib/puck-error";
 import { HostKeyDialog } from "@/components/ssh/host-key-dialog";
 import { Button } from "@/components/ui/button";
@@ -91,41 +92,67 @@ export function FileManager({
     }
   }, [connected, cwd, sessionId]);
 
-  const connect = useCallback(async () => {
+  const connect = useCallback(() => {
     if (!profile || !supported) return;
     updateSessionStatus(sessionId, "creating");
     setError(null);
-    try {
-      await openFileConnection(profileToFileRequest(sessionId, profile));
-      setConnected(true);
-      const initial = profile.defaultDirectory?.trim() || "/";
-      setCwd(initial);
-      updateSessionStatus(sessionId, "connected");
-    } catch (err) {
-      const hostKey = isHostKeyError(err);
-      if (hostKey) {
-        setHostKeyPrompt(hostKey);
-        return;
-      }
-      updateSessionStatus(sessionId, "failed");
-      setError(parsePuckError(err).message);
-    }
+    void openFileConnection(profileToFileRequest(sessionId, profile));
   }, [profile, sessionId, supported, updateSessionStatus]);
+
+  const handleReconnect = useCallback(async () => {
+    setConnected(false);
+    setError(null);
+    setEntries([]);
+    await closeSession(sessionId);
+    connect();
+  }, [connect, sessionId]);
 
   useEffect(() => {
     if (!profile || !supported) return;
 
     let disposed = false;
+    let unlistenStatus: (() => void) | undefined;
+
     void (async () => {
+      unlistenStatus = await onSessionStatus((event) => {
+        if (event.sessionId !== sessionId || disposed) return;
+        if (event.errorCode === "host_key_unknown" && event.hostKey) {
+          setHostKeyPrompt(event.hostKey);
+          return;
+        }
+        if (event.status === "connected") {
+          setConnected(true);
+          const initial = profile.defaultDirectory?.trim() || "/";
+          setCwd(initial);
+          updateSessionStatus(sessionId, "connected");
+        }
+        if (event.status === "failed") {
+          updateSessionStatus(sessionId, "failed");
+          setError(event.message ?? t("errors:unknown_error"));
+        }
+      });
+
       if (disposed) return;
-      await connect();
+      connect();
     })();
 
     return () => {
       disposed = true;
+      unlistenStatus?.();
       void closeSession(sessionId);
     };
-  }, [connect, profile, sessionId, supported]);
+  }, [connect, profile, sessionId, supported, updateSessionStatus]);
+
+  useEffect(() => {
+    const onReconnect = (event: Event) => {
+      const detail = (event as CustomEvent<{ sessionId: string }>).detail;
+      if (detail.sessionId !== sessionId) return;
+      void handleReconnect();
+    };
+
+    window.addEventListener(RECONNECT_SESSION_EVENT, onReconnect);
+    return () => window.removeEventListener(RECONNECT_SESSION_EVENT, onReconnect);
+  }, [handleReconnect, sessionId]);
 
   useEffect(() => {
     if (!connected) return;

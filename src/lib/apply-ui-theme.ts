@@ -6,6 +6,8 @@ import {
 import { getEffectiveTheme } from "@/lib/theme-utils";
 import type { ThemeMode } from "@/types/settings";
 
+const NEXT_THEMES_STORAGE_KEY = "theme";
+
 let syncNextThemeMode: ((themeMode: ThemeMode) => void) | null = null;
 
 /** Registers next-themes `setTheme` for imperative UI theme updates. */
@@ -31,6 +33,12 @@ export function applyDocumentTheme(
   document.documentElement.classList.toggle("dark", effectiveTheme === "dark");
   document.documentElement.dataset.colorTheme =
     colorTheme ?? DEFAULT_COLOR_THEME;
+
+  try {
+    localStorage.setItem(NEXT_THEMES_STORAGE_KEY, themeMode);
+  } catch {
+    // Ignore private browsing or disabled storage.
+  }
 }
 
 export function scheduleTerminalThemeSync(

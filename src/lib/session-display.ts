@@ -148,7 +148,10 @@ export function formatSidebarLabel(session: Session): string {
 }
 
 export function getShellBadge(session: Session): string {
-  return session.shellName ?? "sh";
+  if (session.kind === "files" && session.protocol) {
+    return session.protocol;
+  }
+  return session.shellName ?? session.protocol ?? "sh";
 }
 
 function resolveFallbackTitle(title: string): string {

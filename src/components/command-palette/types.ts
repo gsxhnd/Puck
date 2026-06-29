@@ -4,7 +4,7 @@ import type { OpenInAppId } from "@/lib/open-in-app";
 export type PalettePage = "root" | "open-in";
 
 /** Command grouping keys used for section headers. */
-export type CommandSection = "workingDirectory" | "view" | "openIn";
+export type CommandSection = "workingDirectory" | "view" | "openIn" | "connections";
 
 /** A single executable entry in the command palette. */
 export type PaletteCommand = {
@@ -28,6 +28,57 @@ export const OPEN_IN_APPS: Array<{ id: OpenInAppId; labelKey: string }> = [
   { id: "finder", labelKey: "terminal:titleMenu.apps.finder" },
   { id: "terminal", labelKey: "terminal:titleMenu.apps.terminal" },
 ];
+
+const CONNECT_PREFIXES = ["connect", "连接"] as const;
+
+function parseSingleConnectPrefix(
+  query: string,
+  prefix: (typeof CONNECT_PREFIXES)[number],
+): { active: boolean; filter: string } {
+  const trimmed = query.trimStart();
+  const lower = trimmed.toLowerCase();
+  const prefixLower = prefix.toLowerCase();
+
+  if (trimmed === prefix || lower === prefixLower) {
+    return { active: true, filter: "" };
+  }
+
+  if (lower.startsWith(`${prefixLower} `)) {
+    return {
+      active: true,
+      filter: trimmed.slice(prefix.length + 1).trim(),
+    };
+  }
+
+  if (lower.startsWith(`${prefixLower}:`)) {
+    return {
+      active: true,
+      filter: trimmed.slice(prefix.length + 1).trim(),
+    };
+  }
+
+  if (prefixLower === "connect" && lower.startsWith("connect") && lower.length >= 7) {
+    const rest = trimmed.slice("connect".length).trimStart();
+    const filter = rest.startsWith(":") ? rest.slice(1).trimStart() : rest;
+    return { active: true, filter };
+  }
+
+  return { active: false, filter: "" };
+}
+
+/** When the query starts with `connect` / `连接`, list saved remote hosts. */
+export function parseConnectPrefix(query: string): {
+  active: boolean;
+  filter: string;
+} {
+  for (const prefix of CONNECT_PREFIXES) {
+    const parsed = parseSingleConnectPrefix(query, prefix);
+    if (parsed.active) {
+      return parsed;
+    }
+  }
+  return { active: false, filter: "" };
+}
 
 /** Case-insensitive match against label and optional keywords. */
 export function matchesPaletteQuery(command: PaletteCommand, query: string): boolean {

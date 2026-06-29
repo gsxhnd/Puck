@@ -1,9 +1,13 @@
 import { useTranslation } from "react-i18next";
 import { useSortable } from "@dnd-kit/react/sortable";
-import { CopyIcon, PencilIcon, XIcon } from "lucide-react";
+import { CopyIcon, Loader2Icon, PencilIcon, RefreshCwIcon, XIcon } from "lucide-react";
 import type { Session } from "@/types/connection";
 import { useSessionStore } from "@/stores/session-store";
 import { formatSidebarLabel, getShellBadge } from "@/lib/session-display";
+import {
+  canReconnectSession,
+  requestSessionReconnect,
+} from "@/lib/reconnect-session";
 import { SIDEBAR_SORTABLE_GROUP } from "@/lib/sidebar-groups";
 import { Button } from "@/components/ui/button";
 import {
@@ -48,8 +52,11 @@ export function SortableSessionTabItem({
   const isActive = session.id === activeSessionId;
   const label = formatSidebarLabel(session);
   const shellBadge = getShellBadge(session);
-  const otherTerminalCount = sessions.filter(
-    (item) => item.kind === "terminal" && item.id !== session.id,
+  const isConnecting =
+    session.status === "creating" || session.status === "reconnecting";
+  const showReconnect = canReconnectSession(session);
+  const otherSessionCount = sessions.filter(
+    (item) => item.kind === session.kind && item.id !== session.id,
   ).length;
 
   const handleClose = () => {
@@ -59,7 +66,7 @@ export function SortableSessionTabItem({
   const handleCloseOthers = () => {
     setActiveSession(session.id);
     const otherIds = sessions
-      .filter((item) => item.kind === "terminal" && item.id !== session.id)
+      .filter((item) => item.kind === session.kind && item.id !== session.id)
       .map((item) => item.id);
     for (const id of otherIds) {
       closeSession(id);
@@ -76,7 +83,10 @@ export function SortableSessionTabItem({
       shellName: session.shellName,
       tabLabel: session.tabLabel,
       customTitle: session.customTitle,
-      status: session.protocol === "ssh" ? "creating" : undefined,
+      status:
+        session.protocol === "ssh" || session.protocol === "sftp"
+          ? "creating"
+          : undefined,
     });
   };
 
@@ -90,10 +100,10 @@ export function SortableSessionTabItem({
             className={cn(
               "group/session-tab flex h-7 w-full cursor-grab items-center gap-1 rounded-md px-1 text-left text-[13px] transition-colors active:cursor-grabbing",
               isActive
-                ? "bg-muted/80 text-foreground"
-                : "text-muted-foreground hover:bg-muted/40 hover:text-foreground",
+                ? "bg-foreground/12 text-foreground dark:bg-muted/80"
+                : "text-muted-foreground hover:bg-foreground/8 hover:text-foreground dark:hover:bg-muted/40",
               isDragging && "opacity-50",
-              isDropTarget && "bg-muted/30",
+              isDropTarget && "bg-foreground/10 dark:bg-muted/30",
             )}
           >
             <button
@@ -104,9 +114,16 @@ export function SortableSessionTabItem({
               <span className="truncate font-mono">{label}</span>
             </button>
             <div className="relative flex h-6 w-7 shrink-0 items-center justify-center">
-              <span className="text-[11px] text-muted-foreground/80 transition-opacity group-hover/session-tab:opacity-0">
-                {shellBadge}
-              </span>
+              {isConnecting ? (
+                <Loader2Icon
+                  className="size-3.5 animate-spin text-muted-foreground/80 transition-opacity group-hover/session-tab:opacity-0"
+                  aria-label={t("common:status.connecting")}
+                />
+              ) : (
+                <span className="text-[11px] text-muted-foreground/80 transition-opacity group-hover/session-tab:opacity-0">
+                  {shellBadge}
+                </span>
+              )}
               <Button
                 type="button"
                 variant="ghost"
@@ -136,6 +153,12 @@ export function SortableSessionTabItem({
           <CopyIcon />
           {t("connections:contextMenu.duplicate")}
         </ContextMenuItem>
+        {showReconnect ? (
+          <ContextMenuItem onClick={() => requestSessionReconnect(session)}>
+            <RefreshCwIcon />
+            {t("connections:contextMenu.reconnect")}
+          </ContextMenuItem>
+        ) : null}
         <ContextMenuSeparator />
         <ContextMenuItem onClick={handleClose}>
           <XIcon />
@@ -143,7 +166,7 @@ export function SortableSessionTabItem({
         </ContextMenuItem>
         <ContextMenuItem
           onClick={handleCloseOthers}
-          disabled={otherTerminalCount === 0}
+          disabled={otherSessionCount === 0}
         >
           {t("connections:contextMenu.closeOthers")}
         </ContextMenuItem>

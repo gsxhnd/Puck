@@ -20,6 +20,7 @@ export type SessionStatusEvent = {
   status: string;
   errorCode?: string;
   message?: string;
+  hostKey?: HostKeyPrompt;
 };
 
 export type KnownHostRecord = HostKeyPrompt & {

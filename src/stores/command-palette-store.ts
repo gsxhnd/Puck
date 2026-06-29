@@ -11,15 +11,22 @@ export type CommandPalettePage = "root" | "open-in";
 type CommandPaletteStore = {
   open: boolean;
   page: CommandPalettePage;
-  openPalette: () => void;
+  draftQuery: string;
+  openPalette: (draftQuery?: string) => void;
   closePalette: () => void;
   setPage: (page: CommandPalettePage) => void;
+  setDraftQuery: (query: string) => void;
+  consumeDraftQuery: () => void;
 };
 
 export const useCommandPaletteStore = create<CommandPaletteStore>()((set) => ({
   open: false,
   page: "root",
-  openPalette: () => set({ open: true, page: "root" }),
-  closePalette: () => set({ open: false, page: "root" }),
+  draftQuery: "",
+  openPalette: (draftQuery = "") =>
+    set({ open: true, page: "root", draftQuery }),
+  closePalette: () => set({ open: false, page: "root", draftQuery: "" }),
   setPage: (page) => set({ page }),
+  setDraftQuery: (query) => set({ draftQuery: query }),
+  consumeDraftQuery: () => set({ draftQuery: "" }),
 }));

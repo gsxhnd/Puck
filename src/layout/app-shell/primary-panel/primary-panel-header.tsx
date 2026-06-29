@@ -48,7 +48,7 @@ export function PrimaryPanelHeader({
   return (
     <>
       {!collapsed ? (
-        <PanelHeader macosInset trailing={toolbar} />
+        <PanelHeader macosInset trailing={toolbar} className="bg-transparent" />
       ) : null}
       {collapsed && toolbarSlot ? createPortal(toolbar, toolbarSlot) : null}
     </>

@@ -64,15 +64,18 @@ export function PrimaryPanel({
   const [renameGroupId, setRenameGroupId] = useState<string | null>(null);
   const [renameSessionId, setRenameSessionId] = useState<string | null>(null);
 
-  const terminalSessions = useMemo(
-    () => sessions.filter((session) => session.kind === "terminal"),
+  const sidebarSessions = useMemo(
+    () =>
+      sessions.filter(
+        (session) => session.kind === "terminal" || session.kind === "files",
+      ),
     [sessions],
   );
 
   const displayGroups = useMemo(
     () =>
       buildSidebarGroups(
-        terminalSessions,
+        sidebarSessions,
         customGroups,
         sessionGroup,
         groupOrder,
@@ -80,7 +83,7 @@ export function PrimaryPanel({
         sort,
       ),
     [
-      terminalSessions,
+      sidebarSessions,
       customGroups,
       sessionGroup,
       groupOrder,
@@ -97,8 +100,8 @@ export function PrimaryPanel({
 
   // 清理已关闭会话在侧栏布局中残留的分组归属与排序信息。
   useEffect(() => {
-    pruneSessions(terminalSessions.map((session) => session.id));
-  }, [pruneSessions, terminalSessions]);
+    pruneSessions(sidebarSessions.map((session) => session.id));
+  }, [pruneSessions, sidebarSessions]);
 
   const openCreateDialog = () => {
     setEditingProfileId(null);
@@ -138,17 +141,17 @@ export function PrimaryPanel({
 
       if (isGroupDropId(targetId)) {
         moveSessionToGroup(
-          terminalSessions,
+          sidebarSessions,
           sort,
           activeId,
           groupIdFromDropId(targetId),
         );
       } else {
-        reorderSessions(terminalSessions, sort, activeId, targetId);
+        reorderSessions(sidebarSessions, sort, activeId, targetId);
       }
       setSort("custom");
     },
-    [moveSessionToGroup, reorderSessions, sort, terminalSessions],
+    [moveSessionToGroup, reorderSessions, sort, sidebarSessions],
   );
 
   const toggleGroup = (groupKey: string) => {
@@ -178,7 +181,10 @@ export function PrimaryPanel({
   const renamingSession = sessions.find((session) => session.id === renameSessionId);
 
   return (
-    <div className="flex h-full w-full flex-col bg-shell-secondary">
+    <div
+      data-shell-panel="primary"
+      className="flex h-full w-full flex-col overflow-hidden bg-shell-secondary"
+    >
       <PrimaryPanelHeader
         collapsed={collapsed}
         onToggleCollapsed={onToggleCollapsed}

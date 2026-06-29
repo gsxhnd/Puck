@@ -3,20 +3,58 @@ import { useTranslation } from "react-i18next";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { openPathInApp } from "@/lib/open-in-app";
 import { openSettingsWindow } from "@/lib/open-settings-window";
+import { buildProfileSessionRequest } from "@/lib/open-connection-profile";
 import { getSessionPathDisplay } from "@/lib/session-display";
 import { isTauri } from "@/lib/platform";
 import { useCommandPaletteStore } from "@/stores/command-palette-store";
+import { useConnectionStore } from "@/stores/connection-store";
 import { useSessionStore } from "@/stores/session-store";
 import { useShellUiStore } from "@/stores/shell-ui-store";
 import { useTerminalSearchStore } from "@/stores/terminal-search-store";
+import type { ConnectionProfile } from "@/types/connection";
 import type { SecondPanelView } from "@/types/shell-ui";
 import { toast } from "sonner";
 import {
   OPEN_IN_APPS,
+  matchesPaletteQuery,
+  parseConnectPrefix,
   type CommandSection,
   type PaletteCommand,
   type PalettePage,
 } from "@/components/command-palette/types";
+
+function openSavedConnection(
+  profile: ConnectionProfile,
+  openOrFocusSession: ReturnType<typeof useSessionStore.getState>["openOrFocusSession"],
+) {
+  const request = buildProfileSessionRequest(profile);
+  const state = useSessionStore.getState();
+
+  if (request.profileId) {
+    const existing = state.sessions.find(
+      (session) =>
+        session.profileId === request.profileId &&
+        session.kind === request.kind,
+    );
+    if (
+      existing &&
+      existing.status !== "connected" &&
+      existing.status !== "creating" &&
+      existing.status !== "reconnecting"
+    ) {
+      state.closeSession(existing.id);
+    }
+  }
+
+  openOrFocusSession(request);
+}
+
+function profileConnectLabel(profile: ConnectionProfile): string {
+  const user = profile.username || "user";
+  const host = profile.host || "host";
+  const port = profile.port ? `:${profile.port}` : "";
+  return `${profile.name} — ${user}@${host}${port}`;
+}
 
 /**
  * Builds the filtered, grouped command list for the current palette page.
@@ -35,6 +73,10 @@ export function usePaletteCommands(
 } {
   const { t } = useTranslation(["commandPalette", "terminal"]);
   const setPage = useCommandPaletteStore((state) => state.setPage);
+  const setDraftQuery = useCommandPaletteStore((state) => state.setDraftQuery);
+
+  const profiles = useConnectionStore((state) => state.profiles);
+  const openOrFocusSession = useSessionStore((state) => state.openOrFocusSession);
 
   const sessions = useSessionStore((state) => state.sessions);
   const activeSessionId = useSessionStore((state) => state.activeSessionId);
@@ -97,6 +139,14 @@ export function usePaletteCommands(
         shortcut: "⌘,",
         keywords: ["settings", "preferences"],
         run: () => void openSettingsWindow(),
+      },
+      {
+        id: "browse-connections",
+        section: "view",
+        label: t("commandPalette:commands.browseConnections"),
+        hasSubmenu: true,
+        keywords: ["connect", "ssh", "remote", "host", "连接", "主机", "远程"],
+        run: () => setDraftQuery("connect "),
       },
     ];
 
@@ -176,6 +226,7 @@ export function usePaletteCommands(
     secondPanelOpen,
     secondPanelView,
     setPage,
+    setDraftQuery,
     showSecondPanelView,
     t,
     terminalActive,
@@ -203,17 +254,68 @@ export function usePaletteCommands(
     }));
   }, [resolvedPath, t]);
 
-  const source = page === "open-in" ? openInCommands : rootCommands;
+  const connectCommands = useMemo<PaletteCommand[]>(() => {
+    return profiles
+      .filter((profile) => profile.protocol !== "local")
+      .map((profile) => ({
+        id: `connect-${profile.id}`,
+        section: "connections" as const,
+        label: profileConnectLabel(profile),
+        keywords: [
+          "connect",
+          "连接",
+          profile.name,
+          profile.host ?? "",
+          profile.username ?? "",
+          profile.protocol,
+        ],
+        run: () => {
+          openSavedConnection(profile, openOrFocusSession);
+        },
+      }));
+  }, [openOrFocusSession, profiles]);
+
+  const connectPrefix = parseConnectPrefix(query);
   const flatCommands = useMemo(() => {
-    const normalized = query.trim().toLowerCase();
-    if (!normalized) return source;
-    return source.filter((command) => {
-      const haystack = [command.label, ...(command.keywords ?? [])]
-        .join(" ")
-        .toLowerCase();
-      return haystack.includes(normalized);
-    });
-  }, [query, source]);
+    if (page === "open-in") {
+      const normalized = query.trim().toLowerCase();
+      if (!normalized) return openInCommands;
+      return openInCommands.filter((command) =>
+        matchesPaletteQuery(command, normalized),
+      );
+    }
+
+    const filterConnectCommands = (filter: string) => {
+      if (!filter) return connectCommands;
+      return connectCommands.filter((command) =>
+        matchesPaletteQuery(command, filter),
+      );
+    };
+
+    if (connectPrefix.active) {
+      return filterConnectCommands(connectPrefix.filter);
+    }
+
+    const normalized = query.trim();
+    if (!normalized) return rootCommands;
+
+    const matchedConnections = connectCommands.filter((command) =>
+      matchesPaletteQuery(command, normalized),
+    );
+    const matchedRoot = rootCommands.filter((command) =>
+      matchesPaletteQuery(command, normalized),
+    );
+
+    return [...matchedConnections, ...matchedRoot];
+  }, [
+    connectCommands,
+    connectPrefix.active,
+    connectPrefix.filter,
+    openInCommands,
+    page,
+    query,
+    rootCommands,
+  ]);
 
   const groupedCommands = useMemo(() => {
     const groups = new Map<CommandSection, PaletteCommand[]>();
@@ -225,12 +327,24 @@ export function usePaletteCommands(
     return groups;
   }, [flatCommands]);
 
-  const sectionOrder: CommandSection[] =
-    page === "open-in"
-      ? ["openIn"]
-      : terminalActive
-        ? ["workingDirectory", "view"]
-        : ["view"];
+  const sectionOrder = useMemo<CommandSection[]>(() => {
+    if (page === "open-in") {
+      return ["openIn"];
+    }
+
+    const sections: CommandSection[] = [];
+    if (flatCommands.some((command) => command.section === "connections")) {
+      sections.push("connections");
+    }
+    if (flatCommands.some((command) => command.section === "workingDirectory")) {
+      sections.push("workingDirectory");
+    }
+    if (flatCommands.some((command) => command.section === "view")) {
+      sections.push("view");
+    }
+
+    return sections.length > 0 ? sections : ["view"];
+  }, [flatCommands, page]);
 
   return { sectionOrder, groupedCommands, flatCommands, path };
 }

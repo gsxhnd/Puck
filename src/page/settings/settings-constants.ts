@@ -1,6 +1,15 @@
 import { COLOR_THEME_IDS } from "@/lib/color-themes";
 import type { AppLanguage, ThemeMode } from "@/types/settings";
 import type { SessionPrivilegeKey } from "@/types/session-privileges";
+import type { LucideIcon } from "lucide-react";
+import {
+  InfoIcon,
+  KeyboardIcon,
+  NetworkIcon,
+  PaletteIcon,
+  Settings2Icon,
+  TerminalIcon,
+} from "lucide-react";
 
 /**
  * Settings navigation section identifiers.
@@ -24,6 +33,16 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
   "keyboard",
   "about",
 ];
+
+/** Sidebar icon for each settings section. */
+export const SETTINGS_SECTION_ICONS: Record<SettingsSection, LucideIcon> = {
+  general: Settings2Icon,
+  appearance: PaletteIcon,
+  terminal: TerminalIcon,
+  connections: NetworkIcon,
+  keyboard: KeyboardIcon,
+  about: InfoIcon,
+};
 
 export const THEME_MODES: ThemeMode[] = ["light", "dark", "system"];
 export const LANGUAGES: AppLanguage[] = ["zh-CN", "en-US"];

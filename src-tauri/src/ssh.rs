@@ -10,10 +10,10 @@ use tauri::{AppHandle, Emitter, State};
 use crate::credential::{read_credential, require_credential};
 use crate::error::{host_key_prompt, puck_err, HostKeyPrompt, PuckError, PuckResult};
 use crate::known_hosts::KnownHostsStore;
-use crate::runtime::block_on;
+use crate::runtime::runtime;
 use crate::session::{
-    emit_session_status, SessionKind, SessionManager, SessionStatusEvent, SshCommand,
-    StoredSshProfile, TerminalBackend,
+    emit_connection_error, emit_session_status, SessionKind, SessionManager,
+    SessionStatusEvent, SshCommand, StoredSshProfile, TerminalBackend,
 };
 use crate::terminal::{TerminalDataEvent, TerminalExitEvent};
 
@@ -260,6 +260,7 @@ async fn open_ssh_terminal_inner(
             status: "connected".into(),
             error_code: None,
             message: None,
+            host_key: None,
         },
     );
 
@@ -279,29 +280,21 @@ pub fn open_ssh_terminal(
             status: "creating".into(),
             error_code: None,
             message: None,
+            host_key: None,
         },
     );
 
-    match block_on(open_ssh_terminal_inner(
-        app.clone(),
-        known_hosts.inner().clone(),
-        request.clone(),
-    )) {
-        Ok(()) => Ok(()),
-        Err(error) => {
-            let payload = error.to_payload();
-            emit_session_status(
-                &app,
-                SessionStatusEvent {
-                    session_id: request.session_id,
-                    status: "failed".into(),
-                    error_code: Some(payload.code.clone()),
-                    message: Some(payload.message.clone()),
-                },
-            );
-            Err(serde_json::to_string(&payload).unwrap_or(payload.message))
+    let app_handle = app.clone();
+    let known_hosts = known_hosts.inner().clone();
+    runtime().spawn(async move {
+        if let Err(error) =
+            open_ssh_terminal_inner(app_handle.clone(), known_hosts, request.clone()).await
+        {
+            emit_connection_error(&app_handle, request.session_id, error);
         }
-    }
+    });
+
+    Ok(())
 }
 
 #[tauri::command]
@@ -323,6 +316,7 @@ pub fn reconnect_ssh_terminal(
             status: "reconnecting".into(),
             error_code: None,
             message: None,
+            host_key: None,
         },
     );
 

@@ -53,6 +53,7 @@
     "close": "Close Tab",
     "closeOthers": "Close Other Tabs",
     "duplicate": "Duplicate Tab",
+    "reconnect": "Reconnect",
     "rename": "Rename Tab",
     "renameDescription": "Enter a new name for this tab."
   },

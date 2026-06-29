@@ -12,6 +12,9 @@
     "failed": "Connection failed",
     "reconnecting": "Reconnecting"
   },
+  "notifications": {
+    "connectionFailed": "Failed to connect to {{session}}"
+  },
   "actions": {
     "clear": "Clear",
     "search": "Search",

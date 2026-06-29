@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   SETTINGS_SECTIONS,
+  SETTINGS_SECTION_ICONS,
   type SettingsSection,
 } from "@/page/settings/settings-constants";
 import { SettingsSelect } from "@/page/settings/settings-primitives";
@@ -37,21 +38,31 @@ export function SettingsPage() {
           {t("settings:title")}
         </div>
         <nav className="mt-2 space-y-1">
-          {SETTINGS_SECTIONS.map((section) => (
-            <button
-              key={section}
-              type="button"
-              onClick={() => setActiveSection(section)}
-              className={cn(
-                "block w-full rounded-md px-2 py-1.5 text-left text-sm transition-colors",
-                activeSection === section
-                  ? "bg-muted font-medium text-foreground"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground",
-              )}
-            >
-              {sectionLabels[section]}
-            </button>
-          ))}
+          {SETTINGS_SECTIONS.map((section) => {
+            const Icon = SETTINGS_SECTION_ICONS[section];
+            const isActive = activeSection === section;
+            return (
+              <button
+                key={section}
+                type="button"
+                onClick={() => setActiveSection(section)}
+                className={cn(
+                  "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors",
+                  isActive
+                    ? "bg-muted font-medium text-foreground"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                )}
+              >
+                <Icon
+                  className={cn(
+                    "size-4 shrink-0",
+                    isActive ? "text-foreground" : "opacity-70",
+                  )}
+                />
+                <span className="min-w-0 truncate">{sectionLabels[section]}</span>
+              </button>
+            );
+          })}
         </nav>
       </aside>
 

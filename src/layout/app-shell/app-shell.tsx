@@ -10,6 +10,7 @@ import type { PanelImperativeHandle } from "react-resizable-panels";
 import { PrimaryPanel } from "@/layout/app-shell/primary-panel";
 import { MainPanel } from "@/layout/app-shell/main-panel";
 import { SecondPanel } from "@/layout/app-shell/second-panel";
+import { usePrimaryPanelOverlayWidth } from "@/layout/app-shell/use-primary-panel-overlay-width";
 import { CommandPalette } from "@/components/command-palette";
 import { openSettingsWindow } from "@/lib/open-settings-window";
 import {
@@ -70,6 +71,9 @@ export function AppShell() {
   const openPalette = useCommandPaletteStore((state) => state.openPalette);
   const primaryPanelRef = useRef<PanelImperativeHandle>(null);
   const secondPanelRef = useRef<PanelImperativeHandle>(null);
+  const shellRef = useRef<HTMLDivElement>(null);
+
+  usePrimaryPanelOverlayWidth(shellRef, primaryPanelOpen);
   const openLocalOnStart = useAppSettingsStore(
     (state) => state.openLocalTerminalOnStart,
   );
@@ -190,9 +194,11 @@ export function AppShell() {
 
   return (
     <div
+      ref={shellRef}
       data-app-shell
       data-shell="main"
       data-platform={getPlatform()}
+      data-primary-panel-open={primaryPanelOpen ? "true" : "false"}
       className="h-svh overflow-hidden"
     >
       <ResizablePanelGroup
@@ -232,7 +238,7 @@ export function AppShell() {
           maxSize={SHELL_PANEL_SIZES.primary.max}
           collapsible
           collapsedSize={0}
-          className="min-w-0 overflow-hidden"
+          className="relative z-[2] min-w-0 overflow-hidden"
         >
           <PrimaryPanel
             collapsed={!primaryPanelOpen}
@@ -240,7 +246,7 @@ export function AppShell() {
           />
         </ResizablePanel>
         {primaryPanelOpen ? <ResizableHandle /> : null}
-        <ResizablePanel id="main" minSize={SHELL_PANEL_SIZES.main.min}>
+        <ResizablePanel id="main" minSize={SHELL_PANEL_SIZES.main.min} className="relative z-[1] min-w-0">
           <MainPanel
             primaryPanelOpen={primaryPanelOpen}
             secondPanelOpen={secondPanelOpen}

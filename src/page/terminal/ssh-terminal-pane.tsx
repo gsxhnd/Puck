@@ -33,7 +33,6 @@ import {
   extractOsc7Cwd,
   profileTabLabel,
 } from "@/lib/session-display";
-import { isHostKeyError, parsePuckError } from "@/lib/puck-error";
 import { applyTerminalFont, applyTerminalTheme } from "@/lib/apply-terminal-appearance";
 import { buildTerminalOptions } from "@/lib/terminal-options";
 import { registerTerminal, unregisterTerminal } from "@/lib/terminal-registry";
@@ -41,6 +40,7 @@ import { trackTerminalCommandInput } from "@/lib/track-terminal-command";
 import { useCommandOutlineStore } from "@/stores/command-outline-store";
 import { bindTerminalBell } from "@/lib/terminal-bell";
 import { bindCopyOnSelect } from "@/lib/terminal-copy-on-select";
+import { RECONNECT_SESSION_EVENT } from "@/lib/reconnect-session";
 import { useSessionPrivilegesStore } from "@/stores/session-privileges-store";
 import { HostKeyDialog } from "@/components/ssh/host-key-dialog";
 import { Button } from "@/components/ui/button";
@@ -100,34 +100,13 @@ export function SshTerminalPane({
   tRef.current = t;
   const commandInputRef = useRef({ buffer: "" });
 
-  const connect = async (cols: number, rows: number) => {
+  const connect = (cols: number, rows: number) => {
     if (!profile) {
       updateSessionStatus(sessionId, "failed");
       return;
     }
     updateSessionStatus(sessionId, "creating");
-    try {
-      await openSshTerminal(profileToSshRequest(sessionId, profile, cols, rows));
-      openedRef.current = true;
-      updateSessionStatus(sessionId, "connected");
-      updateSessionMeta(sessionId, {
-        shellName: "ssh",
-        tabLabel: profileTabLabel(profile),
-      });
-    } catch (error) {
-      const hostKey = isHostKeyError(error);
-      if (hostKey) {
-        setHostKeyPrompt(hostKey);
-        setPendingConnect({ cols, rows });
-        updateSessionStatus(sessionId, "creating");
-        return;
-      }
-      updateSessionStatus(sessionId, "failed");
-      const payload = parsePuckError(error);
-      terminalRef.current?.writeln(
-        `\r\n${tRef.current(`errors:${payload.code}`, { defaultValue: payload.message })}\r\n`,
-      );
-    }
+    void openSshTerminal(profileToSshRequest(sessionId, profile, cols, rows));
   };
 
   useEffect(() => {
@@ -194,6 +173,15 @@ export function SshTerminalPane({
       });
       unlistenStatus = await onSessionStatus((event) => {
         if (event.sessionId !== sessionId || disposed) return;
+        if (event.errorCode === "host_key_unknown" && event.hostKey) {
+          setHostKeyPrompt(event.hostKey);
+          setPendingConnect({
+            cols: Math.max(terminal.cols, 2),
+            rows: Math.max(terminal.rows, 2),
+          });
+          updateSessionStatus(sessionId, "creating");
+          return;
+        }
         if (
           event.status === "connected" ||
           event.status === "failed" ||
@@ -205,10 +193,31 @@ export function SshTerminalPane({
             event.status as "connected" | "failed" | "disconnected" | "reconnecting",
           );
         }
+        if (event.status === "connected") {
+          openedRef.current = true;
+          if (profile) {
+            updateSessionMeta(sessionId, {
+              shellName: "ssh",
+              tabLabel: profileTabLabel(profile),
+            });
+          }
+        }
+        if (event.status === "failed") {
+          openedRef.current = false;
+          if (event.message) {
+            const payload = {
+              code: event.errorCode ?? "unknown_error",
+              message: event.message,
+            };
+            terminalRef.current?.writeln(
+              `\r\n${tRef.current(`errors:${payload.code}`, { defaultValue: payload.message })}\r\n`,
+            );
+          }
+        }
       });
 
       fitAddon.fit();
-      await connect(Math.max(terminal.cols, 2), Math.max(terminal.rows, 2));
+      connect(Math.max(terminal.cols, 2), Math.max(terminal.rows, 2));
     })();
 
     const resizeObserver = new ResizeObserver(() => {
@@ -314,7 +323,7 @@ export function SshTerminalPane({
     if (!hostKeyPrompt || !pendingConnect) return;
     await trustSshHostKey(hostKeyPrompt);
     setHostKeyPrompt(null);
-    await connect(pendingConnect.cols, pendingConnect.rows);
+    connect(pendingConnect.cols, pendingConnect.rows);
     setPendingConnect(null);
   };
 
@@ -323,8 +332,26 @@ export function SshTerminalPane({
     const fitAddon = fitAddonRef.current;
     if (!terminal || !fitAddon) return;
     fitAddon.fit();
-    void reconnectSshTerminal(sessionId, terminal.cols, terminal.rows);
+    const cols = Math.max(terminal.cols, 2);
+    const rows = Math.max(terminal.rows, 2);
+
+    void reconnectSshTerminal(sessionId, cols, rows).catch(() => {
+      connect(cols, rows);
+    });
   };
+  const handleReconnectRef = useRef(handleReconnect);
+  handleReconnectRef.current = handleReconnect;
+
+  useEffect(() => {
+    const onReconnect = (event: Event) => {
+      const detail = (event as CustomEvent<{ sessionId: string }>).detail;
+      if (detail.sessionId !== sessionId) return;
+      handleReconnectRef.current();
+    };
+
+    window.addEventListener(RECONNECT_SESSION_EVENT, onReconnect);
+    return () => window.removeEventListener(RECONNECT_SESSION_EVENT, onReconnect);
+  }, [sessionId]);
 
   return (
     <div

@@ -12,6 +12,9 @@ export function buildProfileSessionRequest(profile: ConnectionProfile) {
       title: profile.name,
       profileId: profile.id,
       protocol: profile.protocol,
+      tabLabel: profileTabLabel(profile),
+      status:
+        profile.protocol === "sftp" ? ("creating" as const) : undefined,
     };
   }
 

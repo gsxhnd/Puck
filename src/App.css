@@ -80,8 +80,21 @@
 
 .dark [data-app-shell] {
   --shell-main-bg: var(--background);
-  --shell-primary-bg: color-mix(in oklch, var(--background) 84%, var(--muted));
-  --shell-secondary-bg: color-mix(in oklch, var(--background) 84%, var(--muted));
+  --shell-primary-bg: color-mix(
+    in oklch,
+    var(--background) 96%,
+    var(--foreground)
+  );
+  --shell-secondary-bg: color-mix(
+    in oklch,
+    var(--background) 92%,
+    var(--foreground)
+  );
+}
+
+[data-app-shell][data-primary-panel-open="true"] .main-panel-root {
+  width: calc(100% + var(--primary-panel-width, 0px));
+  margin-left: calc(-1 * var(--primary-panel-width, 0px));
 }
 
 [data-app-shell] [data-slot="resizable-handle"] {

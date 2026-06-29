@@ -6,7 +6,7 @@ use portable_pty::{Child, MasterPty};
 use serde::Serialize;
 use tauri::{AppHandle, Emitter};
 
-use crate::error::{PuckError, PuckResult};
+use crate::error::{HostKeyPrompt, PuckError, PuckResult};
 
 #[derive(Debug, Clone)]
 pub struct StoredSshProfile {
@@ -25,10 +25,40 @@ pub struct SessionStatusEvent {
     pub status: String,
     pub error_code: Option<String>,
     pub message: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub host_key: Option<HostKeyPrompt>,
 }
 
 pub fn emit_session_status(app: &AppHandle, event: SessionStatusEvent) {
     let _ = app.emit("session:status", event);
+}
+
+pub fn emit_connection_error(app: &AppHandle, session_id: String, error: PuckError) {
+    let payload = error.to_payload();
+    if let Some(host_key) = payload.host_key {
+        emit_session_status(
+            app,
+            SessionStatusEvent {
+                session_id,
+                status: "creating".into(),
+                error_code: Some("host_key_unknown".into()),
+                message: None,
+                host_key: Some(host_key),
+            },
+        );
+        return;
+    }
+
+    emit_session_status(
+        app,
+        SessionStatusEvent {
+            session_id,
+            status: "failed".into(),
+            error_code: Some(payload.code),
+            message: Some(payload.message),
+            host_key: None,
+        },
+    );
 }
 
 #[derive(Clone)]

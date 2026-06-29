@@ -152,6 +152,8 @@ export function TerminalPathBar({ session }: { session: Session }) {
     openPalette();
   };
 
+  const clearSubmenu = () => setActiveSubmenu(null);
+
   const handleSplit = (direction: TerminalSplitDirection) => {
     splitSession(session.id, direction);
     setOpen(false);
@@ -262,9 +264,14 @@ export function TerminalPathBar({ session }: { session: Session }) {
         <Separator />
 
         <div className="relative p-1">
-          <TitleMenuItem label={t("titleMenu.copyPath")} onClick={() => void copyPath()} />
+          <TitleMenuItem
+            label={t("titleMenu.copyPath")}
+            onMouseEnter={clearSubmenu}
+            onClick={() => void copyPath()}
+          />
           <TitleMenuItem
             label={t("titleMenu.revealInFinder")}
+            onMouseEnter={clearSubmenu}
             onClick={() => void revealPath()}
           />
 
@@ -338,21 +345,25 @@ export function TerminalPathBar({ session }: { session: Session }) {
           <TitleMenuItem
             label={t("titleMenu.find")}
             shortcut="⌘F"
+            onMouseEnter={clearSubmenu}
             onClick={() => handleFind("tab")}
           />
           <TitleMenuItem
             label={t("titleMenu.findInAllTabs")}
             shortcut="⇧⌘F"
+            onMouseEnter={clearSubmenu}
             onClick={() => handleFind("all")}
           />
           <TitleMenuItem
             label={t("titleMenu.jumpTo")}
             shortcut="⌘J"
+            onMouseEnter={clearSubmenu}
             onClick={handleJumpTo}
           />
           <TitleMenuItem
             label={t("titleMenu.commandPalette")}
             shortcut="⇧⌘P"
+            onMouseEnter={clearSubmenu}
             onClick={handleCommandPalette}
           />
         </div>

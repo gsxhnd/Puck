@@ -157,7 +157,7 @@ export function MainPanel({
 
   if (!activeSession) {
     return (
-      <div className="flex h-full min-h-0 flex-col overflow-hidden bg-shell-main">
+      <div className="main-panel-root flex h-full min-h-0 flex-col overflow-hidden bg-shell-main">
         <MainPanelHeader
           primaryPanelOpen={primaryPanelOpen}
           secondPanelOpen={secondPanelOpen}

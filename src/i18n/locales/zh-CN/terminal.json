@@ -12,6 +12,9 @@
     "failed": "连接失败",
     "reconnecting": "正在重连"
   },
+  "notifications": {
+    "connectionFailed": "连接 {{session}} 失败"
+  },
   "actions": {
     "clear": "清屏",
     "search": "搜索",

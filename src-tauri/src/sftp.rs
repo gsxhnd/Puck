@@ -7,10 +7,10 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 use crate::error::{puck_err, PuckError, PuckResult};
 use crate::known_hosts::KnownHostsStore;
-use crate::runtime::block_on;
+use crate::runtime::{block_on, runtime};
 use crate::session::{
-    emit_session_status, RemoteFileEntry, SessionManager, SessionStatusEvent, SftpCommand,
-    SftpSessionEntry, StoredSshProfile,
+    emit_connection_error, emit_session_status, RemoteFileEntry, SessionManager,
+    SessionStatusEvent, SftpCommand, SftpSessionEntry, StoredSshProfile,
 };
 use crate::ssh::{connect_authenticated, SshConnectRequest};
 use crate::transfer::{emit_transfer_done, emit_transfer_error, emit_transfer_progress};
@@ -81,6 +81,7 @@ async fn open_sftp_inner(
                         status: "failed".into(),
                         error_code: Some("protocol_error".into()),
                         message: Some(error.to_string()),
+                        host_key: None,
                     },
                 );
                 let _ = session_handle
@@ -149,6 +150,7 @@ async fn open_sftp_inner(
                 status: "disconnected".into(),
                 error_code: None,
                 message: None,
+                host_key: None,
             },
         );
     });
@@ -177,6 +179,7 @@ async fn open_sftp_inner(
             status: "connected".into(),
             error_code: None,
             message: None,
+            host_key: None,
         },
     );
 
@@ -312,29 +315,21 @@ pub fn open_file_connection(
             status: "creating".into(),
             error_code: None,
             message: None,
+            host_key: None,
         },
     );
 
-    match block_on(open_sftp_inner(
-        app.clone(),
-        known_hosts.inner().clone(),
-        request.clone(),
-    )) {
-        Ok(()) => Ok(()),
-        Err(error) => {
-            let payload = error.to_payload();
-            emit_session_status(
-                &app,
-                SessionStatusEvent {
-                    session_id: request.session_id,
-                    status: "failed".into(),
-                    error_code: Some(payload.code.clone()),
-                    message: Some(payload.message.clone()),
-                },
-            );
-            Err(serde_json::to_string(&payload).unwrap_or(payload.message))
+    let app_handle = app.clone();
+    let known_hosts = known_hosts.inner().clone();
+    runtime().spawn(async move {
+        if let Err(error) =
+            open_sftp_inner(app_handle.clone(), known_hosts, request.clone()).await
+        {
+            emit_connection_error(&app_handle, request.session_id, error);
         }
-    }
+    });
+
+    Ok(())
 }
 
 #[tauri::command]

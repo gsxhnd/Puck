@@ -211,6 +211,10 @@ export const useSidebarLayoutStore = create<SidebarLayoutStore>()(
         });
       },
     }),
-    { name: PUCK_CONFIG_KEYS.sidebarLayout, storage: puckPersistStorage },
+    {
+      name: PUCK_CONFIG_KEYS.sidebarLayout,
+      storage: puckPersistStorage,
+      skipHydration: true,
+    },
   ),
 );

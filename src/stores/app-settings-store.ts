@@ -74,6 +74,25 @@ function normalizeDefaultPrivileges(
   };
 }
 
+type PersistedAppSettingsEnvelope = {
+  state?: PersistedAppSettings;
+  version?: number;
+};
+
+function unwrapPersistedSettings(
+  persistedState: unknown,
+): PersistedAppSettings {
+  if (!persistedState || typeof persistedState !== "object") {
+    return {};
+  }
+
+  if ("state" in persistedState) {
+    return (persistedState as PersistedAppSettingsEnvelope).state ?? {};
+  }
+
+  return persistedState as PersistedAppSettings;
+}
+
 function migratePersistedSettings(
   persisted: PersistedAppSettings,
 ): AppSettings {
@@ -154,9 +173,12 @@ export const useAppSettingsStore = create<AppSettingsState>()(
     {
       name: PUCK_CONFIG_KEYS.appSettings,
       storage: puckPersistStorage,
+      skipHydration: true,
       version: 3,
-      migrate: (persistedState) =>
-        migratePersistedSettings(persistedState as PersistedAppSettings),
+      migrate: (persistedState) => ({
+        state: migratePersistedSettings(unwrapPersistedSettings(persistedState)),
+        version: 3,
+      }),
       onRehydrateStorage: () => (state) => {
         if (!state) return;
         applyUiTheme(state.themeMode, state.colorTheme);

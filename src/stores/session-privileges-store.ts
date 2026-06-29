@@ -79,6 +79,7 @@ export const useSessionPrivilegesStore = create<SessionPrivilegesState>()(
     {
       name: PUCK_CONFIG_KEYS.sessionPrivileges,
       storage: puckPersistStorage,
+      skipHydration: true,
       partialize: (state) => ({ bySessionId: state.bySessionId }),
     },
   ),

@@ -1,9 +1,10 @@
 {
-  "searchPlaceholder": "搜索命令…",
+  "searchPlaceholder": "搜索命令…（connect / 连接）",
   "sections": {
     "workingDirectory": "工作目录",
     "view": "视图",
-    "openIn": "打开方式"
+    "openIn": "打开方式",
+    "connections": "连接"
   },
   "commands": {
     "copyPath": "复制路径",
@@ -19,6 +20,7 @@
     "find": "查找",
     "findInAllTabs": "在所有标签中查找",
     "jumpToOutline": "跳转到大纲",
-    "openSettings": "打开设置"
+    "openSettings": "打开设置",
+    "browseConnections": "连接已保存的主机…"
   }
 }

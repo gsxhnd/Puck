@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FolderIcon, SearchIcon } from "lucide-react";
+import { rehydrateConnections } from "@/lib/rehydrate-connections";
 import { useCommandPaletteStore } from "@/stores/command-palette-store";
 import { CommandPaletteItem } from "@/components/command-palette/command-palette-item";
 import { usePaletteCommands } from "@/components/command-palette/use-palette-commands";
@@ -17,13 +18,18 @@ export function CommandPalette() {
   const { t } = useTranslation(["commandPalette", "terminal", "common"]);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const isComposingRef = useRef(false);
   const [query, setQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
 
   const open = useCommandPaletteStore((state) => state.open);
   const page = useCommandPaletteStore((state) => state.page);
+  const draftQuery = useCommandPaletteStore((state) => state.draftQuery);
   const closePalette = useCommandPaletteStore((state) => state.closePalette);
   const setPage = useCommandPaletteStore((state) => state.setPage);
+  const consumeDraftQuery = useCommandPaletteStore(
+    (state) => state.consumeDraftQuery,
+  );
 
   const { sectionOrder, groupedCommands, flatCommands, path } =
     usePaletteCommands(page, query);
@@ -49,8 +55,15 @@ export function CommandPalette() {
       return;
     }
 
+    void rehydrateConnections();
+
+    if (draftQuery) {
+      setQuery(draftQuery);
+      consumeDraftQuery();
+    }
+
     requestAnimationFrame(() => inputRef.current?.focus());
-  }, [open, page]);
+  }, [open, page, draftQuery, consumeDraftQuery]);
 
   useEffect(() => {
     setActiveIndex(0);
@@ -84,16 +97,11 @@ export function CommandPalette() {
         setActiveIndex((index) => Math.max(index - 1, 0));
         return;
       }
-
-      if (event.key === "Enter" && flatCommands[activeIndex]) {
-        event.preventDefault();
-        void executeCommand(flatCommands[activeIndex]);
-      }
     };
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [activeIndex, closePalette, executeCommand, flatCommands, open, page, setPage]);
+  }, [closePalette, flatCommands.length, open, page, setPage]);
 
   useEffect(() => {
     const node = listRef.current?.querySelector("[data-active='true']");
@@ -119,8 +127,32 @@ export function CommandPalette() {
           <SearchIcon className="size-4 shrink-0 text-muted-foreground" />
           <input
             ref={inputRef}
+            autoFocus
             value={query}
             onChange={(event) => setQuery(event.target.value)}
+            onCompositionStart={() => {
+              isComposingRef.current = true;
+            }}
+            onCompositionEnd={() => {
+              isComposingRef.current = false;
+            }}
+            onKeyDown={(event) => {
+              if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+                event.preventDefault();
+                return;
+              }
+
+              if (event.key === "Enter") {
+                if (event.nativeEvent.isComposing || isComposingRef.current) {
+                  return;
+                }
+                event.preventDefault();
+                const command = flatCommands[activeIndex];
+                if (command) {
+                  void executeCommand(command);
+                }
+              }
+            }}
             placeholder={t("commandPalette:searchPlaceholder")}
             className="h-8 min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
           />

@@ -1,6 +1,7 @@
 import { AppShell } from "@/layout/app-shell/app-shell";
 import { AppProviders } from "@/layout/providers/app-providers";
 import { ConnectionBridgeListener } from "@/layout/providers/connection-bridge-listener";
+import { SessionStatusListener } from "@/layout/providers/session-status-listener";
 import { ConnectionSync } from "@/layout/providers/connection-sync";
 import { AuxiliaryWindowSync } from "@/layout/providers/auxiliary-window-sync";
 import { MacWindowChrome } from "@/layout/providers/mac-window-chrome";
@@ -22,6 +23,7 @@ function App() {
       <AuxiliaryWindowSync />
       <MacWindowChrome />
       <ConnectionBridgeListener />
+      <SessionStatusListener />
       {mode === "settings" ? (
         <SettingsShell />
       ) : mode === "connections" ? (

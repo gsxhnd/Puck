@@ -1,9 +1,10 @@
 {
-  "searchPlaceholder": "Search commands…",
+  "searchPlaceholder": "Search commands… (connect / 连接)",
   "sections": {
     "workingDirectory": "Working Directory",
     "view": "View",
-    "openIn": "Open in"
+    "openIn": "Open in",
+    "connections": "Connections"
   },
   "commands": {
     "copyPath": "Copy Path",
@@ -19,6 +20,7 @@
     "find": "Find",
     "findInAllTabs": "Find in All Tabs",
     "jumpToOutline": "Jump to Outline",
-    "openSettings": "Open Settings"
+    "openSettings": "Open Settings",
+    "browseConnections": "Connect to Saved Host…"
   }
 }

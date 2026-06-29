@@ -108,6 +108,7 @@ export const useConnectionStore = create<ConnectionStore>()(
     {
       name: PUCK_CONFIG_KEYS.connections,
       storage: puckPersistStorage,
+      skipHydration: true,
       merge: (persisted, current) => {
         const stored = persisted as Partial<ConnectionStore> | undefined;
         if (stored?.profiles && stored.profiles.length > 0) {
