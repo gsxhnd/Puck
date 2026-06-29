@@ -10,6 +10,7 @@ import { RECONNECT_SESSION_EVENT } from "@/lib/reconnect-session";
 import {
   clearConnectionSecrets,
   markConnectionEstablished,
+  peekConnectionSecrets,
   resetConnectionEstablishment,
   resolveSecretsForConnection,
 } from "@/lib/resolve-connection-credential";
@@ -104,7 +105,9 @@ export function FileManager({
     updateSessionStatus(sessionId, "creating");
     setError(null);
 
-    const secrets = await resolveSecretsForConnection(profile);
+    const secrets =
+      peekConnectionSecrets(profile.id) ??
+      (await resolveSecretsForConnection(profile));
     if (secrets === null) {
       updateSessionStatus(sessionId, "failed");
       return;

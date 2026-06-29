@@ -11,6 +11,7 @@ type CredentialPromptRequest = {
 
 type CredentialPromptStore = {
   request: CredentialPromptRequest | null;
+  pendingByKey: Map<string, Promise<string | null>>;
   prompt: (
     profile: ConnectionProfile,
     field: CredentialField,
@@ -19,13 +20,40 @@ type CredentialPromptStore = {
   cancel: () => void;
 };
 
+function promptKey(profileId: string, field: CredentialField): string {
+  return `${profileId}:${field}`;
+}
+
 export const useCredentialPromptStore = create<CredentialPromptStore>()(
   (set, get) => ({
     request: null,
-    prompt: (profile, field) =>
-      new Promise((resolve) => {
-        set({ request: { profile, field, resolve } });
-      }),
+    pendingByKey: new Map(),
+    prompt: (profile, field) => {
+      const key = promptKey(profile.id, field);
+      const existing = get().pendingByKey.get(key);
+      if (existing) {
+        return existing;
+      }
+
+      let promise!: Promise<string | null>;
+      promise = new Promise<string | null>((resolve) => {
+        const finish = (value: string | null) => {
+          const pending = get().pendingByKey;
+          if (pending.get(key) === promise) {
+            pending.delete(key);
+            set({ pendingByKey: new Map(pending) });
+          }
+          resolve(value);
+        };
+
+        set({
+          request: { profile, field, resolve: finish },
+          pendingByKey: new Map(get().pendingByKey).set(key, promise),
+        });
+      });
+
+      return promise;
+    },
     submit: (value) => {
       const current = get().request;
       if (!current) return;

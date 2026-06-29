@@ -11,6 +11,7 @@ type ConnectionEstablishmentKind = "ssh" | "sftp";
 
 const pendingSecrets = new Map<string, ConnectionSecrets>();
 const establishmentFlags = new Map<string, Set<ConnectionEstablishmentKind>>();
+const inflightResolutions = new Map<string, Promise<ConnectionSecrets | null>>();
 
 export function stashConnectionSecrets(
   profileId: string,
@@ -27,6 +28,7 @@ export function peekConnectionSecrets(
 
 export function clearConnectionSecrets(profileId: string): void {
   pendingSecrets.delete(profileId);
+  inflightResolutions.delete(profileId);
 }
 
 export function resetConnectionEstablishment(profileId: string): void {
@@ -51,7 +53,7 @@ export function markConnectionEstablished(
 
 /**
  * Returns stashed secrets for the current connection attempt, prompting at most once.
- * Secrets stay in memory until all required connections finish or the session is reset.
+ * Concurrent callers share the same in-flight resolution.
  */
 export async function resolveSecretsForConnection(
   profile: ConnectionProfile,
@@ -60,13 +62,30 @@ export async function resolveSecretsForConnection(
     return peekConnectionSecrets(profile.id)!;
   }
 
-  const resolved = await resolveConnectionCredential(profile);
-  if (resolved === null) {
-    return null;
+  const inflight = inflightResolutions.get(profile.id);
+  if (inflight) {
+    return inflight;
   }
 
-  stashConnectionSecrets(profile.id, resolved);
-  return resolved;
+  const resolution = (async () => {
+    const resolved = await resolveConnectionCredential(profile);
+    if (resolved === null) {
+      return null;
+    }
+
+    stashConnectionSecrets(profile.id, resolved);
+    return resolved;
+  })();
+
+  inflightResolutions.set(profile.id, resolution);
+
+  try {
+    return await resolution;
+  } finally {
+    if (inflightResolutions.get(profile.id) === resolution) {
+      inflightResolutions.delete(profile.id);
+    }
+  }
 }
 
 export async function resolveConnectionCredential(

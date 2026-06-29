@@ -46,6 +46,7 @@ import { useShellUiStore } from "@/stores/shell-ui-store";
 import {
   clearConnectionSecrets,
   markConnectionEstablished,
+  peekConnectionSecrets,
   resetConnectionEstablishment,
   resolveSecretsForConnection,
 } from "@/lib/resolve-connection-credential";
@@ -115,7 +116,9 @@ export function SshTerminalPane({
     }
     updateSessionStatus(sessionId, "creating");
 
-    const secrets = await resolveSecretsForConnection(profile);
+    const secrets =
+      peekConnectionSecrets(profile.id) ??
+      (await resolveSecretsForConnection(profile));
     if (secrets === null) {
       updateSessionStatus(sessionId, "failed");
       return;
@@ -263,8 +266,13 @@ export function SshTerminalPane({
         void closeBackendSession(sessionId);
       }
       void closeSftpExplorerSession(sessionId);
-      clearConnectionSecrets(profile.id);
-      resetConnectionEstablishment(profile.id);
+      const sessionStillOpen = useSessionStore
+        .getState()
+        .sessions.some((session) => session.id === sessionId);
+      if (!sessionStillOpen) {
+        clearConnectionSecrets(profile.id);
+        resetConnectionEstablishment(profile.id);
+      }
       terminal.dispose();
       terminalRef.current = null;
       fitAddonRef.current = null;

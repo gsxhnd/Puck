@@ -8,6 +8,7 @@ import { onSessionStatus } from "@/lib/tauri-ssh";
 import { parsePuckError } from "@/lib/puck-error";
 import {
   markConnectionEstablished,
+  peekConnectionSecrets,
   resolveSecretsForConnection,
 } from "@/lib/resolve-connection-credential";
 import { closeSession } from "@/lib/tauri-terminal";
@@ -69,7 +70,9 @@ export async function ensureSftpExplorerSession(
     }
   }
 
-  const secrets = await resolveSecretsForConnection(profile);
+  const secrets =
+    peekConnectionSecrets(profile.id) ??
+    (await resolveSecretsForConnection(profile));
   if (secrets === null) {
     throw new Error("cancelled");
   }
