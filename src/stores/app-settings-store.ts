@@ -10,8 +10,8 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { puckPersistStorage, PUCK_CONFIG_KEYS } from "@/lib/puck-config-storage";
 import {
-  DEFAULT_COLOR_THEME,
-  isColorThemeId,
+  BUILTIN_COLOR_THEME_ID,
+  isValidColorThemeId,
   type ColorThemeId,
 } from "@/lib/color-themes";
 import {
@@ -101,9 +101,9 @@ function migratePersistedSettings(
     persisted.uiTheme ??
     DEFAULT_APP_SETTINGS.themeMode;
   const colorTheme =
-    persisted.colorTheme && isColorThemeId(persisted.colorTheme)
+    persisted.colorTheme && isValidColorThemeId(persisted.colorTheme)
       ? persisted.colorTheme
-      : DEFAULT_COLOR_THEME;
+      : BUILTIN_COLOR_THEME_ID;
 
   return {
     language: persisted.language ?? DEFAULT_APP_SETTINGS.language,
@@ -138,12 +138,12 @@ export const useAppSettingsStore = create<AppSettingsState>()(
       setColorTheme: (colorTheme) => {
         set({ colorTheme });
         const { themeMode } = useAppSettingsStore.getState();
-        applyUiTheme(themeMode, colorTheme);
+        void applyUiTheme(themeMode, colorTheme);
       },
       setThemeMode: (themeMode) => {
         set({ themeMode });
         const { colorTheme } = useAppSettingsStore.getState();
-        applyUiTheme(themeMode, colorTheme);
+        void applyUiTheme(themeMode, colorTheme);
       },
       setFontFamily: (fontFamily) => set({ fontFamily }),
       setFontSize: (fontSize) => set({ fontSize }),
@@ -164,7 +164,7 @@ export const useAppSettingsStore = create<AppSettingsState>()(
         })),
       reset: () => {
         set({ ...DEFAULT_APP_SETTINGS });
-        applyUiTheme(
+        void applyUiTheme(
           DEFAULT_APP_SETTINGS.themeMode,
           DEFAULT_APP_SETTINGS.colorTheme,
         );
@@ -181,7 +181,7 @@ export const useAppSettingsStore = create<AppSettingsState>()(
       }),
       onRehydrateStorage: () => (state) => {
         if (!state) return;
-        applyUiTheme(state.themeMode, state.colorTheme);
+        void applyUiTheme(state.themeMode, state.colorTheme);
         if (state.language) {
           void i18n.changeLanguage(state.language);
         }

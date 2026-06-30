@@ -27,7 +27,7 @@
   },
   "appearance": {
     "colorTheme": "Color theme",
-    "colorThemeDescription": "Choose the overall palette for the UI and terminal",
+    "colorThemeDescription": "Choose the overall palette for the UI and terminal; add custom themes in the themes folder under your Puck config directory",
     "themeMode": "Appearance",
     "themeModeDescription": "Use light, dark, or system mode with the selected palette",
     "fontFamily": "Terminal Font",
@@ -89,17 +89,5 @@
     "version": "Version",
     "description": "A cross-platform terminal and file transfer workspace built with Tauri",
     "manageConnections": "Open remote management"
-  },
-  "colorThemes": {
-    "default": "Default",
-    "zinc": "Zinc",
-    "slate": "Slate",
-    "stone": "Stone",
-    "rose": "Rose",
-    "blue": "Blue",
-    "green": "Green",
-    "violet": "Violet",
-    "catppuccin": "Catppuccin",
-    "nord": "Nord"
   }
 }

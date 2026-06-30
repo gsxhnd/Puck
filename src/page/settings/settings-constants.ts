@@ -1,4 +1,3 @@
-import { COLOR_THEME_IDS } from "@/lib/color-themes";
 import type { AppLanguage, ThemeMode } from "@/types/settings";
 import type { SessionPrivilegeKey } from "@/types/session-privileges";
 import type { LucideIcon } from "lucide-react";
@@ -46,7 +45,6 @@ export const SETTINGS_SECTION_ICONS: Record<SettingsSection, LucideIcon> = {
 
 export const THEME_MODES: ThemeMode[] = ["light", "dark", "system"];
 export const LANGUAGES: AppLanguage[] = ["zh-CN", "en-US"];
-export { COLOR_THEME_IDS };
 
 /** Default session privilege toggles shown under Terminal settings. */
 export const DEFAULT_PRIVILEGE_ITEMS: Array<{

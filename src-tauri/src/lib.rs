@@ -5,6 +5,7 @@
 //! 并把全部 `#[tauri::command]` 注册到调用处理器中供前端 invoke 调用。
 
 mod config;
+mod themes;
 mod connections_window;
 mod credential;
 mod editor_window;
@@ -78,6 +79,7 @@ fn apply_macos_window_chrome(
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let config_store = Arc::new(PuckConfigStore::new());
+    let _themes_state = themes::ThemesState::new();
 
     let mut builder = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
@@ -129,6 +131,9 @@ pub fn run() {
             config::get_puck_config_section,
             config::set_puck_config_section,
             config::remove_puck_config_section,
+            themes::get_themes_dir,
+            themes::list_color_themes_command,
+            themes::read_color_theme_css_command,
             known_hosts::get_known_hosts_file_path,
             known_hosts::list_known_hosts,
             known_hosts::delete_known_host,

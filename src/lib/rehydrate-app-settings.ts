@@ -13,7 +13,7 @@ export async function rehydrateAppSettings(): Promise<void> {
   await useAppSettingsStore.persist.rehydrate();
   const { language, themeMode, colorTheme, primaryPanelOpen, secondPanelOpen } =
     useAppSettingsStore.getState();
-  applyUiTheme(themeMode, colorTheme);
+  await applyUiTheme(themeMode, colorTheme);
   if (i18n.language !== language) {
     await i18n.changeLanguage(language);
   }

@@ -12,7 +12,7 @@ export function ThemeSync() {
   useLayoutEffect(() => registerNextThemeModeSync(setTheme), [setTheme]);
 
   useLayoutEffect(() => {
-    applyUiTheme(themeMode, colorTheme);
+    void applyUiTheme(themeMode, colorTheme);
   }, [colorTheme, themeMode]);
 
   useLayoutEffect(() => {
@@ -20,7 +20,7 @@ export function ThemeSync() {
 
     const media = window.matchMedia("(prefers-color-scheme: dark)");
     const onChange = () => {
-      applyUiTheme("system", colorTheme);
+      void applyUiTheme("system", colorTheme);
     };
 
     media.addEventListener("change", onChange);

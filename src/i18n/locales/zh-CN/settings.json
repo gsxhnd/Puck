@@ -27,7 +27,7 @@
   },
   "appearance": {
     "colorTheme": "配色方案",
-    "colorThemeDescription": "选择界面与终端的整体配色风格",
+    "colorThemeDescription": "选择界面与终端的整体配色风格；可在配置目录的 themes 文件夹中添加自定义主题",
     "themeMode": "外观模式",
     "themeModeDescription": "在所选配色下使用浅色、深色或跟随系统",
     "fontFamily": "终端字体",
@@ -89,17 +89,5 @@
     "version": "版本",
     "description": "基于 Tauri 的跨平台终端与文件传输工作台",
     "manageConnections": "打开远程管理"
-  },
-  "colorThemes": {
-    "default": "默认",
-    "zinc": "Zinc",
-    "slate": "Slate",
-    "stone": "Stone",
-    "rose": "Rose",
-    "blue": "Blue",
-    "green": "Green",
-    "violet": "Violet",
-    "catppuccin": "Catppuccin",
-    "nord": "Nord"
   }
 }

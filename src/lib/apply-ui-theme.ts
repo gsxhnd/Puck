@@ -1,4 +1,8 @@
-import { DEFAULT_COLOR_THEME, type ColorThemeId } from "@/lib/color-themes";
+import {
+  BUILTIN_COLOR_THEME_ID,
+  type ColorThemeId,
+} from "@/lib/color-themes";
+import { ensureColorThemeStylesLoaded } from "@/lib/color-theme-registry";
 import {
   buildTerminalThemeKey,
   syncTerminalThemeCache,
@@ -32,7 +36,7 @@ export function applyDocumentTheme(
   const effectiveTheme = getEffectiveTheme(themeMode);
   document.documentElement.classList.toggle("dark", effectiveTheme === "dark");
   document.documentElement.dataset.colorTheme =
-    colorTheme ?? DEFAULT_COLOR_THEME;
+    colorTheme ?? BUILTIN_COLOR_THEME_ID;
 
   try {
     localStorage.setItem(NEXT_THEMES_STORAGE_KEY, themeMode);
@@ -56,11 +60,12 @@ export function scheduleTerminalThemeSync(
 }
 
 /** Sync DOM, next-themes, and xterm palette after settings change or rehydrate. */
-export function applyUiTheme(
+export async function applyUiTheme(
   themeMode: ThemeMode,
   colorTheme: ColorThemeId,
-): void {
-  applyDocumentTheme(themeMode, colorTheme);
+): Promise<void> {
+  const resolvedTheme = await ensureColorThemeStylesLoaded(colorTheme);
+  applyDocumentTheme(themeMode, resolvedTheme);
   syncNextThemeMode?.(themeMode);
-  scheduleTerminalThemeSync(themeMode, colorTheme);
+  scheduleTerminalThemeSync(themeMode, resolvedTheme);
 }

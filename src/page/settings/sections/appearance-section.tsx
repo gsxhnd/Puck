@@ -1,9 +1,7 @@
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAppSettingsStore } from "@/stores/app-settings-store";
-import {
-  COLOR_THEME_IDS,
-  THEME_MODES,
-} from "@/page/settings/settings-constants";
+import { THEME_MODES } from "@/page/settings/settings-constants";
 import type { ColorThemeId } from "@/lib/color-themes";
 import type { ThemeMode } from "@/types/settings";
 import { DEFAULT_TERMINAL_FONT_FAMILY } from "@/types/settings";
@@ -13,6 +11,11 @@ import {
   SettingsRow,
   SettingsSelect,
 } from "@/page/settings/settings-primitives";
+import {
+  getAvailableColorThemes,
+  refreshColorThemeRegistry,
+} from "@/lib/color-theme-registry";
+import { formatColorThemeDisplayName } from "@/lib/color-theme-display-name";
 
 /**
  * Appearance settings: color theme, light/dark mode, terminal font.
@@ -20,7 +23,7 @@ import {
  * 「外观」设置区段：应用配色主题、明暗模式，以及终端字体族与字号。
  */
 export function AppearanceSettingsSection() {
-  const { t } = useTranslation(["settings", "common"]);
+  const { t, i18n } = useTranslation(["settings", "common"]);
   const colorTheme = useAppSettingsStore((state) => state.colorTheme);
   const themeMode = useAppSettingsStore((state) => state.themeMode);
   const fontFamily = useAppSettingsStore((state) => state.fontFamily);
@@ -29,14 +32,33 @@ export function AppearanceSettingsSection() {
   const setThemeMode = useAppSettingsStore((state) => state.setThemeMode);
   const setFontFamily = useAppSettingsStore((state) => state.setFontFamily);
   const setFontSize = useAppSettingsStore((state) => state.setFontSize);
+  const [, setRegistryTick] = useState(0);
+
+  useEffect(() => {
+    void refreshColorThemeRegistry().then(() => {
+      setRegistryTick((value) => value + 1);
+    });
+  }, []);
+
+  const availableThemes = getAvailableColorThemes();
 
   const themeModeLabels = Object.fromEntries(
     THEME_MODES.map((item) => [item, t(`common:theme.${item}`)]),
   ) as Record<ThemeMode, string>;
 
-  const colorThemeLabels = Object.fromEntries(
-    COLOR_THEME_IDS.map((item) => [item, t(`settings:colorThemes.${item}`)]),
-  ) as Record<ColorThemeId, string>;
+  const colorThemeOptions = useMemo(
+    () => availableThemes.map((theme) => theme.id),
+    [availableThemes],
+  );
+
+  const colorThemeLabels = useMemo(() => {
+    return Object.fromEntries(
+      availableThemes.map((theme) => [
+        theme.id,
+        formatColorThemeDisplayName(theme.id, i18n.language),
+      ]),
+    ) as Record<ColorThemeId, string>;
+  }, [availableThemes, i18n.language]);
 
   return (
     <section>
@@ -50,7 +72,7 @@ export function AppearanceSettingsSection() {
         >
           <SettingsCombobox
             value={colorTheme}
-            options={[...COLOR_THEME_IDS]}
+            options={colorThemeOptions}
             labels={colorThemeLabels}
             onChange={setColorTheme}
             className="w-56"
