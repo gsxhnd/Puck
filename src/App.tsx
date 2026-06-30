@@ -4,6 +4,7 @@ import { ConnectionBridgeListener } from "@/layout/providers/connection-bridge-l
 import { SessionStatusListener } from "@/layout/providers/session-status-listener";
 import { ConnectionSync } from "@/layout/providers/connection-sync";
 import { AuxiliaryWindowSync } from "@/layout/providers/auxiliary-window-sync";
+import { MacMenuListener } from "@/layout/providers/mac-menu-listener";
 import { MacWindowChrome } from "@/layout/providers/mac-window-chrome";
 import { SettingsSync } from "@/layout/providers/settings-sync";
 import { ThemeSync } from "@/layout/providers/theme-sync";
@@ -22,6 +23,7 @@ function App() {
       <ConnectionSync />
       <AuxiliaryWindowSync />
       <MacWindowChrome />
+      <MacMenuListener />
       <ConnectionBridgeListener />
       <SessionStatusListener />
       {mode === "settings" ? (

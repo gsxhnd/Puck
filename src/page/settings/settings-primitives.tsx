@@ -1,4 +1,13 @@
-import type { ReactNode } from "react";
+import { useMemo, type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
+import {
+  Combobox,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxList,
+} from "@/components/ui/combobox";
 import {
   Select,
   SelectContent,
@@ -7,6 +16,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+
+type ComboboxOption<T extends string> = {
+  value: T;
+  label: string;
+};
 
 /**
  * Reusable label + control row for settings sections.
@@ -78,5 +92,71 @@ export function SettingsSelect<T extends string>({
         ))}
       </SelectContent>
     </Select>
+  );
+}
+
+/**
+ * Searchable combobox wrapper for settings with longer option lists.
+ *
+ * 设置页可搜索下拉选择器，适合配色方案、语言等选项较多的场景。
+ */
+export function SettingsCombobox<T extends string>({
+  value,
+  options,
+  labels,
+  onChange,
+  className,
+  placeholder,
+}: {
+  value: T;
+  options: T[];
+  labels: Record<T, string>;
+  onChange: (value: T) => void;
+  className?: string;
+  placeholder?: string;
+}) {
+  const { t } = useTranslation("settings");
+
+  const items = useMemo(
+    () =>
+      options.map((option) => ({
+        value: option,
+        label: labels[option],
+      })),
+    [labels, options],
+  );
+
+  const selectedItem = useMemo(
+    () => items.find((item) => item.value === value) ?? null,
+    [items, value],
+  );
+
+  return (
+    <Combobox
+      items={items}
+      value={selectedItem}
+      onValueChange={(next) => {
+        if (next) {
+          onChange(next.value);
+        }
+      }}
+      isItemEqualToValue={(item, selected) => item.value === selected.value}
+    >
+      <ComboboxInput
+        placeholder={placeholder}
+        showClear={false}
+        className={cn("w-48", className)}
+      />
+      <ComboboxContent>
+        <ComboboxEmpty>{t("settings:combobox.noResults")}</ComboboxEmpty>
+        <ComboboxList>
+          {(item: ComboboxOption<T>) => (
+            <ComboboxItem key={item.value} value={item}>
+              {item.label}
+            </ComboboxItem>
+          )}
+        </ComboboxList>
+      </ComboboxContent>
+    </Combobox>
   );
 }

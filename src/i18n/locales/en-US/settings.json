@@ -1,5 +1,9 @@
 {
   "title": "Settings",
+  "combobox": {
+    "noResults": "No results found",
+    "selectSection": "Select a section"
+  },
   "sections": {
     "general": "General",
     "appearance": "Appearance",

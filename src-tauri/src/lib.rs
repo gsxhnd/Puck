@@ -9,6 +9,8 @@ mod connections_window;
 mod credential;
 mod error;
 mod known_hosts;
+#[cfg(target_os = "macos")]
+mod macos_menu;
 mod runtime;
 mod session;
 mod settings_window;
@@ -76,7 +78,7 @@ fn apply_macos_window_chrome(
 pub fn run() {
     let config_store = Arc::new(PuckConfigStore::new());
 
-    tauri::Builder::default()
+    let mut builder = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .manage(config_store.clone())
@@ -86,7 +88,19 @@ pub fn run() {
             configure_macos_window(app);
 
             Ok(())
-        })
+        });
+
+    #[cfg(target_os = "macos")]
+    {
+        builder = builder
+            .enable_macos_default_menu(false)
+            .menu(|app| macos_menu::build_app_menu(app))
+            .on_menu_event(|app, event| {
+                macos_menu::handle_menu_event(app, event);
+            });
+    }
+
+    builder
         .invoke_handler(tauri::generate_handler![
             terminal::list_shells,
             terminal::get_system_identity,

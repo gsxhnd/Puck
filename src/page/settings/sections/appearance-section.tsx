@@ -9,6 +9,7 @@ import type { ThemeMode } from "@/types/settings";
 import { DEFAULT_TERMINAL_FONT_FAMILY } from "@/types/settings";
 import { Input } from "@/components/ui/input";
 import {
+  SettingsCombobox,
   SettingsRow,
   SettingsSelect,
 } from "@/page/settings/settings-primitives";
@@ -47,7 +48,7 @@ export function AppearanceSettingsSection() {
           title={t("settings:appearance.colorTheme")}
           description={t("settings:appearance.colorThemeDescription")}
         >
-          <SettingsSelect
+          <SettingsCombobox
             value={colorTheme}
             options={[...COLOR_THEME_IDS]}
             labels={colorThemeLabels}

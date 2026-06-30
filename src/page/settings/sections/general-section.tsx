@@ -5,8 +5,8 @@ import type { AppLanguage } from "@/types/settings";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import {
+  SettingsCombobox,
   SettingsRow,
-  SettingsSelect,
 } from "@/page/settings/settings-primitives";
 
 /**
@@ -49,7 +49,7 @@ export function GeneralSettingsSection() {
           title={t("settings:general.language")}
           description={t("settings:general.languageDescription")}
         >
-          <SettingsSelect
+          <SettingsCombobox
             value={language}
             options={LANGUAGES}
             labels={languageLabels}

@@ -5,15 +5,10 @@ import {
   SETTINGS_SECTION_ICONS,
   type SettingsSection,
 } from "@/page/settings/settings-constants";
-import { SettingsSelect } from "@/page/settings/settings-primitives";
-import { GeneralSettingsSection } from "@/page/settings/sections/general-section";
-import { AppearanceSettingsSection } from "@/page/settings/sections/appearance-section";
-import { TerminalSettingsSection } from "@/page/settings/sections/terminal-section";
-import { ConnectionsSettingsSection } from "@/page/settings/sections/connections-section";
-import { KeyboardSettingsSection } from "@/page/settings/sections/keyboard-section";
-import { AboutSettingsSection } from "@/page/settings/sections/about-section";
+import { SettingsCombobox } from "@/page/settings/settings-primitives";
+import { SETTINGS_SECTION_VIEWS } from "@/page/settings/settings-section-views";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { cn } from "@/lib/utils";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 /**
  * Settings window page with sidebar navigation and section panels.
@@ -30,64 +25,55 @@ export function SettingsPage() {
   const sectionLabels = Object.fromEntries(
     SETTINGS_SECTIONS.map((section) => [section, t(`settings:sections.${section}`)]),
   ) as Record<SettingsSection, string>;
+  const ActiveSection = SETTINGS_SECTION_VIEWS[activeSection];
 
   return (
-    <div className="flex h-full min-h-0">
-      <aside className="hidden w-52 shrink-0 border-r bg-muted/20 p-3 md:block">
+    <Tabs
+      value={activeSection}
+      onValueChange={(value) => setActiveSection(value as SettingsSection)}
+      orientation="vertical"
+      className="h-full min-h-0"
+    >
+      <aside className="hidden w-52 shrink-0 flex-col border-r bg-muted/20 p-3 md:flex">
         <div className="px-2 py-1 text-sm font-semibold">
           {t("settings:title")}
         </div>
-        <nav className="mt-2 space-y-1">
+        <TabsList
+          variant="line"
+          className="mt-2 h-fit w-full flex-col items-stretch bg-transparent p-0"
+        >
           {SETTINGS_SECTIONS.map((section) => {
             const Icon = SETTINGS_SECTION_ICONS[section];
-            const isActive = activeSection === section;
             return (
-              <button
+              <TabsTrigger
                 key={section}
-                type="button"
-                onClick={() => setActiveSection(section)}
-                className={cn(
-                  "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors",
-                  isActive
-                    ? "bg-muted font-medium text-foreground"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground",
-                )}
+                value={section}
+                className="w-full justify-start gap-2 px-2 py-1.5"
               >
-                <Icon
-                  className={cn(
-                    "size-4 shrink-0",
-                    isActive ? "text-foreground" : "opacity-70",
-                  )}
-                />
+                <Icon data-icon="inline-start" />
                 <span className="min-w-0 truncate">{sectionLabels[section]}</span>
-              </button>
+              </TabsTrigger>
             );
           })}
-        </nav>
+        </TabsList>
       </aside>
 
       <ScrollArea className="min-h-0 flex-1">
         <div className="mx-auto max-w-3xl space-y-6 p-6">
           <div className="md:hidden">
-            <SettingsSelect
+            <SettingsCombobox
               value={activeSection}
               options={[...SETTINGS_SECTIONS]}
               labels={sectionLabels}
               onChange={setActiveSection}
               className="w-full"
+              placeholder={t("settings:combobox.selectSection")}
             />
           </div>
 
-          {activeSection === "general" ? <GeneralSettingsSection /> : null}
-          {activeSection === "appearance" ? <AppearanceSettingsSection /> : null}
-          {activeSection === "terminal" ? <TerminalSettingsSection /> : null}
-          {activeSection === "connections" ? (
-            <ConnectionsSettingsSection />
-          ) : null}
-          {activeSection === "keyboard" ? <KeyboardSettingsSection /> : null}
-          {activeSection === "about" ? <AboutSettingsSection /> : null}
+          <ActiveSection key={activeSection} />
         </div>
       </ScrollArea>
-    </div>
+    </Tabs>
   );
 }

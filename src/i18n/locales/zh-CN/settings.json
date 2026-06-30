@@ -1,5 +1,9 @@
 {
   "title": "设置",
+  "combobox": {
+    "noResults": "无匹配项",
+    "selectSection": "选择设置分类"
+  },
   "sections": {
     "general": "通用",
     "appearance": "外观",
