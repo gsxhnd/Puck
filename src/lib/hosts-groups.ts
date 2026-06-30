@@ -1,7 +1,9 @@
 import type { ConnectionProfile } from "@/types/connection";
 import {
+  AUTO_GROUP_PREFIX,
   CUSTOM_GROUP_PREFIX,
   GROUP_DROP_PREFIX,
+  autoGroupId,
   type CustomSidebarGroup,
   isCustomGroupId,
   layoutFromFlatItems,
@@ -58,7 +60,31 @@ function resolveProfileGroupId(
   profile: ConnectionProfile,
   profileGroup: Record<string, string>,
 ): string {
-  return profileGroup[profile.id] ?? HOST_DEFAULT_GROUP;
+  const assigned = profileGroup[profile.id];
+  if (!assigned || assigned === HOST_DEFAULT_GROUP) {
+    return autoGroupId(profile.protocol);
+  }
+  return assigned;
+}
+
+export function groupProfilesByProtocol(
+  profiles: ConnectionProfile[],
+): Array<{ key: string; profiles: ConnectionProfile[] }> {
+  const groups = new Map<string, ConnectionProfile[]>();
+
+  for (const profile of profiles) {
+    const key = profile.protocol;
+    const list = groups.get(key) ?? [];
+    list.push(profile);
+    groups.set(key, list);
+  }
+
+  return [...groups.entries()]
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([key, groupedProfiles]) => ({
+      key,
+      profiles: groupedProfiles,
+    }));
 }
 
 function orderProfilesInGroup(
@@ -95,16 +121,18 @@ function groupNameForId(
 ): string {
   const custom = customGroups.find((group) => group.id === groupId);
   if (custom) return custom.name;
+  if (groupId.startsWith(AUTO_GROUP_PREFIX)) {
+    return groupId.slice(AUTO_GROUP_PREFIX.length);
+  }
+  if (groupId === HOST_DEFAULT_GROUP) return "";
   return groupId;
 }
 
 function usesCustomLayout(
   customGroups: CustomSidebarGroup[],
   profileGroup: Record<string, string>,
-  groupEnabled: boolean,
   sort: HostSort,
 ): boolean {
-  if (!groupEnabled) return false;
   return (
     customGroups.length > 0 ||
     Object.keys(profileGroup).length > 0 ||
@@ -123,7 +151,7 @@ export function buildHostGroups(
 ): HostDisplayGroup[] {
   const sorted = sortProfiles(profiles, sort);
 
-  if (!usesCustomLayout(customGroups, profileGroup, groupEnabled, sort)) {
+  if (!groupEnabled) {
     return [
       {
         id: HOST_DEFAULT_GROUP,
@@ -134,12 +162,20 @@ export function buildHostGroups(
     ];
   }
 
+  if (!usesCustomLayout(customGroups, profileGroup, sort)) {
+    return groupProfilesByProtocol(sorted).map((group) => ({
+      id: autoGroupId(group.key),
+      name: group.key,
+      isCustom: false,
+      profiles: group.profiles,
+    }));
+  }
+
   const buckets = new Map<string, ConnectionProfile[]>();
 
   for (const group of customGroups) {
     buckets.set(group.id, []);
   }
-  buckets.set(HOST_DEFAULT_GROUP, buckets.get(HOST_DEFAULT_GROUP) ?? []);
 
   for (const profile of sorted) {
     const groupId = resolveProfileGroupId(profile, profileGroup);

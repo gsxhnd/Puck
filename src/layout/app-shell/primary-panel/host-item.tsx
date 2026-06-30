@@ -8,7 +8,8 @@ import {
 } from "lucide-react";
 import type { ConnectionProfile } from "@/types/connection";
 import { requestOpenConnectionProfile } from "@/lib/connection-bridge";
-import { HOST_SORTABLE_GROUP, HOST_DEFAULT_GROUP } from "@/lib/hosts-groups";
+import { HOST_SORTABLE_GROUP } from "@/lib/hosts-groups";
+import { autoGroupId } from "@/lib/sidebar-groups";
 import { openProfileSession } from "@/lib/open-profile-session";
 import { useConnectionStore } from "@/stores/connection-store";
 import { useHostsLayoutStore } from "@/stores/hosts-layout-store";
@@ -158,7 +159,9 @@ export function SortableHostItem({
               {t("connections:contextMenu.moveToGroup")}
             </ContextMenuSubTrigger>
             <ContextMenuSubContent className="w-44">
-              <ContextMenuItem onClick={() => handleMoveToGroup(HOST_DEFAULT_GROUP)}>
+              <ContextMenuItem
+                onClick={() => handleMoveToGroup(autoGroupId(profile.protocol))}
+              >
                 {t("connections:contextMenu.ungrouped")}
               </ContextMenuItem>
               <ContextMenuSeparator />

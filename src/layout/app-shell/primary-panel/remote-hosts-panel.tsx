@@ -136,7 +136,7 @@ export function RemoteHostsPanel({
     return offsets;
   }, [displayGroups]);
 
-  if (remoteProfiles.length === 0) {
+  if (remoteProfiles.length === 0 && customGroups.length === 0) {
     return (
       <div className="px-2 py-6 text-center text-xs text-muted-foreground">
         {t("connections:manager.empty")}

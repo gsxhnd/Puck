@@ -9,7 +9,7 @@ import { useSidebarLayoutStore } from "@/stores/sidebar-layout-store";
 import { useHostsLayoutStore } from "@/stores/hosts-layout-store";
 import { useShellUiStore } from "@/stores/shell-ui-store";
 import { PrimaryPanelHeader } from "@/layout/app-shell/primary-panel/primary-panel-header";
-import { PrimaryPanelTabs } from "@/layout/app-shell/primary-panel/primary-panel-tabs";
+import { PrimaryPanelTabsList } from "@/layout/app-shell/primary-panel/primary-panel-tabs";
 import { SessionGroup } from "@/layout/app-shell/primary-panel/session-group";
 import { NameInputDialog } from "@/layout/app-shell/primary-panel/name-input-dialog";
 import { RemoteHostsPanel } from "@/layout/app-shell/primary-panel/remote-hosts-panel";
@@ -24,6 +24,7 @@ import {
 } from "@/lib/sidebar-groups";
 import type { HostSort } from "@/lib/hosts-groups";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { formatSidebarLabel } from "@/lib/session-display";
 
 /**
@@ -159,10 +160,6 @@ export function PrimaryPanel({
     setCreateGroupOpen(true);
   };
 
-  const handlePanelTabChange = (tab: PrimaryPanelTab) => {
-    setPrimaryPanelTab(tab);
-  };
-
   const openDefaultTerminal = () => {
     showSessionPanel();
     addSession({
@@ -243,9 +240,15 @@ export function PrimaryPanel({
       />
 
       {!collapsed ? (
-        <>
+        <Tabs
+          value={primaryPanelTab}
+          onValueChange={(value) =>
+            setPrimaryPanelTab(value as PrimaryPanelTab)
+          }
+          className="flex min-h-0 flex-1 flex-col"
+        >
           <div className="flex shrink-0 items-center justify-between px-2 py-1">
-            <PrimaryPanelTabs tab={primaryPanelTab} onTabChange={handlePanelTabChange} />
+            <PrimaryPanelTabsList />
             <div className="flex items-center justify-end gap-0.5">
               <SidebarPanelToolbar
                 tab={primaryPanelTab}
@@ -262,53 +265,66 @@ export function PrimaryPanel({
               />
             </div>
           </div>
-          <ScrollArea className="min-h-0 flex-1 px-2 py-1">
-            <SidebarPanelContextMenu
-              tab={primaryPanelTab}
-              onPrimaryAdd={handlePrimaryAdd}
-              onOpenTerminalPalette={openTerminalPalette}
-              onQuickConnect={openQuickConnectDialog}
-              onCreateGroup={handleCreateGroup}
-            >
-              {primaryPanelTab === "sessions" ? (
-              <DragDropProvider onDragEnd={handleDragEnd}>
-                {displayGroups.length === 0 ? (
-                  <div className="px-2 py-6 text-center text-xs text-muted-foreground">
-                    {t("common:empty.noSessions")}
-                  </div>
-                ) : (
-                  <div className="space-y-2 pb-2">
-                    {displayGroups.map((group) => (
-                      <SessionGroup
-                        key={group.id}
-                        group={group}
-                        collapsed={collapsedGroups.has(group.id)}
-                        onToggle={() => toggleGroup(group.id)}
-                        onRename={
-                          group.isCustom
-                            ? () => setRenameGroupId(group.id)
-                            : undefined
-                        }
-                        onDelete={
-                          group.isCustom ? () => deleteGroup(group.id) : undefined
-                        }
-                        onRenameSession={setRenameSessionId}
-                        sessionIndexOffset={groupOffsets.get(group.id) ?? 0}
-                      />
-                    ))}
-                  </div>
-                )}
-              </DragDropProvider>
-            ) : (
-              <RemoteHostsPanel
-                sort={hostSort}
-                onSortChange={setHostSort}
-                onRenameGroup={setRenameHostGroupId}
-              />
-            )}
-            </SidebarPanelContextMenu>
-          </ScrollArea>
-        </>
+          <TabsContent value="sessions" className="min-h-0 flex-1 overflow-hidden">
+            <ScrollArea className="h-full px-2 py-1">
+              <SidebarPanelContextMenu
+                tab="sessions"
+                onPrimaryAdd={handlePrimaryAdd}
+                onOpenTerminalPalette={openTerminalPalette}
+                onQuickConnect={openQuickConnectDialog}
+                onCreateGroup={handleCreateGroup}
+              >
+                <DragDropProvider onDragEnd={handleDragEnd}>
+                  {displayGroups.length === 0 ? (
+                    <div className="px-2 py-6 text-center text-xs text-muted-foreground">
+                      {t("common:empty.noSessions")}
+                    </div>
+                  ) : (
+                    <div className="space-y-2 pb-2">
+                      {displayGroups.map((group) => (
+                        <SessionGroup
+                          key={group.id}
+                          group={group}
+                          collapsed={collapsedGroups.has(group.id)}
+                          onToggle={() => toggleGroup(group.id)}
+                          onRename={
+                            group.isCustom
+                              ? () => setRenameGroupId(group.id)
+                              : undefined
+                          }
+                          onDelete={
+                            group.isCustom
+                              ? () => deleteGroup(group.id)
+                              : undefined
+                          }
+                          onRenameSession={setRenameSessionId}
+                          sessionIndexOffset={groupOffsets.get(group.id) ?? 0}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </DragDropProvider>
+              </SidebarPanelContextMenu>
+            </ScrollArea>
+          </TabsContent>
+          <TabsContent value="hosts" className="min-h-0 flex-1 overflow-hidden">
+            <ScrollArea className="h-full px-2 py-1">
+              <SidebarPanelContextMenu
+                tab="hosts"
+                onPrimaryAdd={handlePrimaryAdd}
+                onOpenTerminalPalette={openTerminalPalette}
+                onQuickConnect={openQuickConnectDialog}
+                onCreateGroup={handleCreateGroup}
+              >
+                <RemoteHostsPanel
+                  sort={hostSort}
+                  onSortChange={setHostSort}
+                  onRenameGroup={setRenameHostGroupId}
+                />
+              </SidebarPanelContextMenu>
+            </ScrollArea>
+          </TabsContent>
+        </Tabs>
       ) : null}
 
       <ConnectionDialog
