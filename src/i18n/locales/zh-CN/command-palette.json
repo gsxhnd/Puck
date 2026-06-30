@@ -1,7 +1,23 @@
 {
-  "searchPlaceholder": "搜索命令…（connect / 连接）",
-  "terminalPickerPlaceholder": "选择终端或远程主机…",
+  "searchPlaceholder": "搜索命令…",
+  "clearScope": "清除范围",
+  "scopes": {
+    "connect": "连接",
+    "view": "视图",
+    "cwd": "目录",
+    "open": "打开",
+    "action": "操作"
+  },
+  "placeholders": {
+    "connect": "搜索终端或远程主机…",
+    "view": "搜索视图命令…",
+    "cwd": "搜索目录命令…",
+    "open": "选择打开方式…",
+    "action": "搜索操作…"
+  },
   "sections": {
+    "recent": "最近",
+    "scopes": "命令",
     "workingDirectory": "工作目录",
     "view": "视图",
     "openIn": "打开方式",
@@ -12,7 +28,7 @@
   "commands": {
     "copyPath": "复制路径",
     "revealInFinder": "在 Finder 中显示",
-    "openIn": "打开方式",
+    "openIn": "打开方式…",
     "toggleTabsPanel": "切换标签面板",
     "toggleDetailsPanel": "切换详情面板",
     "detailsInfo": "详情：信息",
@@ -24,7 +40,6 @@
     "findInAllTabs": "在所有标签中查找",
     "jumpToOutline": "跳转到大纲",
     "openSettings": "打开设置",
-    "browseConnections": "连接已保存的主机…",
     "newLocalTerminal": "新建本地终端",
     "pickTerminal": "选择终端…",
     "quickConnect": "快速连接",

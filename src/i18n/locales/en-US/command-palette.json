@@ -1,7 +1,23 @@
 {
-  "searchPlaceholder": "Search commands… (connect / 连接)",
-  "terminalPickerPlaceholder": "Pick a terminal or remote host…",
+  "searchPlaceholder": "Search commands…",
+  "clearScope": "Clear scope",
+  "scopes": {
+    "connect": "Connect",
+    "view": "View",
+    "cwd": "Directory",
+    "open": "Open",
+    "action": "Actions"
+  },
+  "placeholders": {
+    "connect": "Search terminals or remote hosts…",
+    "view": "Search view commands…",
+    "cwd": "Search directory commands…",
+    "open": "Pick an app to open with…",
+    "action": "Search actions…"
+  },
   "sections": {
+    "recent": "Recent",
+    "scopes": "Commands",
     "workingDirectory": "Working Directory",
     "view": "View",
     "openIn": "Open in",
@@ -12,7 +28,7 @@
   "commands": {
     "copyPath": "Copy Path",
     "revealInFinder": "Reveal in Finder",
-    "openIn": "Open in",
+    "openIn": "Open in…",
     "toggleTabsPanel": "Toggle Tabs Panel",
     "toggleDetailsPanel": "Toggle Details Panel",
     "detailsInfo": "Details: Info",
@@ -24,7 +40,6 @@
     "findInAllTabs": "Find in All Tabs",
     "jumpToOutline": "Jump to Outline",
     "openSettings": "Open Settings",
-    "browseConnections": "Connect to Saved Host…",
     "newLocalTerminal": "New Local Terminal",
     "pickTerminal": "Pick Terminal…",
     "quickConnect": "Quick Connect",

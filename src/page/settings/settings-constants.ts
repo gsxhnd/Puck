@@ -81,7 +81,7 @@ export const KEYBOARD_SHORTCUTS: Array<{ labelKey: string; shortcut: string }> =
   [
     { labelKey: "settings:keyboard.newTerminal", shortcut: "⌘T" },
     { labelKey: "settings:keyboard.closeTab", shortcut: "⌘W" },
-    { labelKey: "settings:keyboard.commandPalette", shortcut: "⌘K" },
+    { labelKey: "settings:keyboard.commandPalette", shortcut: "⇧⌘P" },
     { labelKey: "settings:keyboard.openSettings", shortcut: "⌘," },
     { labelKey: "settings:keyboard.togglePrimaryPanel", shortcut: "⇧⌘L" },
     { labelKey: "settings:keyboard.toggleSecondPanel", shortcut: "⇧⌘R" },

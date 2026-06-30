@@ -149,7 +149,7 @@ export function AppShell() {
         return;
       }
 
-      if ((key === "p" && event.shiftKey) || key === "k") {
+      if (key === "p" && event.shiftKey) {
         event.preventDefault();
         openPalette();
         return;

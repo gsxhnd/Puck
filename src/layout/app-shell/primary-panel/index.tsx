@@ -91,8 +91,8 @@ export function PrimaryPanel({
   const [renameGroupId, setRenameGroupId] = useState<string | null>(null);
   const [renameHostGroupId, setRenameHostGroupId] = useState<string | null>(null);
   const [renameSessionId, setRenameSessionId] = useState<string | null>(null);
-  const openTerminalPalette = useCommandPaletteStore(
-    (state) => state.openTerminalPalette,
+  const openConnectPalette = useCommandPaletteStore(
+    (state) => state.openConnectPalette,
   );
 
   const sidebarSessions = useMemo(
@@ -236,7 +236,7 @@ export function PrimaryPanel({
         onToggleCollapsed={onToggleCollapsed}
         tab={primaryPanelTab}
         onPrimaryAdd={handlePrimaryAdd}
-        onOpenTerminalPalette={openTerminalPalette}
+        onOpenTerminalPalette={openConnectPalette}
       />
 
       {!collapsed ? (
@@ -261,7 +261,7 @@ export function PrimaryPanel({
                 hostGroupingEnabled={hostGroupingEnabled}
                 setHostGroupingEnabled={setHostGroupingEnabled}
                 onPrimaryAdd={handlePrimaryAdd}
-                onOpenTerminalPalette={openTerminalPalette}
+                onOpenTerminalPalette={openConnectPalette}
               />
             </div>
           </div>
@@ -270,7 +270,7 @@ export function PrimaryPanel({
               <SidebarPanelContextMenu
                 tab="sessions"
                 onPrimaryAdd={handlePrimaryAdd}
-                onOpenTerminalPalette={openTerminalPalette}
+                onOpenTerminalPalette={openConnectPalette}
                 onQuickConnect={openQuickConnectDialog}
                 onCreateGroup={handleCreateGroup}
               >
@@ -312,7 +312,7 @@ export function PrimaryPanel({
               <SidebarPanelContextMenu
                 tab="hosts"
                 onPrimaryAdd={handlePrimaryAdd}
-                onOpenTerminalPalette={openTerminalPalette}
+                onOpenTerminalPalette={openConnectPalette}
                 onQuickConnect={openQuickConnectDialog}
                 onCreateGroup={handleCreateGroup}
               >

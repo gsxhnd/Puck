@@ -83,7 +83,7 @@ pub fn build_app_menu(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
                 "command_palette",
                 "Command Palette",
                 true,
-                Some("CmdOrCtrl+K"),
+                Some("CmdOrCtrl+Shift+P"),
             )?,
             &PredefinedMenuItem::separator(app)?,
             &MenuItem::with_id(

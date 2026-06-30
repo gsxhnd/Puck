@@ -1,5 +1,23 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import {
+  CopyIcon,
+  FolderOpenIcon,
+  FolderSearchIcon,
+  GitBranchIcon,
+  InfoIcon,
+  ListTreeIcon,
+  PanelLeftIcon,
+  PanelRightIcon,
+  PlugZapIcon,
+  PlusIcon,
+  SearchIcon,
+  ServerIcon,
+  SettingsIcon,
+  SquareTerminalIcon,
+  UploadIcon,
+  ZapIcon,
+} from "lucide-react";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { openPathInApp } from "@/lib/open-in-app";
 import { openSettingsWindow } from "@/lib/open-settings-window";
@@ -18,11 +36,12 @@ import type { SecondPanelView } from "@/types/shell-ui";
 import { toast } from "sonner";
 import {
   OPEN_IN_APPS,
+  PALETTE_PREFIXES,
   matchesPaletteQuery,
-  parseConnectPrefix,
+  parsePalettePrefix,
   type CommandSection,
   type PaletteCommand,
-  type PalettePage,
+  type PalettePrefixId,
 } from "@/components/command-palette/types";
 
 function openLocalDefaultTerminal() {
@@ -58,16 +77,17 @@ function profileConnectLabel(profile: ConnectionProfile): string {
   return `${profile.name} — ${user}@${host}${port}`;
 }
 
+function filterCommands(commands: PaletteCommand[], filter: string) {
+  const normalized = filter.trim().toLowerCase();
+  if (!normalized) return commands;
+  return commands.filter((command) => matchesPaletteQuery(command, normalized));
+}
+
 /**
- * Builds the filtered, grouped command list for the current palette page.
- *
- * 根据当前面板页（根页或「用…打开」子页）、搜索关键词以及活动终端会话，
- * 组装命令面板可执行的命令列表，并按区段分组供 UI 渲染。
+ * Builds the filtered, grouped command list for the current palette prefix scope.
  */
-export function usePaletteCommands(
-  page: PalettePage,
-  query: string,
-): {
+export function usePaletteCommands(query: string): {
+  activePrefix: PalettePrefixId | null;
   sectionOrder: CommandSection[];
   groupedCommands: Map<CommandSection, PaletteCommand[]>;
   flatCommands: PaletteCommand[];
@@ -75,8 +95,6 @@ export function usePaletteCommands(
 } {
   const { t } = useTranslation(["commandPalette", "terminal"]);
   const open = useCommandPaletteStore((state) => state.open);
-  const setPage = useCommandPaletteStore((state) => state.setPage);
-  const setDraftQuery = useCommandPaletteStore((state) => state.setDraftQuery);
 
   const profiles = useConnectionStore((state) => state.profiles);
 
@@ -113,247 +131,38 @@ export function usePaletteCommands(
   const resolvedPath = activeSession?.cwd ?? path ?? null;
   const terminalActive = activeSession?.kind === "terminal";
 
-  const rootCommands = useMemo<PaletteCommand[]>(() => {
-    const viewDetail = (view: SecondPanelView, label: string) => ({
-      id: `details-${view}`,
-      section: "view" as const,
-      label,
-      checked: secondPanelOpen && secondPanelView === view,
-      keywords: [view, "details"],
-      run: () => showSecondPanelView(view),
-    });
-
-    const commands: PaletteCommand[] = [
-      {
-        id: "toggle-tabs",
-        section: "view",
-        label: t("commandPalette:commands.toggleTabsPanel"),
-        shortcut: "⇧⌘L",
-        checked: primaryPanelOpen,
-        keywords: ["tabs", "sidebar", "primary"],
-        run: () => togglePrimaryPanel(),
-      },
-      {
-        id: "toggle-details",
-        section: "view",
-        label: t("commandPalette:commands.toggleDetailsPanel"),
-        shortcut: "⇧⌘R",
-        checked: secondPanelOpen,
-        keywords: ["details", "second", "right"],
-        run: () => toggleSecondPanel(),
-      },
-      viewDetail("info", t("commandPalette:commands.detailsInfo")),
-      viewDetail("outline", t("commandPalette:commands.detailsOutline")),
-      viewDetail("files", t("commandPalette:commands.detailsFiles")),
-      viewDetail("git", t("commandPalette:commands.detailsGit")),
-      viewDetail("transfers", t("commandPalette:commands.detailsTransfers")),
-      {
-        id: "open-settings",
-        section: "view",
-        label: t("commandPalette:commands.openSettings"),
-        shortcut: "⌘,",
-        keywords: ["settings", "preferences"],
-        run: () => void openSettingsWindow(),
-      },
-      {
-        id: "browse-connections",
-        section: "view",
-        label: t("commandPalette:commands.browseConnections"),
-        hasSubmenu: true,
-        keywords: ["connect", "ssh", "remote", "host", "连接", "主机", "远程"],
-        run: () => setDraftQuery("connect "),
-      },
-      {
-        id: "new-terminal-default",
-        section: "actions",
-        label: t("commandPalette:commands.newLocalTerminal"),
-        keywords: ["terminal", "local", "new", "终端", "本地"],
-        run: () => openLocalDefaultTerminal(),
-      },
-      {
-        id: "pick-terminal",
-        section: "actions",
-        label: t("commandPalette:commands.pickTerminal"),
-        hasSubmenu: true,
-        keywords: ["terminal", "shell", "wsl", "powershell", "cmd", "终端"],
-        run: () => setPage("new-terminal"),
-      },
-      {
-        id: "quick-connect",
-        section: "actions",
-        label: t("commandPalette:commands.quickConnect"),
-        keywords: ["quick", "connect", "ssh", "快速连接"],
-        run: () => {
-          window.dispatchEvent(new CustomEvent("puck:quick-connect"));
-        },
-      },
-      {
-        id: "new-connection",
-        section: "actions",
-        label: t("commandPalette:commands.newConnection"),
-        keywords: ["connection", "host", "remote", "新建连接"],
-        run: () => openHostEditor(null),
-      },
-      {
-        id: "show-sessions-tab",
-        section: "view",
-        label: t("commandPalette:commands.showSessionsTab"),
-        checked: primaryPanelTab === "sessions",
-        keywords: ["sessions", "tabs", "会话"],
-        run: () => showSessionPanel(),
-      },
-      {
-        id: "show-hosts-tab",
-        section: "view",
-        label: t("commandPalette:commands.showHostsTab"),
-        checked: primaryPanelTab === "hosts",
-        keywords: ["hosts", "remote", "远程主机"],
-        run: () => setPrimaryPanelTab("hosts"),
-      },
-    ];
-
-    if (terminalActive) {
-      commands.unshift(
-        {
-          id: "open-in",
-          section: "workingDirectory",
-          label: t("commandPalette:commands.openIn"),
-          hasSubmenu: true,
-          disabled: !resolvedPath,
-          keywords: ["open", "editor", "finder"],
-          run: () => setPage("open-in"),
-        },
-        {
-          id: "reveal",
-          section: "workingDirectory",
-          label: t("commandPalette:commands.revealInFinder"),
-          disabled: !resolvedPath || !isTauri(),
-          keywords: ["finder", "reveal"],
-          run: async () => {
-            if (!resolvedPath) return;
-            try {
-              await revealItemInDir(resolvedPath);
-            } catch {
-              toast.error(t("terminal:titleMenu.revealFailed"));
-            }
-          },
-        },
-        {
-          id: "copy-path",
-          section: "workingDirectory",
-          label: t("commandPalette:commands.copyPath"),
-          disabled: !path,
-          keywords: ["copy", "path", "cwd"],
-          run: async () => {
-            if (!path) return;
-            await navigator.clipboard.writeText(path);
-          },
-        },
-        {
-          id: "find",
-          section: "view",
-          label: t("commandPalette:commands.find"),
-          shortcut: "⌘F",
-          keywords: ["search", "find"],
-          run: () => openSearch("tab"),
-        },
-        {
-          id: "find-all",
-          section: "view",
-          label: t("commandPalette:commands.findInAllTabs"),
-          shortcut: "⇧⌘F",
-          keywords: ["search", "find", "all"],
-          run: () => openSearch("all"),
-        },
-        {
-          id: "jump-outline",
-          section: "view",
-          label: t("commandPalette:commands.jumpToOutline"),
-          shortcut: "⌘J",
-          keywords: ["jump", "outline"],
-          run: () => {
-            showSecondPanelView("outline");
-            window.dispatchEvent(new CustomEvent("puck:focus-outline"));
-          },
-        },
-      );
-    }
-
-    return commands;
-  }, [
-    openSearch,
-    openHostEditor,
-    path,
-    primaryPanelTab,
-    primaryPanelOpen,
-    resolvedPath,
-    secondPanelOpen,
-    secondPanelView,
-    setPage,
-    setDraftQuery,
-    setPrimaryPanelTab,
-    showSessionPanel,
-    showSecondPanelView,
-    t,
-    terminalActive,
-    togglePrimaryPanel,
-    toggleSecondPanel,
-  ]);
-
-  const openInCommands = useMemo<PaletteCommand[]>(() => {
-    if (!resolvedPath) {
-      return [];
-    }
-
-    return OPEN_IN_APPS.map((app) => ({
-      id: `open-in-${app.id}`,
-      section: "openIn" as const,
-      label: t(app.labelKey),
-      keywords: [app.id, "open"],
-      run: async () => {
-        try {
-          await openPathInApp(resolvedPath, app.id);
-        } catch {
-          toast.error(t("terminal:titleMenu.openInFailed"));
-        }
-      },
+  const scopeCommands = useMemo<PaletteCommand[]>(() => {
+    return PALETTE_PREFIXES.filter((prefix) => {
+      if (prefix.id === "cwd" || prefix.id === "open") {
+        return terminalActive && Boolean(resolvedPath);
+      }
+      return true;
+    }).map((prefix) => ({
+      id: `scope-${prefix.id}`,
+      section: "scopes" as const,
+      label: t(prefix.labelKey),
+      icon: prefix.id === "connect" ? PlugZapIcon : prefix.id === "view" ? PanelRightIcon : prefix.id === "cwd" ? FolderOpenIcon : prefix.id === "open" ? FolderSearchIcon : ZapIcon,
+      keywords: [...prefix.aliases, prefix.id],
+      prefixTarget: prefix.id,
+      run: () => {},
     }));
-  }, [resolvedPath, t]);
+  }, [resolvedPath, t, terminalActive]);
 
   const connectCommands = useMemo<PaletteCommand[]>(() => {
-    return profiles
-      .filter((profile) => profile.protocol !== "local" && !profile.ephemeral)
-      .map((profile) => ({
-        id: `connect-${profile.id}`,
-        section: "connections" as const,
-        label: profileConnectLabel(profile),
-        keywords: [
-          "connect",
-          "连接",
-          profile.name,
-          profile.host ?? "",
-          profile.username ?? "",
-          profile.protocol,
-        ],
-        run: () => {
-          openSavedConnection(profile);
-        },
-      }));
-  }, [profiles]);
-
-  const newTerminalCommands = useMemo<PaletteCommand[]>(() => {
     const localCommands: PaletteCommand[] = [
       {
-        id: "new-terminal-default",
+        id: "connect-local-default",
         section: "terminal",
         label: t("terminal:localDefault"),
+        icon: SquareTerminalIcon,
         keywords: ["local", "default", "terminal", "本地", "默认"],
         run: () => openLocalDefaultTerminal(),
       },
       ...shells.map((shell) => ({
-        id: `shell-${shell.id}`,
+        id: `connect-shell-${shell.id}`,
         section: "terminal" as const,
         label: shell.name,
+        icon: SquareTerminalIcon,
         keywords: [shell.kind, shell.name, "local", "shell"],
         run: () => openLocalShellTerminal(shell),
       })),
@@ -365,6 +174,7 @@ export function usePaletteCommands(
         id: `connect-${profile.id}`,
         section: "connections" as const,
         label: profileConnectLabel(profile),
+        icon: ServerIcon,
         keywords: [
           "connect",
           "remote",
@@ -382,56 +192,253 @@ export function usePaletteCommands(
     return [...localCommands, ...remoteCommands];
   }, [profiles, shells, t]);
 
-  const connectPrefix = parseConnectPrefix(query);
-  const flatCommands = useMemo(() => {
-    if (page === "new-terminal") {
-      const normalized = query.trim().toLowerCase();
-      if (!normalized) return newTerminalCommands;
-      return newTerminalCommands.filter((command) =>
-        matchesPaletteQuery(command, normalized),
+  const viewCommands = useMemo<PaletteCommand[]>(() => {
+    const viewDetail = (view: SecondPanelView, label: string, icon: PaletteCommand["icon"]) => ({
+      id: `view-details-${view}`,
+      section: "view" as const,
+      label,
+      icon,
+      checked: secondPanelOpen && secondPanelView === view,
+      keywords: [view, "details", "view"],
+      run: () => showSecondPanelView(view),
+    });
+
+    const commands: PaletteCommand[] = [
+      {
+        id: "view-toggle-tabs",
+        section: "view",
+        label: t("commandPalette:commands.toggleTabsPanel"),
+        icon: PanelLeftIcon,
+        shortcut: "⇧⌘L",
+        checked: primaryPanelOpen,
+        keywords: ["tabs", "sidebar", "primary", "view"],
+        run: () => togglePrimaryPanel(),
+      },
+      {
+        id: "view-toggle-details",
+        section: "view",
+        label: t("commandPalette:commands.toggleDetailsPanel"),
+        icon: PanelRightIcon,
+        shortcut: "⇧⌘R",
+        checked: secondPanelOpen,
+        keywords: ["details", "second", "right", "view"],
+        run: () => toggleSecondPanel(),
+      },
+      viewDetail("info", t("commandPalette:commands.detailsInfo"), InfoIcon),
+      viewDetail("outline", t("commandPalette:commands.detailsOutline"), ListTreeIcon),
+      viewDetail("files", t("commandPalette:commands.detailsFiles"), FolderOpenIcon),
+      viewDetail("git", t("commandPalette:commands.detailsGit"), GitBranchIcon),
+      viewDetail("transfers", t("commandPalette:commands.detailsTransfers"), UploadIcon),
+      {
+        id: "view-sessions-tab",
+        section: "view",
+        label: t("commandPalette:commands.showSessionsTab"),
+        icon: SquareTerminalIcon,
+        checked: primaryPanelTab === "sessions",
+        keywords: ["sessions", "tabs", "会话", "view"],
+        run: () => showSessionPanel(),
+      },
+      {
+        id: "view-hosts-tab",
+        section: "view",
+        label: t("commandPalette:commands.showHostsTab"),
+        icon: ServerIcon,
+        checked: primaryPanelTab === "hosts",
+        keywords: ["hosts", "remote", "远程主机", "view"],
+        run: () => setPrimaryPanelTab("hosts"),
+      },
+      {
+        id: "view-settings",
+        section: "view",
+        label: t("commandPalette:commands.openSettings"),
+        icon: SettingsIcon,
+        shortcut: "⌘,",
+        keywords: ["settings", "preferences", "view"],
+        run: () => void openSettingsWindow(),
+      },
+    ];
+
+    if (terminalActive) {
+      commands.push(
+        {
+          id: "view-find",
+          section: "view",
+          label: t("commandPalette:commands.find"),
+          icon: SearchIcon,
+          shortcut: "⌘F",
+          keywords: ["search", "find", "view"],
+          run: () => openSearch("tab"),
+        },
+        {
+          id: "view-find-all",
+          section: "view",
+          label: t("commandPalette:commands.findInAllTabs"),
+          icon: SearchIcon,
+          shortcut: "⇧⌘F",
+          keywords: ["search", "find", "all", "view"],
+          run: () => openSearch("all"),
+        },
+        {
+          id: "view-jump-outline",
+          section: "view",
+          label: t("commandPalette:commands.jumpToOutline"),
+          icon: ListTreeIcon,
+          shortcut: "⌘J",
+          keywords: ["jump", "outline", "view"],
+          run: () => {
+            showSecondPanelView("outline");
+            window.dispatchEvent(new CustomEvent("puck:focus-outline"));
+          },
+        },
       );
     }
 
-    if (page === "open-in") {
-      const normalized = query.trim().toLowerCase();
-      if (!normalized) return openInCommands;
-      return openInCommands.filter((command) =>
-        matchesPaletteQuery(command, normalized),
-      );
-    }
-
-    const filterConnectCommands = (filter: string) => {
-      if (!filter) return connectCommands;
-      return connectCommands.filter((command) =>
-        matchesPaletteQuery(command, filter),
-      );
-    };
-
-    if (connectPrefix.active) {
-      return filterConnectCommands(connectPrefix.filter);
-    }
-
-    const normalized = query.trim();
-    if (!normalized) return rootCommands;
-
-    const matchedConnections = connectCommands.filter((command) =>
-      matchesPaletteQuery(command, normalized),
-    );
-    const matchedRoot = rootCommands.filter((command) =>
-      matchesPaletteQuery(command, normalized),
-    );
-
-    return [...matchedConnections, ...matchedRoot];
+    return commands;
   }, [
-    connectCommands,
-    connectPrefix.active,
-    connectPrefix.filter,
-    newTerminalCommands,
-    openInCommands,
-    page,
-    query,
-    rootCommands,
+    openSearch,
+    primaryPanelTab,
+    primaryPanelOpen,
+    secondPanelOpen,
+    secondPanelView,
+    setPrimaryPanelTab,
+    showSessionPanel,
+    showSecondPanelView,
+    t,
+    terminalActive,
+    togglePrimaryPanel,
+    toggleSecondPanel,
   ]);
+
+  const cwdCommands = useMemo<PaletteCommand[]>(() => {
+    if (!terminalActive) return [];
+
+    return [
+      {
+        id: "cwd-reveal",
+        section: "workingDirectory",
+        label: t("commandPalette:commands.revealInFinder"),
+        icon: FolderSearchIcon,
+        disabled: !resolvedPath || !isTauri(),
+        keywords: ["finder", "reveal", "cwd", "dir"],
+        run: async () => {
+          if (!resolvedPath) return;
+          try {
+            await revealItemInDir(resolvedPath);
+          } catch {
+            toast.error(t("terminal:titleMenu.revealFailed"));
+          }
+        },
+      },
+      {
+        id: "cwd-copy-path",
+        section: "workingDirectory",
+        label: t("commandPalette:commands.copyPath"),
+        icon: CopyIcon,
+        disabled: !path,
+        keywords: ["copy", "path", "cwd", "dir"],
+        run: async () => {
+          if (!path) return;
+          await navigator.clipboard.writeText(path);
+        },
+      },
+      {
+        id: "cwd-open-prefix",
+        section: "workingDirectory",
+        label: t("commandPalette:commands.openIn"),
+        icon: FolderOpenIcon,
+        disabled: !resolvedPath,
+        keywords: ["open", "editor", "finder", "cwd"],
+        prefixTarget: "open",
+        run: () => {},
+      },
+    ];
+  }, [path, resolvedPath, t, terminalActive]);
+
+  const openCommands = useMemo<PaletteCommand[]>(() => {
+    if (!resolvedPath) return [];
+
+    return OPEN_IN_APPS.map((app) => ({
+      id: `open-in-${app.id}`,
+      section: "openIn" as const,
+      label: t(app.labelKey),
+      icon: FolderOpenIcon,
+      keywords: [app.id, "open"],
+      run: async () => {
+        try {
+          await openPathInApp(resolvedPath, app.id);
+        } catch {
+          toast.error(t("terminal:titleMenu.openInFailed"));
+        }
+      },
+    }));
+  }, [resolvedPath, t]);
+
+  const actionCommands = useMemo<PaletteCommand[]>(() => {
+    return [
+      {
+        id: "action-new-terminal",
+        section: "actions",
+        label: t("commandPalette:commands.newLocalTerminal"),
+        icon: SquareTerminalIcon,
+        keywords: ["terminal", "local", "new", "终端", "本地", "action"],
+        run: () => openLocalDefaultTerminal(),
+      },
+      {
+        id: "action-connect",
+        section: "actions",
+        label: t("commandPalette:commands.pickTerminal"),
+        icon: PlugZapIcon,
+        keywords: ["terminal", "shell", "connect", "连接", "action"],
+        prefixTarget: "connect",
+        run: () => {},
+      },
+      {
+        id: "action-quick-connect",
+        section: "actions",
+        label: t("commandPalette:commands.quickConnect"),
+        icon: ZapIcon,
+        keywords: ["quick", "connect", "ssh", "快速连接", "action"],
+        run: () => {
+          window.dispatchEvent(new CustomEvent("puck:quick-connect"));
+        },
+      },
+      {
+        id: "action-new-connection",
+        section: "actions",
+        label: t("commandPalette:commands.newConnection"),
+        icon: PlusIcon,
+        keywords: ["connection", "host", "remote", "新建连接", "action"],
+        run: () => openHostEditor(null),
+      },
+    ];
+  }, [openHostEditor, t]);
+
+  const commandsByPrefix = useMemo(
+    () =>
+      ({
+        connect: connectCommands,
+        view: viewCommands,
+        cwd: cwdCommands,
+        open: openCommands,
+        action: actionCommands,
+      }) satisfies Record<PalettePrefixId, PaletteCommand[]>,
+    [actionCommands, connectCommands, cwdCommands, openCommands, viewCommands],
+  );
+
+  const parsed = parsePalettePrefix(query);
+
+  const flatCommands = useMemo(() => {
+    if (parsed.active && parsed.prefix) {
+      return filterCommands(commandsByPrefix[parsed.prefix], parsed.filter);
+    }
+
+    const normalized = query.trim().toLowerCase();
+    if (!normalized) {
+      return scopeCommands;
+    }
+
+    return scopeCommands.filter((command) => matchesPaletteQuery(command, normalized));
+  }, [commandsByPrefix, parsed.active, parsed.filter, parsed.prefix, query, scopeCommands]);
 
   const groupedCommands = useMemo(() => {
     const groups = new Map<CommandSection, PaletteCommand[]>();
@@ -444,37 +451,34 @@ export function usePaletteCommands(
   }, [flatCommands]);
 
   const sectionOrder = useMemo<CommandSection[]>(() => {
-    if (page === "open-in") {
-      return ["openIn"];
-    }
-
-    if (page === "new-terminal") {
-      const sections: CommandSection[] = [];
-      if (flatCommands.some((command) => command.section === "terminal")) {
-        sections.push("terminal");
-      }
-      if (flatCommands.some((command) => command.section === "connections")) {
-        sections.push("connections");
-      }
-      return sections.length > 0 ? sections : ["terminal"];
+    if (!parsed.active) {
+      return flatCommands.length > 0 ? ["scopes"] : ["scopes"];
     }
 
     const sections: CommandSection[] = [];
-    if (flatCommands.some((command) => command.section === "connections")) {
-      sections.push("connections");
-    }
-    if (flatCommands.some((command) => command.section === "actions")) {
-      sections.push("actions");
-    }
-    if (flatCommands.some((command) => command.section === "workingDirectory")) {
-      sections.push("workingDirectory");
-    }
-    if (flatCommands.some((command) => command.section === "view")) {
-      sections.push("view");
+    const order: CommandSection[] = [
+      "terminal",
+      "connections",
+      "actions",
+      "workingDirectory",
+      "openIn",
+      "view",
+    ];
+
+    for (const section of order) {
+      if (flatCommands.some((command) => command.section === section)) {
+        sections.push(section);
+      }
     }
 
-    return sections.length > 0 ? sections : ["view"];
-  }, [flatCommands, page]);
+    return sections.length > 0 ? sections : ["scopes"];
+  }, [flatCommands, parsed.active]);
 
-  return { sectionOrder, groupedCommands, flatCommands, path };
+  return {
+    activePrefix: parsed.prefix,
+    sectionOrder,
+    groupedCommands,
+    flatCommands,
+    path,
+  };
 }
