@@ -139,6 +139,16 @@ async fn open_sftp_inner(
                 } => {
                     run_download(&sftp, app, transfer_id, local_path, remote_path).await;
                 }
+                SftpCommand::ReadFile { path, reply } => {
+                    let _ = reply.send(read_remote_file(&sftp, &path).await);
+                }
+                SftpCommand::WriteFile {
+                    path,
+                    content,
+                    reply,
+                } => {
+                    let _ = reply.send(write_remote_file(&sftp, &path, &content).await);
+                }
                 SftpCommand::Shutdown => break,
             }
         }
@@ -219,6 +229,48 @@ async fn remove_path(sftp: &SftpSession, path: &str) -> Result<(), String> {
     } else {
         sftp.remove_file(path).await.map_err(|e| e.to_string())
     }
+}
+
+const MAX_EDITOR_FILE_BYTES: u64 = 2 * 1024 * 1024;
+
+async fn read_remote_file(sftp: &SftpSession, path: &str) -> Result<String, String> {
+    let mut remote = sftp.open(path).await.map_err(|error| error.to_string())?;
+    let size = remote
+        .metadata()
+        .await
+        .ok()
+        .and_then(|meta| meta.size)
+        .unwrap_or(0);
+    if size > MAX_EDITOR_FILE_BYTES {
+        return Err("File is too large to edit".into());
+    }
+
+    let mut buffer = Vec::new();
+    remote
+        .read_to_end(&mut buffer)
+        .await
+        .map_err(|error| error.to_string())?;
+    if buffer.len() as u64 > MAX_EDITOR_FILE_BYTES {
+        return Err("File is too large to edit".into());
+    }
+
+    String::from_utf8(buffer).map_err(|_| "File is not valid UTF-8".into())
+}
+
+async fn write_remote_file(sftp: &SftpSession, path: &str, content: &str) -> Result<(), String> {
+    let mut remote = sftp
+        .create(path)
+        .await
+        .map_err(|error| error.to_string())?;
+    remote
+        .write_all(content.as_bytes())
+        .await
+        .map_err(|error| error.to_string())?;
+    remote
+        .shutdown()
+        .await
+        .map_err(|error| error.to_string())?;
+    Ok(())
 }
 
 async fn run_upload(
@@ -432,6 +484,37 @@ pub fn start_transfer(
     command_tx
         .send(command)
         .map_err(|_| "sftp channel closed".to_string())
+}
+
+#[tauri::command]
+pub fn read_remote_file_command(session_id: String, path: String) -> Result<String, String> {
+    let (reply_tx, reply_rx) = tokio::sync::oneshot::channel();
+    send_command(
+        session_id,
+        SftpCommand::ReadFile {
+            path,
+            reply: reply_tx,
+        },
+    )?;
+    block_on(async { reply_rx.await }).map_err(|_| "sftp response channel closed".to_string())?
+}
+
+#[tauri::command]
+pub fn write_remote_file_command(
+    session_id: String,
+    path: String,
+    content: String,
+) -> Result<(), String> {
+    let (reply_tx, reply_rx) = tokio::sync::oneshot::channel();
+    send_command(
+        session_id,
+        SftpCommand::WriteFile {
+            path,
+            content,
+            reply: reply_tx,
+        },
+    )?;
+    block_on(async { reply_rx.await }).map_err(|_| "sftp response channel closed".to_string())?
 }
 
 fn send_command(session_id: String, command: SftpCommand) -> Result<(), String> {

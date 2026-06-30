@@ -96,6 +96,21 @@ export function startTransfer(args: {
   return invoke("start_transfer", args);
 }
 
+export function readRemoteFile(
+  sessionId: string,
+  path: string,
+): Promise<string> {
+  return invoke<string>("read_remote_file_command", { sessionId, path });
+}
+
+export function writeRemoteFile(
+  sessionId: string,
+  path: string,
+  content: string,
+): Promise<void> {
+  return invoke("write_remote_file_command", { sessionId, path, content });
+}
+
 export function onTransferProgress(
   handler: (event: TransferProgressEvent) => void,
 ): Promise<UnlistenFn> {

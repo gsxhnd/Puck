@@ -133,6 +133,15 @@ pub enum SftpCommand {
         remote_path: String,
         app: AppHandle,
     },
+    ReadFile {
+        path: String,
+        reply: tokio::sync::oneshot::Sender<Result<String, String>>,
+    },
+    WriteFile {
+        path: String,
+        content: String,
+        reply: tokio::sync::oneshot::Sender<Result<(), String>>,
+    },
     Shutdown,
 }
 

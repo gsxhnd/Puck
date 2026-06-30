@@ -18,6 +18,7 @@ import {
   explorerSftpSessionId,
 } from "@/lib/sftp-explorer-session";
 import { shortenPath } from "@/lib/session-display";
+import { openEditorWindow } from "@/lib/open-editor-window";
 import {
   breadcrumbPath,
   buildBreadcrumbs,
@@ -212,6 +213,21 @@ export function RemoteFileExplorerPanel({
                 if (entry.isDir) {
                   navigateTo(entry.path);
                 }
+              }}
+              onDoubleClick={() => {
+                if (entry.isDir || !profile) return;
+                void (async () => {
+                  try {
+                    await ensureSftpExplorerSession(activeSession.id, profile);
+                    await openEditorWindow({
+                      path: entry.path,
+                      source: "remote",
+                      sessionId: sftpSessionId,
+                    });
+                  } catch (err) {
+                    setError(parsePuckError(err).message);
+                  }
+                })();
               }}
             >
               {entry.isDir ? (

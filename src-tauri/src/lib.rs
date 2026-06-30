@@ -7,6 +7,7 @@
 mod config;
 mod connections_window;
 mod credential;
+mod editor_window;
 mod error;
 mod known_hosts;
 #[cfg(target_os = "macos")]
@@ -116,6 +117,8 @@ pub fn run() {
             sftp::delete_remote,
             sftp::rename_remote,
             sftp::start_transfer,
+            sftp::read_remote_file_command,
+            sftp::write_remote_file_command,
             credential::save_credential,
             credential::has_credential,
             credential::delete_credential,
@@ -133,7 +136,10 @@ pub fn run() {
             apply_macos_window_chrome,
             settings_window::open_settings_window,
             connections_window::open_connections_window,
+            editor_window::open_editor_window,
             workspace::list_local_dir,
+            workspace::read_local_file,
+            workspace::write_local_file,
             workspace::git_status,
             workspace::open_path_in_app,
         ])

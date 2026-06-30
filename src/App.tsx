@@ -9,6 +9,7 @@ import { MacWindowChrome } from "@/layout/providers/mac-window-chrome";
 import { SettingsSync } from "@/layout/providers/settings-sync";
 import { ThemeSync } from "@/layout/providers/theme-sync";
 import { ConnectionsShell } from "@/layout/connections-shell";
+import { EditorShell } from "@/layout/editor-shell";
 import { SettingsShell } from "@/layout/settings-shell";
 import { getAppWindowMode } from "@/lib/app-window";
 import "./App.css";
@@ -30,6 +31,8 @@ function App() {
         <SettingsShell />
       ) : mode === "connections" ? (
         <ConnectionsShell />
+      ) : mode === "editor" ? (
+        <EditorShell />
       ) : (
         <AppShell />
       )}

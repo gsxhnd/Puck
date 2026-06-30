@@ -21,6 +21,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { openEditorWindow } from "@/lib/open-editor-window";
 import type { LocalFileEntry } from "@/types/workspace";
 
 function formatBytes(size: number) {
@@ -177,6 +178,11 @@ export function LocalFileExplorerPanel({
               onClick={() => {
                 if (entry.isDir) {
                   navigateTo(entry.path);
+                }
+              }}
+              onDoubleClick={() => {
+                if (!entry.isDir) {
+                  void openEditorWindow({ path: entry.path, source: "local" });
                 }
               }}
             >

@@ -11,3 +11,11 @@ export function listLocalDir(
 export function gitStatus(path: string): Promise<GitStatusResult> {
   return invoke<GitStatusResult>("git_status", { path });
 }
+
+export function readLocalFile(path: string): Promise<string> {
+  return invoke<string>("read_local_file", { path });
+}
+
+export function writeLocalFile(path: string, content: string): Promise<void> {
+  return invoke("write_local_file", { path, content });
+}

@@ -202,6 +202,42 @@ pub fn open_path_in_app(path: String, app: String) -> Result<(), String> {
     open_path_in_app_inner(&path, &app).map_err(to_invoke_error)
 }
 
+const MAX_EDITOR_FILE_BYTES: u64 = 2 * 1024 * 1024;
+
+fn read_local_file_inner(path: &str) -> PuckResult<String> {
+    let resolved = resolve_path(path)?;
+    if resolved.is_dir() {
+        return Err(PuckError::config("Path is a directory"));
+    }
+
+    let metadata = std::fs::metadata(&resolved).map_err(PuckError::from)?;
+    if metadata.len() > MAX_EDITOR_FILE_BYTES {
+        return Err(PuckError::config("File is too large to edit"));
+    }
+
+    std::fs::read_to_string(&resolved).map_err(PuckError::from)
+}
+
+fn write_local_file_inner(path: &str, content: &str) -> PuckResult<()> {
+    let resolved = resolve_path(path)?;
+    if resolved.is_dir() {
+        return Err(PuckError::config("Path is a directory"));
+    }
+
+    std::fs::write(&resolved, content.as_bytes()).map_err(PuckError::from)?;
+    Ok(())
+}
+
+#[tauri::command]
+pub fn read_local_file(path: String) -> Result<String, String> {
+    read_local_file_inner(&path).map_err(to_invoke_error)
+}
+
+#[tauri::command]
+pub fn write_local_file(path: String, content: String) -> Result<(), String> {
+    write_local_file_inner(&path, &content).map_err(to_invoke_error)
+}
+
 fn open_path_in_app_inner(path: &str, app: &str) -> PuckResult<()> {
     let resolved = resolve_path(path)?;
     let target = if resolved.is_dir() {
