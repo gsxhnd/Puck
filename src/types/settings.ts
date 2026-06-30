@@ -15,6 +15,30 @@ export type ThemeMode = "light" | "dark" | "system";
 
 export type AppLanguage = "zh-CN" | "en-US";
 
+export type SystemResourceMetricKey =
+  | "cpu"
+  | "memory"
+  | "disk"
+  | "loadAverage"
+  | "swap";
+
+export type SystemResourceMetrics = Record<SystemResourceMetricKey, boolean>;
+
+export const SYSTEM_RESOURCE_POLL_INTERVALS_MS = [
+  1000, 2000, 3000, 5000, 10000,
+] as const;
+
+export type SystemResourcePollIntervalMs =
+  (typeof SYSTEM_RESOURCE_POLL_INTERVALS_MS)[number];
+
+export const DEFAULT_SYSTEM_RESOURCE_METRICS: SystemResourceMetrics = {
+  cpu: true,
+  memory: true,
+  disk: true,
+  loadAverage: true,
+  swap: true,
+};
+
 export type AppSettings = {
   language: AppLanguage;
   colorTheme: ColorThemeId;
@@ -28,6 +52,9 @@ export type AppSettings = {
   primaryPanelOpen: boolean;
   secondPanelOpen: boolean;
   defaultSessionPrivileges: SessionPrivileges;
+  systemResourcesLocalPollIntervalMs: SystemResourcePollIntervalMs;
+  systemResourcesRemotePollIntervalMs: SystemResourcePollIntervalMs;
+  systemResourcesMetrics: SystemResourceMetrics;
 };
 
 export const DEFAULT_TERMINAL_FONT_FAMILY =
@@ -46,4 +73,7 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   primaryPanelOpen: true,
   secondPanelOpen: true,
   defaultSessionPrivileges: { ...DEFAULT_SESSION_PRIVILEGES },
+  systemResourcesLocalPollIntervalMs: 2000,
+  systemResourcesRemotePollIntervalMs: 3000,
+  systemResourcesMetrics: { ...DEFAULT_SYSTEM_RESOURCE_METRICS },
 };

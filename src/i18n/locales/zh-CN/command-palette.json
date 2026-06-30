@@ -44,6 +44,7 @@
     "pickTerminal": "选择终端…",
     "quickConnect": "快速连接",
     "newConnection": "新建连接",
+    "reloadWindow": "重新加载窗口",
     "showSessionsTab": "显示会话标签",
     "showHostsTab": "显示远程主机"
   }

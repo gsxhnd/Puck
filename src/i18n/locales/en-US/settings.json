@@ -10,7 +10,8 @@
     "terminal": "Terminal",
     "connections": "Connections",
     "keyboard": "Keyboard",
-    "about": "About"
+    "about": "About",
+    "systemResources": "System Resources"
   },
   "general": {
     "language": "Language",
@@ -48,6 +49,23 @@
       "notifyOnCommandFinish": "Notify when command finishes",
       "tabBadgeWhenCommandFinishes": "Tab badge when command finishes",
       "keepAwakeWhenTaskRunning": "Keep awake while task runs"
+    }
+  },
+  "systemResources": {
+    "description": "Configure how often system stats are collected and which metrics appear in the info panel",
+    "localPollInterval": "Local poll interval",
+    "localPollIntervalDescription": "How often to refresh CPU, memory, and other stats on this machine",
+    "remotePollInterval": "Remote poll interval",
+    "remotePollIntervalDescription": "How often to refresh stats on a remote host over SSH",
+    "pollIntervalOption": "Every {{seconds}}s",
+    "metricsTitle": "Metrics",
+    "metricsDescription": "Choose which system metrics to show in the info panel",
+    "metrics": {
+      "cpu": "CPU usage",
+      "memory": "Memory",
+      "disk": "Disk",
+      "loadAverage": "Load average",
+      "swap": "Swap"
     }
   },
   "connections": {

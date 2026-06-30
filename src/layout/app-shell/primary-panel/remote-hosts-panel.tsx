@@ -8,6 +8,8 @@ import { useShellUiStore } from "@/stores/shell-ui-store";
 import { deleteConnectionCredentials } from "@/lib/tauri-ssh";
 import {
   buildHostGroups,
+  canDropHostOnGroup,
+  canDropHostOnProfile,
   hostGroupIdFromDropId,
   isHostGroupDropId,
   type HostSort,
@@ -99,19 +101,50 @@ export function RemoteHostsPanel({
       const targetId = String(target.id);
       if (activeId === targetId) return;
 
+      const activeProfile = remoteProfiles.find(
+        (profile) => profile.id === activeId,
+      );
+      if (!activeProfile) return;
+
       if (isHostGroupDropId(targetId)) {
+        const targetGroupId = hostGroupIdFromDropId(targetId);
+        if (!canDropHostOnGroup(targetGroupId)) return;
+
         moveProfileToGroup(
           remoteProfiles,
           sort,
           activeId,
-          hostGroupIdFromDropId(targetId),
+          targetGroupId,
         );
-      } else {
-        reorderProfiles(remoteProfiles, sort, activeId, targetId);
+        onSortChange("custom");
+        return;
       }
+
+      const targetProfile = remoteProfiles.find(
+        (profile) => profile.id === targetId,
+      );
+      const targetGroup = displayGroups.find((group) =>
+        group.profiles.some((profile) => profile.id === targetId),
+      );
+      if (
+        !targetProfile ||
+        !targetGroup ||
+        !canDropHostOnProfile(activeProfile, targetProfile, targetGroup)
+      ) {
+        return;
+      }
+
+      reorderProfiles(remoteProfiles, sort, activeId, targetId);
       onSortChange("custom");
     },
-    [moveProfileToGroup, onSortChange, reorderProfiles, remoteProfiles, sort],
+    [
+      displayGroups,
+      moveProfileToGroup,
+      onSortChange,
+      reorderProfiles,
+      remoteProfiles,
+      sort,
+    ],
   );
 
   const toggleGroup = (groupKey: string) => {

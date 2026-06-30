@@ -1,4 +1,5 @@
-use std::sync::{Arc, Mutex};
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex, OnceLock};
 
 use bytes::Bytes;
 use russh::client;
@@ -147,12 +148,77 @@ async fn authenticate(
     Ok(())
 }
 
+static SSH_EXEC_HANDLES: OnceLock<Mutex<HashMap<String, Arc<client::Handle<SshClientHandler>>>>> =
+    OnceLock::new();
+
+fn ssh_exec_handles() -> &'static Mutex<HashMap<String, Arc<client::Handle<SshClientHandler>>>> {
+    SSH_EXEC_HANDLES.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+pub fn store_ssh_exec_handle(session_id: &str, handle: Arc<client::Handle<SshClientHandler>>) {
+    if let Ok(mut handles) = ssh_exec_handles().lock() {
+        handles.insert(session_id.to_string(), handle);
+    }
+}
+
+pub fn remove_ssh_exec_handle(session_id: &str) {
+    if let Ok(mut handles) = ssh_exec_handles().lock() {
+        handles.remove(session_id);
+    }
+}
+
+pub fn ssh_exec_handle(session_id: &str) -> Option<Arc<client::Handle<SshClientHandler>>> {
+    ssh_exec_handles()
+        .lock()
+        .ok()?
+        .get(session_id)
+        .cloned()
+}
+
+pub async fn exec_remote_command(
+    session_id: &str,
+    command: &str,
+) -> Result<String, String> {
+    let handle = ssh_exec_handle(session_id).ok_or_else(|| "ssh session not found".to_string())?;
+    let mut channel = handle
+        .channel_open_session()
+        .await
+        .map_err(|error| error.to_string())?;
+    channel
+        .exec(true, command)
+        .await
+        .map_err(|error| error.to_string())?;
+
+    let mut stdout = Vec::new();
+    let mut exit_status = None;
+
+    while let Some(message) = channel.wait().await {
+        match message {
+            ChannelMsg::Data { data } => stdout.extend_from_slice(&data),
+            ChannelMsg::ExitStatus { exit_status: code } => exit_status = Some(code),
+            ChannelMsg::Eof => break,
+            _ => {}
+        }
+    }
+
+    let output = String::from_utf8_lossy(&stdout).trim().to_string();
+    if exit_status.unwrap_or(1) != 0 {
+        return Err(if output.is_empty() {
+            "remote command failed".into()
+        } else {
+            output
+        });
+    }
+
+    Ok(output)
+}
+
 async fn open_ssh_terminal_inner(
     app: AppHandle,
     known_hosts: Arc<KnownHostsStore>,
     request: SshConnectRequest,
 ) -> PuckResult<()> {
-    let session_handle = connect_authenticated(known_hosts, &request).await?;
+    let session_handle = Arc::new(connect_authenticated(known_hosts, &request).await?);
 
     let mut channel = session_handle
         .channel_open_session()
@@ -177,8 +243,10 @@ async fn open_ssh_terminal_inner(
 
     let session_id = request.session_id.clone();
     let app_handle = app.clone();
+    store_ssh_exec_handle(&session_id, Arc::clone(&session_handle));
     let (command_tx, mut command_rx) = tokio::sync::mpsc::unbounded_channel::<SshCommand>();
 
+    let io_handle = Arc::clone(&session_handle);
     let io_task = tokio::spawn(async move {
         loop {
             tokio::select! {
@@ -242,7 +310,8 @@ async fn open_ssh_terminal_inner(
                 }
             }
         }
-        let _ = session_handle
+        remove_ssh_exec_handle(&session_id);
+        let _ = io_handle
             .disconnect(russh::Disconnect::ByApplication, "", "en")
             .await;
     });
@@ -333,6 +402,7 @@ pub fn reconnect_ssh_terminal(
     );
 
     let _ = SessionManager::global().close_terminal(&session_id);
+    remove_ssh_exec_handle(&session_id);
 
     open_ssh_terminal(
         app,

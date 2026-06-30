@@ -44,6 +44,7 @@
     "pickTerminal": "Pick Terminal…",
     "quickConnect": "Quick Connect",
     "newConnection": "New Connection",
+    "reloadWindow": "Reload Window",
     "showSessionsTab": "Show Sessions Tab",
     "showHostsTab": "Show Remote Hosts Tab"
   }

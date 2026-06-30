@@ -11,6 +11,7 @@ import {
   PanelRightIcon,
   PlugZapIcon,
   PlusIcon,
+  RotateCwIcon,
   SearchIcon,
   ServerIcon,
   SettingsIcon,
@@ -20,6 +21,7 @@ import {
 } from "lucide-react";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { openPathInApp } from "@/lib/open-in-app";
+import { reloadAppWindow } from "@/lib/reload-app-window";
 import { openSettingsWindow } from "@/lib/open-settings-window";
 import { openProfileSession } from "@/lib/open-profile-session";
 import { getSessionPathDisplay } from "@/lib/session-display";
@@ -375,6 +377,14 @@ export function usePaletteCommands(query: string): {
 
   const actionCommands = useMemo<PaletteCommand[]>(() => {
     return [
+      {
+        id: "action-reload-window",
+        section: "actions",
+        label: t("commandPalette:commands.reloadWindow"),
+        icon: RotateCwIcon,
+        keywords: ["reload", "refresh", "window", "重新加载", "刷新", "action"],
+        run: () => reloadAppWindow(),
+      },
       {
         id: "action-new-terminal",
         section: "actions",

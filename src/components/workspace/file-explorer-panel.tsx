@@ -1,15 +1,9 @@
 import { useTranslation } from "react-i18next";
 import { useSessionStore } from "@/stores/session-store";
 import { isLocalTerminalSession } from "@/lib/use-active-local-session";
+import { isSshTerminalSession } from "@/lib/session-kind";
 import { LocalFileExplorerPanel } from "@/components/workspace/local-file-explorer";
 import { RemoteFileExplorerPanel } from "@/components/workspace/remote-file-explorer";
-
-function isSshTerminalSession(session: {
-  kind: string;
-  protocol?: string;
-} | null): boolean {
-  return session?.kind === "terminal" && session.protocol === "ssh";
-}
 
 export function FileExplorerPanel() {
   const { t } = useTranslation("info");

@@ -10,7 +10,8 @@
     "terminal": "终端",
     "connections": "连接",
     "keyboard": "快捷键",
-    "about": "关于"
+    "about": "关于",
+    "systemResources": "系统资源"
   },
   "general": {
     "language": "界面语言",
@@ -48,6 +49,23 @@
       "notifyOnCommandFinish": "命令完成时通知",
       "tabBadgeWhenCommandFinishes": "命令完成时显示标签角标",
       "keepAwakeWhenTaskRunning": "任务运行时保持唤醒"
+    }
+  },
+  "systemResources": {
+    "description": "配置信息面板中系统资源监控的采集频率与显示项",
+    "localPollInterval": "本机采集频率",
+    "localPollIntervalDescription": "刷新本机 CPU、内存等指标的时间间隔",
+    "remotePollInterval": "远程采集频率",
+    "remotePollIntervalDescription": "通过 SSH 刷新远程主机指标的时间间隔",
+    "pollIntervalOption": "每 {{seconds}} 秒",
+    "metricsTitle": "采集项",
+    "metricsDescription": "选择在信息面板中显示的系统指标",
+    "metrics": {
+      "cpu": "CPU 使用率",
+      "memory": "内存",
+      "disk": "磁盘",
+      "loadAverage": "系统负载",
+      "swap": "交换区"
     }
   },
   "connections": {

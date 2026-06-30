@@ -297,3 +297,29 @@ export function pruneHostGroupOrder(
 export function createHostCustomGroupId(): string {
   return `${CUSTOM_GROUP_PREFIX}${crypto.randomUUID()}`;
 }
+
+/** Sortable group id: custom groups mix protocols; auto groups stay per-protocol. */
+export function getHostSortableGroupId(
+  profile: ConnectionProfile,
+  displayGroup: Pick<HostDisplayGroup, "id" | "isCustom">,
+): string {
+  if (displayGroup.isCustom) {
+    return displayGroup.id;
+  }
+  return profile.protocol;
+}
+
+export function canDropHostOnProfile(
+  activeProfile: ConnectionProfile,
+  targetProfile: ConnectionProfile,
+  targetGroup: Pick<HostDisplayGroup, "id" | "isCustom">,
+): boolean {
+  if (targetGroup.isCustom) {
+    return true;
+  }
+  return activeProfile.protocol === targetProfile.protocol;
+}
+
+export function canDropHostOnGroup(targetGroupId: string): boolean {
+  return isCustomGroupId(targetGroupId);
+}

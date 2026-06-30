@@ -16,7 +16,10 @@ import { TransferQueueContent } from "@/components/files/transfer-queue";
 import { CommandOutlinePanel } from "@/components/workspace/command-outline-panel";
 import { GitPanel } from "@/components/workspace/git-panel";
 import { FileExplorerPanel } from "@/components/workspace/file-explorer-panel";
+import { SystemResourcesSection } from "@/components/workspace/system-resources-section";
+import { useConnectionStore } from "@/stores/connection-store";
 import { useSessionStore } from "@/stores/session-store";
+import { isSshTerminalSession } from "@/lib/session-kind";
 import { useShellUiStore } from "@/stores/shell-ui-store";
 import { getSessionPathDisplay, getShellBadge } from "@/lib/session-display";
 import { isTauri } from "@/lib/platform";
@@ -63,16 +66,26 @@ function InfoAction({
   );
 }
 
-function SessionInfoPanel() {
+function SessionInfoPanel({ active }: { active: boolean }) {
   const { t } = useTranslation("info");
   const sessions = useSessionStore((state) => state.sessions);
   const activeSessionId = useSessionStore((state) => state.activeSessionId);
   const activeSession =
     sessions.find((session) => session.id === activeSessionId) ?? null;
+  const remoteProfile = useConnectionStore((state) =>
+    activeSession?.profileId ? state.getProfile(activeSession.profileId) : undefined,
+  );
 
   const path = activeSession ? getSessionPathDisplay(activeSession) : null;
   const shell = activeSession ? getShellBadge(activeSession) : null;
   const elapsed = activeSession ? formatElapsed(activeSession.createdAt) : null;
+  const isRemoteSession = isSshTerminalSession(activeSession);
+  const resourcesScope = {
+    source: isRemoteSession ? ("remote" as const) : ("local" as const),
+    sessionId: isRemoteSession ? activeSession?.id : undefined,
+    remoteLabel: remoteProfile?.host,
+    sessionConnected: activeSession?.status === "connected",
+  };
 
   const copyPath = async () => {
     if (!path) return;
@@ -91,15 +104,32 @@ function SessionInfoPanel() {
 
   if (!activeSession || activeSession.kind !== "terminal") {
     return (
-      <div className="px-4 py-8 text-center text-sm text-muted-foreground">
-        {t("noActiveTerminal")}
-      </div>
+      <ScrollArea className="min-h-0 flex-1">
+        <div className="space-y-5 px-3 py-3">
+          <section className="space-y-2">
+            <h3 className="px-2 text-xs font-medium text-muted-foreground">
+              {t("systemResources")}
+            </h3>
+            <SystemResourcesSection active={active} scope={resourcesScope} />
+          </section>
+          <p className="px-4 py-4 text-center text-sm text-muted-foreground">
+            {t("noActiveTerminal")}
+          </p>
+        </div>
+      </ScrollArea>
     );
   }
 
   return (
     <ScrollArea className="min-h-0 flex-1">
       <div className="space-y-5 px-3 py-3">
+        <section className="space-y-2">
+          <h3 className="px-2 text-xs font-medium text-muted-foreground">
+            {t("systemResources")}
+          </h3>
+          <SystemResourcesSection active={active} scope={resourcesScope} />
+        </section>
+
         <section className="space-y-2">
           <h3 className="px-2 text-xs font-medium text-muted-foreground">
             {t("workingDirectory")}
@@ -271,7 +301,7 @@ export function SecondPanel({
                 transition={panelTransition}
                 className="flex min-h-0 flex-1 flex-col"
               >
-                <SessionInfoPanel />
+                <SessionInfoPanel active={view === "info" && secondPanelOpen} />
               </motion.div>
             ) : view === "files" ? (
               <motion.div

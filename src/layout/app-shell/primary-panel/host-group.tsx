@@ -2,7 +2,7 @@ import { useTranslation } from "react-i18next";
 import { useDroppable } from "@dnd-kit/react";
 import { ChevronRightIcon } from "lucide-react";
 import { GROUP_DROP_PREFIX } from "@/lib/sidebar-groups";
-import { type HostDisplayGroup } from "@/lib/hosts-groups";
+import { type HostDisplayGroup, getHostSortableGroupId } from "@/lib/hosts-groups";
 import type { ConnectionProfile } from "@/types/connection";
 import {
   ContextMenu,
@@ -94,6 +94,7 @@ export function HostGroup({
               key={profile.id}
               profile={profile}
               index={profileIndexOffset + index}
+              sortableGroup={getHostSortableGroupId(profile, group)}
               selectedProfileId={selectedProfileId}
               onDelete={() => onDeleteProfile(profile.id)}
               remoteProfiles={remoteProfiles}

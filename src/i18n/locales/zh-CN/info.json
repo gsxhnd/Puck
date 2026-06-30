@@ -27,5 +27,18 @@
   "emptyDirectory": "空目录",
   "showHiddenFiles": "显示隐藏文件",
   "hideHiddenFiles": "不显示隐藏文件",
-  "outlineEmpty": "输入的命令会显示在这里"
+  "outlineEmpty": "输入的命令会显示在这里",
+  "systemResources": "系统资源",
+  "systemResourcesLoading": "正在加载系统状态…",
+  "systemResourcesDesktopOnly": "系统监控仅在桌面应用中可用",
+  "cpu": "CPU",
+  "memory": "内存",
+  "disk": "磁盘",
+  "loadAverage": "负载：{{one}} / {{five}} / {{fifteen}}",
+  "swapUsage": "交换区：{{used}} / {{total}}",
+  "systemResourcesLocal": "本机",
+  "systemResourcesRemote": "远程：{{host}}",
+  "systemResourcesRemoteHost": "远程主机",
+  "systemResourcesSessionDisconnected": "连接终端后可查看远程资源",
+  "systemResourcesMetricsDisabled": "所有采集项已关闭，可在设置中启用"
 }

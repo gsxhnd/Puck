@@ -1,4 +1,8 @@
 import type { AppLanguage, ThemeMode } from "@/types/settings";
+import {
+  SYSTEM_RESOURCE_POLL_INTERVALS_MS,
+  type SystemResourcePollIntervalMs,
+} from "@/types/settings";
 import type { SessionPrivilegeKey } from "@/types/session-privileges";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -8,7 +12,9 @@ import {
   PaletteIcon,
   Settings2Icon,
   TerminalIcon,
+  ActivityIcon,
 } from "lucide-react";
+import type { SystemResourceMetricKey } from "@/types/settings";
 
 /**
  * Settings navigation section identifiers.
@@ -19,6 +25,7 @@ export type SettingsSection =
   | "general"
   | "appearance"
   | "terminal"
+  | "systemResources"
   | "connections"
   | "keyboard"
   | "about";
@@ -28,6 +35,7 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
   "general",
   "appearance",
   "terminal",
+  "systemResources",
   "connections",
   "keyboard",
   "about",
@@ -38,6 +46,7 @@ export const SETTINGS_SECTION_ICONS: Record<SettingsSection, LucideIcon> = {
   general: Settings2Icon,
   appearance: PaletteIcon,
   terminal: TerminalIcon,
+  systemResources: ActivityIcon,
   connections: NetworkIcon,
   keyboard: KeyboardIcon,
   about: InfoIcon,
@@ -45,6 +54,37 @@ export const SETTINGS_SECTION_ICONS: Record<SettingsSection, LucideIcon> = {
 
 export const THEME_MODES: ThemeMode[] = ["light", "dark", "system"];
 export const LANGUAGES: AppLanguage[] = ["zh-CN", "en-US"];
+
+export const SYSTEM_RESOURCE_POLL_INTERVAL_OPTIONS: SystemResourcePollIntervalMs[] =
+  [...SYSTEM_RESOURCE_POLL_INTERVALS_MS];
+
+/** Metrics that can be toggled in system resource monitoring. */
+export const SYSTEM_RESOURCE_METRIC_ITEMS: Array<{
+  key: SystemResourceMetricKey;
+  labelKey: string;
+  descriptionKey?: string;
+}> = [
+  {
+    key: "cpu",
+    labelKey: "settings:systemResources.metrics.cpu",
+  },
+  {
+    key: "memory",
+    labelKey: "settings:systemResources.metrics.memory",
+  },
+  {
+    key: "disk",
+    labelKey: "settings:systemResources.metrics.disk",
+  },
+  {
+    key: "loadAverage",
+    labelKey: "settings:systemResources.metrics.loadAverage",
+  },
+  {
+    key: "swap",
+    labelKey: "settings:systemResources.metrics.swap",
+  },
+];
 
 /** Default session privilege toggles shown under Terminal settings. */
 export const DEFAULT_PRIVILEGE_ITEMS: Array<{

@@ -19,6 +19,7 @@ mod settings_window;
 mod sftp;
 mod shell;
 mod ssh;
+mod system_monitor;
 mod terminal;
 mod transfer;
 mod workspace;
@@ -147,6 +148,8 @@ pub fn run() {
             workspace::write_local_file,
             workspace::git_status,
             workspace::open_path_in_app,
+            system_monitor::get_system_stats,
+            system_monitor::get_remote_system_stats,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

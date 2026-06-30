@@ -27,5 +27,18 @@
   "emptyDirectory": "Empty directory",
   "showHiddenFiles": "Show hidden files",
   "hideHiddenFiles": "Hide hidden files",
-  "outlineEmpty": "Commands you run will appear here"
+  "outlineEmpty": "Commands you run will appear here",
+  "systemResources": "System",
+  "systemResourcesLoading": "Loading system stats…",
+  "systemResourcesDesktopOnly": "System monitoring is only available in the desktop app",
+  "cpu": "CPU",
+  "memory": "Memory",
+  "disk": "Disk",
+  "loadAverage": "Load: {{one}} / {{five}} / {{fifteen}}",
+  "swapUsage": "Swap: {{used}} / {{total}}",
+  "systemResourcesLocal": "This machine",
+  "systemResourcesRemote": "Remote: {{host}}",
+  "systemResourcesRemoteHost": "remote host",
+  "systemResourcesSessionDisconnected": "Connect the terminal to view remote stats",
+  "systemResourcesMetricsDisabled": "All metrics are disabled. Enable them in Settings."
 }

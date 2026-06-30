@@ -19,7 +19,12 @@ import {
   type AppSettings,
   type ThemeMode,
   DEFAULT_APP_SETTINGS,
+  DEFAULT_SYSTEM_RESOURCE_METRICS,
   DEFAULT_TERMINAL_FONT_FAMILY,
+  SYSTEM_RESOURCE_POLL_INTERVALS_MS,
+  type SystemResourceMetricKey,
+  type SystemResourceMetrics,
+  type SystemResourcePollIntervalMs,
 } from "@/types/settings";
 import {
   DEFAULT_SESSION_PRIVILEGES,
@@ -44,6 +49,16 @@ type AppSettingsState = AppSettings & {
   setDefaultPrivilege: (
     key: SessionPrivilegeKey,
     value: boolean,
+  ) => void;
+  setSystemResourcesLocalPollIntervalMs: (
+    intervalMs: SystemResourcePollIntervalMs,
+  ) => void;
+  setSystemResourcesRemotePollIntervalMs: (
+    intervalMs: SystemResourcePollIntervalMs,
+  ) => void;
+  setSystemResourceMetric: (
+    key: SystemResourceMetricKey,
+    enabled: boolean,
   ) => void;
   reset: () => void;
 };
@@ -71,6 +86,30 @@ function normalizeDefaultPrivileges(
   return {
     ...DEFAULT_SESSION_PRIVILEGES,
     ...privileges,
+  };
+}
+
+function normalizePollIntervalMs(
+  intervalMs?: number,
+  fallback: SystemResourcePollIntervalMs = DEFAULT_APP_SETTINGS.systemResourcesLocalPollIntervalMs,
+): SystemResourcePollIntervalMs {
+  if (
+    intervalMs &&
+    SYSTEM_RESOURCE_POLL_INTERVALS_MS.includes(
+      intervalMs as SystemResourcePollIntervalMs,
+    )
+  ) {
+    return intervalMs as SystemResourcePollIntervalMs;
+  }
+  return fallback;
+}
+
+function normalizeSystemResourceMetrics(
+  metrics?: Partial<SystemResourceMetrics>,
+): SystemResourceMetrics {
+  return {
+    ...DEFAULT_SYSTEM_RESOURCE_METRICS,
+    ...metrics,
   };
 }
 
@@ -124,6 +163,17 @@ function migratePersistedSettings(
     defaultSessionPrivileges: normalizeDefaultPrivileges(
       persisted.defaultSessionPrivileges,
     ),
+    systemResourcesLocalPollIntervalMs: normalizePollIntervalMs(
+      persisted.systemResourcesLocalPollIntervalMs,
+      DEFAULT_APP_SETTINGS.systemResourcesLocalPollIntervalMs,
+    ),
+    systemResourcesRemotePollIntervalMs: normalizePollIntervalMs(
+      persisted.systemResourcesRemotePollIntervalMs,
+      DEFAULT_APP_SETTINGS.systemResourcesRemotePollIntervalMs,
+    ),
+    systemResourcesMetrics: normalizeSystemResourceMetrics(
+      persisted.systemResourcesMetrics,
+    ),
   };
 }
 
@@ -162,6 +212,31 @@ export const useAppSettingsStore = create<AppSettingsState>()(
             [key]: value,
           },
         })),
+      setSystemResourcesLocalPollIntervalMs: (
+        systemResourcesLocalPollIntervalMs,
+      ) =>
+        set({
+          systemResourcesLocalPollIntervalMs: normalizePollIntervalMs(
+            systemResourcesLocalPollIntervalMs,
+            DEFAULT_APP_SETTINGS.systemResourcesLocalPollIntervalMs,
+          ),
+        }),
+      setSystemResourcesRemotePollIntervalMs: (
+        systemResourcesRemotePollIntervalMs,
+      ) =>
+        set({
+          systemResourcesRemotePollIntervalMs: normalizePollIntervalMs(
+            systemResourcesRemotePollIntervalMs,
+            DEFAULT_APP_SETTINGS.systemResourcesRemotePollIntervalMs,
+          ),
+        }),
+      setSystemResourceMetric: (key, enabled) =>
+        set((state) => ({
+          systemResourcesMetrics: {
+            ...state.systemResourcesMetrics,
+            [key]: enabled,
+          },
+        })),
       reset: () => {
         set({ ...DEFAULT_APP_SETTINGS });
         void applyUiTheme(
@@ -174,10 +249,10 @@ export const useAppSettingsStore = create<AppSettingsState>()(
       name: PUCK_CONFIG_KEYS.appSettings,
       storage: puckPersistStorage,
       skipHydration: true,
-      version: 3,
+      version: 4,
       migrate: (persistedState) => ({
         state: migratePersistedSettings(unwrapPersistedSettings(persistedState)),
-        version: 3,
+        version: 4,
       }),
       onRehydrateStorage: () => (state) => {
         if (!state) return;

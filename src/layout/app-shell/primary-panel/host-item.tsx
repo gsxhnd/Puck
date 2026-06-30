@@ -8,7 +8,6 @@ import {
 } from "lucide-react";
 import type { ConnectionProfile } from "@/types/connection";
 import { requestOpenConnectionProfile } from "@/lib/connection-bridge";
-import { HOST_SORTABLE_GROUP } from "@/lib/hosts-groups";
 import { autoGroupId } from "@/lib/sidebar-groups";
 import { openProfileSession } from "@/lib/open-profile-session";
 import { useConnectionStore } from "@/stores/connection-store";
@@ -36,12 +35,14 @@ function profileSubtitle(profile: ConnectionProfile): string {
 export function SortableHostItem({
   profile,
   index,
+  sortableGroup,
   selectedProfileId,
   onDelete,
   remoteProfiles,
 }: {
   profile: ConnectionProfile;
   index: number;
+  sortableGroup: string;
   selectedProfileId: string | null;
   onDelete: () => void;
   remoteProfiles: ConnectionProfile[];
@@ -56,7 +57,7 @@ export function SortableHostItem({
   const { ref, isDragging, isDropTarget } = useSortable({
     id: profile.id,
     index,
-    group: HOST_SORTABLE_GROUP,
+    group: sortableGroup,
     transition: { idle: true },
   });
 
