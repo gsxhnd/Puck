@@ -159,6 +159,7 @@ export function SshTerminalPane({
     terminal.loadAddon(new WebLinksAddon());
     terminal.loadAddon(searchAddon);
     terminal.open(container);
+    applyTerminalTheme({ terminal, theme: getTerminalThemeSnapshot() });
     terminalRef.current = terminal;
     fitAddonRef.current = fitAddon;
     registerTerminal(sessionId, terminal, searchAddon);
@@ -309,7 +310,6 @@ export function SshTerminalPane({
   ]);
 
   useEffect(() => {
-    if (!openedRef.current) return;
     const terminal = terminalRef.current;
     if (!terminal) return;
 

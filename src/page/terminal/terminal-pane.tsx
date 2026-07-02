@@ -93,6 +93,7 @@ export function TerminalPane({
     terminal.loadAddon(new WebLinksAddon());
     terminal.loadAddon(searchAddon);
     terminal.open(container);
+    applyTerminalTheme({ terminal, theme: getTerminalThemeSnapshot() });
 
     terminalRef.current = terminal;
     fitAddonRef.current = fitAddon;
@@ -204,7 +205,6 @@ export function TerminalPane({
   }, [sessionId, shellId, removeSession, updateSessionMeta, updateSessionStatus]);
 
   useEffect(() => {
-    if (!openedRef.current) return;
     const terminal = terminalRef.current;
     if (!terminal) return;
 

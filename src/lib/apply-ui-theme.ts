@@ -52,11 +52,9 @@ export function scheduleTerminalThemeSync(
   if (typeof window === "undefined") return;
 
   const effectiveTheme = getEffectiveTheme(themeMode);
-  requestAnimationFrame(() => {
-    syncTerminalThemeCache(
-      buildTerminalThemeKey(effectiveTheme, colorTheme),
-    );
-  });
+  // Sync immediately: DOM classes and injected theme CSS are already applied, and
+  // deferring via rAF lets xterm mount with the module-load fallback palette.
+  syncTerminalThemeCache(buildTerminalThemeKey(effectiveTheme, colorTheme));
 }
 
 /** Sync DOM, next-themes, and xterm palette after settings change or rehydrate. */
