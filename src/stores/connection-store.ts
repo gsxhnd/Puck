@@ -2,12 +2,14 @@
  * Persistent CRUD store for saved connection profiles.
  *
  * 已保存连接配置（SSH/SFTP/FTP 等）的持久化 store，提供新增、更新、删除、
- * 复制、查询等操作。首次使用时以一组示例连接做种子数据；持久化时若磁盘已有
- * 非空数据则优先采用磁盘数据，避免示例覆盖用户已保存的连接。
+ * 复制、查询等操作。rehydrate 时优先采用磁盘数据（含空列表），不注入示例连接。
  */
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { puckPersistStorage, PUCK_CONFIG_KEYS } from "@/lib/puck-config-storage";
+import {
+  CONNECTIONS_PERSIST_KEY,
+  connectionPersistStorage,
+} from "@/lib/connection-persist-storage";
 import {
   type ConnectionProfile,
   createConnectionProfile,
@@ -32,40 +34,10 @@ type ConnectionStore = {
   getProfile: (id: string) => ConnectionProfile | undefined;
 };
 
-// 首次启动时的示例连接，帮助用户了解可配置的协议与字段。
-const seedProfiles = (): ConnectionProfile[] => [
-  createConnectionProfile({
-    name: "Dev Server",
-    protocol: "ssh",
-    host: "192.168.1.10",
-    port: 22,
-    username: "deploy",
-    authMethod: "privateKey",
-    credentialRef: "puck.connection.dev-server.password",
-  }),
-  createConnectionProfile({
-    name: "Staging SFTP",
-    protocol: "sftp",
-    host: "sftp.example.com",
-    port: 22,
-    username: "ops",
-    authMethod: "password",
-    defaultDirectory: "/var/www",
-  }),
-  createConnectionProfile({
-    name: "FTP Backup",
-    protocol: "ftp",
-    host: "ftp.example.com",
-    port: 21,
-    username: "backup",
-    authMethod: "password",
-  }),
-];
-
 export const useConnectionStore = create<ConnectionStore>()(
   persist(
     (set, get) => ({
-      profiles: seedProfiles(),
+      profiles: [],
       addProfile: (partial) => {
         const profile = createConnectionProfile(partial);
         set((state) => ({ profiles: [...state.profiles, profile] }));
@@ -116,15 +88,15 @@ export const useConnectionStore = create<ConnectionStore>()(
       getProfile: (id) => get().profiles.find((profile) => profile.id === id),
     }),
     {
-      name: PUCK_CONFIG_KEYS.connections,
-      storage: puckPersistStorage,
+      name: CONNECTIONS_PERSIST_KEY,
+      storage: connectionPersistStorage,
       skipHydration: true,
       partialize: (state) => ({
         profiles: state.profiles.filter((profile) => !profile.ephemeral),
       }),
       merge: (persisted, current) => {
         const stored = persisted as Partial<ConnectionStore> | undefined;
-        if (stored?.profiles && stored.profiles.length > 0) {
+        if (stored?.profiles !== undefined) {
           return {
             ...current,
             profiles: stored.profiles.filter(

@@ -1,10 +1,8 @@
 //! Unified on-disk configuration store backed by `config.toml`.
 //!
-//! 应用的统一配置中心。所有持久化的 UI 状态（应用设置、连接、侧栏布局、
-//! 会话权限、Shell 布局）都保存在 `~/.config/puck/config.toml` 中。
-//! SSH known hosts 单独保存在同目录下的 `known_hosts.json`（见 `known_hosts` 模块）。
-//! 本模块负责加载/保存该文件、按"区段"读写 JSON 字符串以供前端 Zustand 持久化使用，
-//! 并把旧版分散的 JSON 文件一次性迁移到新的 TOML 结构。
+//! 应用的统一配置中心。UI 状态（应用设置、侧栏布局、会话权限、Shell 布局）
+//! 保存在 `~/.config/puck/config.toml`；连接配置与 SSH known hosts 分别使用
+//! `connections.json` 与 `known_hosts.json`（见对应模块）。
 
 use std::collections::HashMap;
 use std::fs;
@@ -15,20 +13,16 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tauri::{AppHandle, Emitter, State};
 
-use crate::error::PuckResult;
-
 const CONFIG_FILE_NAME: &str = "config.toml";
 const CONFIG_VERSION: u32 = 1;
 
 pub const SECTION_APP_SETTINGS: &str = "app_settings";
-pub const SECTION_CONNECTIONS: &str = "connections";
 pub const SECTION_SIDEBAR_LAYOUT: &str = "sidebar_layout";
 pub const SECTION_SESSION_PRIVILEGES: &str = "session_privileges";
 pub const SECTION_SHELL_LAYOUT: &str = "shell_layout";
 
-const UI_SECTIONS: [&str; 5] = [
+const UI_SECTIONS: [&str; 4] = [
     SECTION_APP_SETTINGS,
-    SECTION_CONNECTIONS,
     SECTION_SIDEBAR_LAYOUT,
     SECTION_SESSION_PRIVILEGES,
     SECTION_SHELL_LAYOUT,
@@ -61,16 +55,11 @@ pub struct PuckConfigFile {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub app_settings: Option<Value>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub connections: Option<Value>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub sidebar_layout: Option<Value>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub session_privileges: Option<Value>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub shell_layout: Option<Value>,
-    /// Legacy field: only read for one-time migration into `known_hosts.json`.
-    #[serde(default, skip_serializing)]
-    pub known_hosts: Vec<KnownHostRecord>,
 }
 
 fn default_config_version() -> u32 {
@@ -139,23 +128,11 @@ impl PuckConfigStore {
         }
         sections
     }
-
-    /// Removes embedded known hosts from `config.toml` after migrating to `known_hosts.json`.
-    pub fn drain_known_hosts(&self) -> Vec<KnownHostRecord> {
-        let mut config = self.config.lock().unwrap();
-        if config.known_hosts.is_empty() {
-            return Vec::new();
-        }
-        let hosts = std::mem::take(&mut config.known_hosts);
-        let _ = save_config(&self.path, &config);
-        hosts
-    }
 }
 
 fn section_value<'a>(config: &'a PuckConfigFile, section: &str) -> Option<&'a Value> {
     match section {
         SECTION_APP_SETTINGS => config.app_settings.as_ref(),
-        SECTION_CONNECTIONS => config.connections.as_ref(),
         SECTION_SIDEBAR_LAYOUT => config.sidebar_layout.as_ref(),
         SECTION_SESSION_PRIVILEGES => config.session_privileges.as_ref(),
         SECTION_SHELL_LAYOUT => config.shell_layout.as_ref(),
@@ -166,7 +143,6 @@ fn section_value<'a>(config: &'a PuckConfigFile, section: &str) -> Option<&'a Va
 fn set_section_value(config: &mut PuckConfigFile, section: &str, value: Option<Value>) {
     match section {
         SECTION_APP_SETTINGS => config.app_settings = value,
-        SECTION_CONNECTIONS => config.connections = value,
         SECTION_SIDEBAR_LAYOUT => config.sidebar_layout = value,
         SECTION_SESSION_PRIVILEGES => config.session_privileges = value,
         SECTION_SHELL_LAYOUT => config.shell_layout = value,
@@ -174,11 +150,6 @@ fn set_section_value(config: &mut PuckConfigFile, section: &str, value: Option<V
     }
 }
 
-/// Loads the config file, falling back to a one-time legacy migration.
-///
-/// 读取配置文件；若文件不存在或解析失败，则尝试从旧版分散的 JSON 文件迁移
-/// 一次，迁移成功后写出新的 TOML 并清理旧文件。任何失败都会安全回退到默认
-/// 配置，确保应用始终能正常启动。
 fn load_config(path: &Path) -> PuckConfigFile {
     if path.exists() {
         if let Ok(content) = fs::read_to_string(path) {
@@ -187,13 +158,7 @@ fn load_config(path: &Path) -> PuckConfigFile {
             }
         }
     }
-
-    let (config, migrated) = migrate_legacy_json_files();
-    if migrated {
-        let _ = save_config(path, &config);
-        cleanup_legacy_json_files();
-    }
-    config
+    PuckConfigFile::default()
 }
 
 fn save_config(path: &Path, config: &PuckConfigFile) -> Result<(), String> {
@@ -203,57 +168,6 @@ fn save_config(path: &Path, config: &PuckConfigFile) -> Result<(), String> {
     let content = toml::to_string_pretty(config).map_err(|error| error.to_string())?;
     fs::write(path, content).map_err(|error| error.to_string())
 }
-
-fn migrate_legacy_json_files() -> (PuckConfigFile, bool) {
-    let dir = config_dir();
-    let mut config = PuckConfigFile::default();
-    let mut migrated = false;
-
-    let legacy_sections = [
-        ("puck-app-settings.json", SECTION_APP_SETTINGS),
-        ("puck-connections.json", SECTION_CONNECTIONS),
-        ("puck-sidebar-layout.json", SECTION_SIDEBAR_LAYOUT),
-        ("puck-session-privileges.json", SECTION_SESSION_PRIVILEGES),
-        ("puck-shell-layout.json", SECTION_SHELL_LAYOUT),
-    ];
-
-    for (file_name, section) in legacy_sections {
-        let path = dir.join(file_name);
-        if let Some(value) = read_legacy_json_value(&path) {
-            set_section_value(&mut config, section, Some(value));
-            migrated = true;
-        }
-    }
-
-    (config, migrated)
-}
-
-fn read_legacy_json_value(path: &Path) -> Option<Value> {
-    let content = fs::read_to_string(path).ok()?;
-    serde_json::from_str(&content).ok()
-}
-
-fn cleanup_legacy_json_files() {
-    let dir = config_dir();
-    let legacy_files = [
-        "puck-app-settings.json",
-        "puck-connections.json",
-        "puck-sidebar-layout.json",
-        "puck-session-privileges.json",
-        "puck-shell-layout.json",
-    ];
-
-    for file_name in legacy_files {
-        let path = dir.join(file_name);
-        if path.exists() {
-            let _ = fs::remove_file(path);
-        }
-    }
-}
-
-// 以下 Tauri 命令是前端访问配置的入口：返回配置目录/文件路径，批量加载所有
-// UI 区段用于启动期 hydration，以及按区段读取、写入、删除。写入与删除后会
-// 广播 `puck:config-changed` 事件，让其它窗口同步刷新对应状态。
 
 #[tauri::command]
 pub fn get_config_dir() -> String {

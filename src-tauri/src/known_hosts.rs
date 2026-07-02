@@ -10,7 +10,7 @@ use std::sync::{Arc, Mutex};
 
 use russh::keys::{HashAlg, PublicKey};
 
-use crate::config::{config_dir, KnownHostRecord, PuckConfigStore};
+use crate::config::{config_dir, KnownHostRecord};
 use crate::error::{host_key_prompt, HostKeyPrompt, PuckResult};
 
 const KNOWN_HOSTS_FILE_NAME: &str = "known_hosts.json";
@@ -54,24 +54,16 @@ fn merge_known_host(records: &mut Vec<KnownHostRecord>, record: KnownHostRecord)
 /// Manages trusted host keys in a dedicated JSON file.
 ///
 /// known hosts 的领域逻辑封装；数据持久化在 `known_hosts.json`，与 `config.toml`
-/// 分离。启动时会将旧版嵌入在 `config.toml` 中的记录一次性迁移到该文件。
+/// 分离。
 pub struct KnownHostsStore {
     path: PathBuf,
     records: Mutex<Vec<KnownHostRecord>>,
 }
 
 impl KnownHostsStore {
-    pub fn new(config: Arc<PuckConfigStore>) -> Self {
+    pub fn new() -> Self {
         let path = known_hosts_file_path();
-        let mut records = load_known_hosts_file(&path);
-
-        for record in config.drain_known_hosts() {
-            merge_known_host(&mut records, record);
-        }
-
-        if !records.is_empty() {
-            let _ = save_known_hosts_file(&path, &records);
-        }
+        let records = load_known_hosts_file(&path);
 
         Self {
             path,

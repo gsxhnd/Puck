@@ -5,6 +5,7 @@
 //! 并把全部 `#[tauri::command]` 注册到调用处理器中供前端 invoke 调用。
 
 mod config;
+mod connections;
 mod themes;
 mod connections_window;
 mod credential;
@@ -27,6 +28,7 @@ mod workspace;
 use std::sync::Arc;
 
 use config::PuckConfigStore;
+use connections::ConnectionsStore;
 use known_hosts::KnownHostsStore;
 
 /// Applies the translucent vibrancy material to a macOS window.
@@ -85,8 +87,9 @@ pub fn run() {
     let mut builder = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
-        .manage(config_store.clone())
-        .manage(Arc::new(KnownHostsStore::new(config_store)))
+        .manage(config_store)
+        .manage(Arc::new(ConnectionsStore::new()))
+        .manage(Arc::new(KnownHostsStore::new()))
         .setup(|app| {
             #[cfg(target_os = "macos")]
             configure_macos_window(app);
@@ -132,6 +135,10 @@ pub fn run() {
             config::get_puck_config_section,
             config::set_puck_config_section,
             config::remove_puck_config_section,
+            connections::get_connections_file_path,
+            connections::load_connections,
+            connections::save_connections,
+            connections::remove_connections,
             themes::get_themes_dir,
             themes::list_color_themes_command,
             themes::read_color_theme_css_command,
