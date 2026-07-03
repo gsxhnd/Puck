@@ -66,5 +66,9 @@
   "bootstrapFailed": {
     "title": "Startup failed",
     "description": "Puck could not load persisted configuration, so the app cannot start."
+  },
+  "configRecovered": {
+    "title": "Configuration reset",
+    "description": "A corrupted configuration file was detected. The original was backed up and defaults were restored."
   }
 }

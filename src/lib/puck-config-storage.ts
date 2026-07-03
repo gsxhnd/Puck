@@ -33,6 +33,12 @@ async function loadSectionsFromDisk(): Promise<void> {
   }
 }
 
+/** Returns startup warnings emitted when config.toml had to be recovered. */
+export async function getConfigLoadWarnings(): Promise<string[]> {
+  if (!isTauri()) return [];
+  return invoke<string[]>("get_config_load_warnings");
+}
+
 /** Preload config.toml before Zustand hydration. */
 export function initPuckConfigStorage(): Promise<void> {
   if (!initPromise) {

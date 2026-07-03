@@ -1,5 +1,6 @@
 {
   "title": "Editor",
+  "shellLoading": "Loading editor…",
   "loading": "Loading file…",
   "save": "Save",
   "saved": "File saved",

@@ -36,6 +36,13 @@
     "title": "协议暂不支持",
     "description": "FTP / FTPS 正在开发中，请改用 SSH 或 SFTP。"
   },
+  "validation": {
+    "hostRequired": "请输入主机地址",
+    "usernameRequired": "请输入用户名",
+    "portInvalid": "端口必须是 1–65535 之间的整数",
+    "privateKeyRequired": "请选择或输入私钥路径",
+    "protocolNotSupported": "所选协议暂不支持"
+  },
   "actions": {
     "openTerminal": "打开终端",
     "openSftp": "打开 SFTP",

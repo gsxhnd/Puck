@@ -4,6 +4,8 @@
 //! 负责判断远端主机公钥是否已被信任、信任并保存新公钥、删除已信任记录，
 //! 以及在首次连接遇到未知主机时生成供前端确认的提示信息。
 
+use crate::atomic_file::{atomic_write, backup_corrupt_file};
+
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
@@ -24,19 +26,39 @@ fn load_known_hosts_file(path: &Path) -> Vec<KnownHostRecord> {
     if !path.exists() {
         return Vec::new();
     }
-    fs::read_to_string(path)
-        .ok()
-        .and_then(|content| serde_json::from_str(&content).ok())
-        .unwrap_or_default()
+
+    let content = match fs::read_to_string(path) {
+        Ok(content) => content,
+        Err(error) => {
+            eprintln!(
+                "puck: failed to read known hosts file {}: {error}",
+                path.display()
+            );
+            return Vec::new();
+        }
+    };
+
+    match serde_json::from_str::<Vec<KnownHostRecord>>(&content) {
+        Ok(records) => records,
+        Err(error) => {
+            let backup_path = backup_corrupt_file(path);
+            let backup_note = backup_path
+                .as_ref()
+                .map(|backup| backup.display().to_string())
+                .unwrap_or_else(|| "backup failed".to_string());
+            eprintln!(
+                "puck: known hosts file {} is invalid ({error}); reset to empty list. Backup: {backup_note}",
+                path.display()
+            );
+            Vec::new()
+        }
+    }
 }
 
 fn save_known_hosts_file(path: &Path, records: &[KnownHostRecord]) -> PuckResult<()> {
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent).map_err(|error| error.to_string())?;
-    }
     let content =
         serde_json::to_string_pretty(records).map_err(|error| error.to_string())?;
-    fs::write(path, content).map_err(|error| error.to_string())?;
+    atomic_write(path, &content).map_err(|error| error.to_string())?;
     Ok(())
 }
 

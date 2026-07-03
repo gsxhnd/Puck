@@ -4,6 +4,7 @@
 //! known hosts、窗口管理等），初始化共享的全局 state，应用 macOS 窗口效果，
 //! 并把全部 `#[tauri::command]` 注册到调用处理器中供前端 invoke 调用。
 
+mod atomic_file;
 mod config;
 mod connections;
 mod themes;
@@ -132,6 +133,7 @@ pub fn run() {
             credential::delete_connection_credentials,
             config::get_config_dir,
             config::get_config_file_path,
+            config::get_config_load_warnings,
             config::load_puck_config_sections,
             config::get_puck_config_section,
             config::set_puck_config_section,

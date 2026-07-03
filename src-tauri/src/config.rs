@@ -4,6 +4,8 @@
 //! 保存在 `~/.config/puck/config.toml`；连接配置与 SSH known hosts 分别使用
 //! `connections.json` 与 `known_hosts.json`（见对应模块）。
 
+use crate::atomic_file::{atomic_write, backup_corrupt_file};
+
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -90,16 +92,22 @@ pub fn config_file_path() -> PathBuf {
 pub struct PuckConfigStore {
     path: PathBuf,
     config: Mutex<PuckConfigFile>,
+    load_warnings: Mutex<Vec<String>>,
 }
 
 impl PuckConfigStore {
     pub fn new() -> Self {
         let path = config_file_path();
-        let config = load_config(&path);
+        let (config, warnings) = load_config(&path);
         Self {
             path,
             config: Mutex::new(config),
+            load_warnings: Mutex::new(warnings),
         }
+    }
+
+    pub fn take_load_warnings(&self) -> Vec<String> {
+        self.load_warnings.lock().unwrap().drain(..).collect()
     }
 
     pub fn get_section(&self, section: &str) -> Option<String> {
@@ -163,23 +171,50 @@ fn set_section_value(
     Ok(())
 }
 
-fn load_config(path: &Path) -> PuckConfigFile {
-    if path.exists() {
-        if let Ok(content) = fs::read_to_string(path) {
-            if let Ok(config) = toml::from_str::<PuckConfigFile>(&content) {
-                return config;
-            }
-        }
+fn load_config(path: &Path) -> (PuckConfigFile, Vec<String>) {
+    if !path.exists() {
+        return (PuckConfigFile::default(), Vec::new());
     }
-    PuckConfigFile::default()
+
+    let content = match fs::read_to_string(path) {
+        Ok(content) => content,
+        Err(error) => {
+            let message = format!(
+                "Failed to read {}: {error}. Using default configuration.",
+                path.display()
+            );
+            eprintln!("puck: {message}");
+            return (PuckConfigFile::default(), vec![message]);
+        }
+    };
+
+    if let Ok(config) = toml::from_str::<PuckConfigFile>(&content) {
+        return (config, Vec::new());
+    }
+
+    let backup_path = backup_corrupt_file(path);
+    let backup_note = backup_path
+        .as_ref()
+        .map(|backup| backup.display().to_string())
+        .unwrap_or_else(|| "backup failed".to_string());
+    let message = format!(
+        "Configuration file {} is invalid and was reset to defaults. A backup was saved to {backup_note}.",
+        path.display()
+    );
+    eprintln!("puck: {message}");
+    (PuckConfigFile::default(), vec![message])
 }
 
 fn save_config(path: &Path, config: &PuckConfigFile) -> Result<(), String> {
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent).map_err(|error| error.to_string())?;
-    }
     let content = toml::to_string_pretty(config).map_err(|error| error.to_string())?;
-    fs::write(path, content).map_err(|error| error.to_string())
+    atomic_write(path, &content)
+}
+
+#[tauri::command]
+pub fn get_config_load_warnings(
+    store: State<'_, Arc<PuckConfigStore>>,
+) -> Vec<String> {
+    store.take_load_warnings()
 }
 
 #[tauri::command]

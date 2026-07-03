@@ -2,20 +2,20 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { open } from "@tauri-apps/plugin-dialog";
-import type { AuthMethod, ConnectionProfile, ConnectionProtocol } from "@/types/connection";
-import { DEFAULT_PORTS } from "@/types/connection";
 import { useConnectionStore } from "@/stores/connection-store";
 import { openProfileSession } from "@/lib/open-profile-session";
 import {
-  isImplementedRemoteProtocol,
-  protocolOptionLabel,
-  REMOTE_PROTOCOL_SELECT_OPTIONS,
-} from "@/lib/connection-protocol";
-import {
-  deleteConnectionCredentials,
-  deleteCredential,
-  saveCredential,
-} from "@/lib/tauri-ssh";
+  emptyConnectionForm,
+  formToProfilePayload,
+  hasValidationErrors,
+  persistConnectionCredentials,
+  profileToForm,
+  validateConnectionProfileForm,
+  type ConnectionProfileFormState,
+  type ConnectionProfileValidationErrors,
+} from "@/lib/connection-profile-form";
+import { deleteConnectionCredentials } from "@/lib/tauri-ssh";
+import { ConnectionProfileFields } from "@/components/connections/connection-profile-fields";
 import {
   Dialog,
   DialogContent,
@@ -25,8 +25,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Input } from "@/components/ui/input";
 
 type ConnectionDialogProps = {
   open: boolean;
@@ -34,107 +32,6 @@ type ConnectionDialogProps = {
   mode?: "default" | "quickConnect";
   onOpenChange: (open: boolean) => void;
 };
-
-type FormState = {
-  name: string;
-  protocol: Exclude<ConnectionProtocol, "local">;
-  host: string;
-  port: string;
-  username: string;
-  authMethod: AuthMethod;
-  askPasswordEachTime: boolean;
-  password: string;
-  passphrase: string;
-  privateKeyPath: string;
-  defaultDirectory: string;
-};
-
-function ensureImplementedProtocol(
-  protocol: Exclude<ConnectionProtocol, "local">,
-  t: ReturnType<typeof useTranslation>[0],
-): boolean {
-  if (isImplementedRemoteProtocol(protocol)) {
-    return true;
-  }
-
-  toast.error(t("connections:protocolNotSupported.title"), {
-    description: t("connections:protocolNotSupported.description"),
-  });
-  return false;
-}
-
-function profileToForm(profile: ConnectionProfile): FormState {
-  return {
-    name: profile.name,
-    protocol:
-      profile.protocol === "local"
-        ? "ssh"
-        : (profile.protocol as Exclude<ConnectionProtocol, "local">),
-    host: profile.host ?? "",
-    port: String(profile.port ?? DEFAULT_PORTS.ssh),
-    username: profile.username ?? "",
-    authMethod: profile.authMethod ?? "password",
-    askPasswordEachTime: profile.askPasswordEachTime ?? false,
-    password: "",
-    passphrase: "",
-    privateKeyPath: profile.privateKeyPath ?? "",
-    defaultDirectory: profile.defaultDirectory ?? "",
-  };
-}
-
-function emptyForm(): FormState {
-  return {
-    name: "",
-    protocol: "ssh",
-    host: "",
-    port: String(DEFAULT_PORTS.ssh),
-    username: "",
-    authMethod: "password",
-    askPasswordEachTime: false,
-    password: "",
-    passphrase: "",
-    privateKeyPath: "",
-    defaultDirectory: "",
-  };
-}
-
-function formToProfilePayload(form: FormState, untitledLabel: string) {
-  const port = Number.parseInt(form.port, 10);
-  return {
-    name: form.name.trim() || untitledLabel,
-    protocol: form.protocol,
-    host: form.host.trim(),
-    port: Number.isFinite(port) ? port : DEFAULT_PORTS[form.protocol],
-    username: form.username.trim(),
-    authMethod: form.authMethod,
-    askPasswordEachTime:
-      form.authMethod === "password" || form.authMethod === "privateKey"
-        ? form.askPasswordEachTime
-        : undefined,
-    privateKeyPath:
-      form.authMethod === "privateKey" ? form.privateKeyPath.trim() : undefined,
-    defaultDirectory: form.defaultDirectory.trim() || undefined,
-  };
-}
-
-async function persistCredentials(connectionId: string, form: FormState) {
-  if (form.askPasswordEachTime) {
-    if (form.authMethod === "password") {
-      await deleteCredential(connectionId, "password");
-    }
-    if (form.authMethod === "privateKey") {
-      await deleteCredential(connectionId, "passphrase");
-    }
-    return;
-  }
-
-  if (form.authMethod === "password" && form.password) {
-    await saveCredential(connectionId, "password", form.password);
-  }
-  if (form.authMethod === "privateKey" && form.passphrase) {
-    await saveCredential(connectionId, "passphrase", form.passphrase);
-  }
-}
 
 export function ConnectionDialog({
   open: dialogOpen,
@@ -152,32 +49,42 @@ export function ConnectionDialog({
   );
   const isEditing = Boolean(profileId && profile && profile.protocol !== "local");
   const isQuickConnect = mode === "quickConnect" && !isEditing;
-  const [form, setForm] = useState<FormState>(emptyForm);
+  const [form, setForm] = useState<ConnectionProfileFormState>(emptyConnectionForm);
+  const [fieldErrors, setFieldErrors] = useState<ConnectionProfileValidationErrors>({});
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!dialogOpen) return;
+    setFieldErrors({});
     if (isEditing && profile) {
       setForm(profileToForm(profile));
       return;
     }
-    setForm(emptyForm());
+    setForm(emptyConnectionForm());
   }, [dialogOpen, isEditing, profile]);
 
-  const updateField = <K extends keyof FormState>(key: K, value: FormState[K]) => {
+  const updateField = <K extends keyof ConnectionProfileFormState>(
+    key: K,
+    value: ConnectionProfileFormState[K],
+  ) => {
     setForm((current) => ({ ...current, [key]: value }));
+    setFieldErrors((current) => {
+      if (!(key in current)) return current;
+      const next = { ...current };
+      delete next[key as keyof ConnectionProfileValidationErrors];
+      return next;
+    });
   };
 
-  const handleProtocolChange = (protocol: Exclude<ConnectionProtocol, "local">) => {
-    if (!isImplementedRemoteProtocol(protocol)) {
-      return;
+  const validateForm = (): boolean => {
+    const errors = validateConnectionProfileForm(form, t);
+    setFieldErrors(errors);
+    if (errors.protocol) {
+      toast.error(t("connections:protocolNotSupported.title"), {
+        description: t("connections:protocolNotSupported.description"),
+      });
     }
-
-    setForm((current) => ({
-      ...current,
-      protocol,
-      port: String(DEFAULT_PORTS[protocol]),
-    }));
+    return !hasValidationErrors(errors);
   };
 
   const pickPrivateKey = async () => {
@@ -191,7 +98,7 @@ export function ConnectionDialog({
   };
 
   const handleSave = async () => {
-    if (!ensureImplementedProtocol(form.protocol, t)) {
+    if (!validateForm()) {
       return;
     }
 
@@ -210,7 +117,7 @@ export function ConnectionDialog({
         connectionId = created.id;
       }
 
-      await persistCredentials(connectionId, form);
+      await persistConnectionCredentials(connectionId, form);
       onOpenChange(false);
     } finally {
       setSaving(false);
@@ -218,7 +125,7 @@ export function ConnectionDialog({
   };
 
   const handleConnect = async () => {
-    if (!ensureImplementedProtocol(form.protocol, t)) {
+    if (!validateForm()) {
       return;
     }
 
@@ -229,7 +136,7 @@ export function ConnectionDialog({
         t("connections:newDialog.untitled"),
       );
       const profile = addEphemeralProfile(payload);
-      await persistCredentials(profile.id, form);
+      await persistConnectionCredentials(profile.id, form);
       await openProfileSession(profile);
       onOpenChange(false);
     } finally {
@@ -264,173 +171,13 @@ export function ConnectionDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid gap-3">
-          <label className="grid gap-1.5 text-sm">
-            <span className="text-muted-foreground">
-              {t("connections:fields.name")}
-            </span>
-            <Input
-              value={form.name}
-              onChange={(event) => updateField("name", event.target.value)}
-            />
-          </label>
-
-          <label className="grid gap-1.5 text-sm">
-            <span className="text-muted-foreground">
-              {t("connections:fields.protocol")}
-            </span>
-            <select
-              className="h-9 rounded-md border bg-background px-3 text-sm"
-              value={form.protocol}
-              onChange={(event) =>
-                handleProtocolChange(
-                  event.target.value as Exclude<ConnectionProtocol, "local">,
-                )
-              }
-            >
-              {REMOTE_PROTOCOL_SELECT_OPTIONS.map(({ protocol, disabled }) => (
-                <option key={protocol} value={protocol} disabled={disabled}>
-                  {protocolOptionLabel(t, protocol, disabled)}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <div className="grid grid-cols-[1fr_6rem] gap-3">
-            <label className="grid gap-1.5 text-sm">
-              <span className="text-muted-foreground">
-                {t("connections:fields.host")}
-              </span>
-              <Input
-                value={form.host}
-                onChange={(event) => updateField("host", event.target.value)}
-              />
-            </label>
-            <label className="grid gap-1.5 text-sm">
-              <span className="text-muted-foreground">
-                {t("connections:fields.port")}
-              </span>
-              <Input
-                value={form.port}
-                onChange={(event) => updateField("port", event.target.value)}
-              />
-            </label>
-          </div>
-
-          <label className="grid gap-1.5 text-sm">
-            <span className="text-muted-foreground">
-              {t("connections:fields.username")}
-            </span>
-            <Input
-              value={form.username}
-              onChange={(event) => updateField("username", event.target.value)}
-            />
-          </label>
-
-          <label className="grid gap-1.5 text-sm">
-            <span className="text-muted-foreground">
-              {t("connections:fields.authMethod")}
-            </span>
-            <select
-              className="h-9 rounded-md border bg-background px-3 text-sm"
-              value={form.authMethod}
-              onChange={(event) =>
-                updateField("authMethod", event.target.value as AuthMethod)
-              }
-            >
-              <option value="password">{t("connections:auth.password")}</option>
-              <option value="privateKey">{t("connections:auth.privateKey")}</option>
-            </select>
-          </label>
-
-          {(form.authMethod === "password" || form.authMethod === "privateKey") ? (
-            <label className="flex items-center gap-2 text-sm">
-              <Checkbox
-                checked={form.askPasswordEachTime}
-                onCheckedChange={(checked) =>
-                  updateField("askPasswordEachTime", checked === true)
-                }
-              />
-              <span>{t("connections:auth.askPasswordEachTime")}</span>
-            </label>
-          ) : null}
-
-          {form.authMethod === "password" && !form.askPasswordEachTime ? (
-            <label className="grid gap-1.5 text-sm">
-              <span className="text-muted-foreground">
-                {t("connections:fields.password")}
-              </span>
-              <Input
-                type="password"
-                value={form.password}
-                placeholder={
-                  isEditing ? t("connections:fields.passwordKeep") : undefined
-                }
-                onChange={(event) => updateField("password", event.target.value)}
-              />
-            </label>
-          ) : null}
-
-          {form.authMethod === "password" && form.askPasswordEachTime ? (
-            <p className="text-xs text-muted-foreground">
-              {t("connections:auth.askPasswordEachTimeHint")}
-            </p>
-          ) : null}
-
-          {form.authMethod === "privateKey" ? (
-            <>
-              <div className="grid gap-1.5 text-sm">
-                <span className="text-muted-foreground">
-                  {t("connections:fields.privateKey")}
-                </span>
-                <div className="flex gap-2">
-                  <Input
-                    value={form.privateKeyPath}
-                    onChange={(event) =>
-                      updateField("privateKeyPath", event.target.value)
-                    }
-                  />
-                  <Button type="button" variant="outline" onClick={() => void pickPrivateKey()}>
-                    {t("common:actions.open")}
-                  </Button>
-                </div>
-              </div>
-              {!form.askPasswordEachTime ? (
-                <label className="grid gap-1.5 text-sm">
-                  <span className="text-muted-foreground">
-                    {t("connections:fields.passphrase")}
-                  </span>
-                  <Input
-                    type="password"
-                    value={form.passphrase}
-                    placeholder={
-                      isEditing ? t("connections:fields.passwordKeep") : undefined
-                    }
-                    onChange={(event) => updateField("passphrase", event.target.value)}
-                  />
-                </label>
-              ) : (
-                <p className="text-xs text-muted-foreground">
-                  {t("connections:auth.askPassphraseEachTimeHint")}
-                </p>
-              )}
-            </>
-          ) : null}
-
-          {(form.protocol === "sftp" || form.protocol === "ssh") && (
-            <label className="grid gap-1.5 text-sm">
-              <span className="text-muted-foreground">
-                {t("connections:fields.defaultDirectory")}
-              </span>
-              <Input
-                value={form.defaultDirectory}
-                onChange={(event) =>
-                  updateField("defaultDirectory", event.target.value)
-                }
-              />
-            </label>
-          )}
-        </div>
+        <ConnectionProfileFields
+          form={form}
+          isEditing={isEditing}
+          errors={fieldErrors}
+          onChange={updateField}
+          onPickPrivateKey={() => void pickPrivateKey()}
+        />
 
         <DialogFooter className="gap-2 sm:justify-between">
           {isEditing ? (

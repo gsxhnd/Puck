@@ -36,6 +36,13 @@
     "title": "Protocol not supported",
     "description": "FTP / FTPS are not available yet. Use SSH or SFTP instead."
   },
+  "validation": {
+    "hostRequired": "Host is required",
+    "usernameRequired": "Username is required",
+    "portInvalid": "Port must be an integer between 1 and 65535",
+    "privateKeyRequired": "Private key path is required",
+    "protocolNotSupported": "The selected protocol is not supported yet"
+  },
   "actions": {
     "openTerminal": "Open Terminal",
     "openSftp": "Open SFTP",

@@ -238,54 +238,64 @@ Puck 是一个架构清晰、文档诚实的 alpha 桌面应用（Tauri v2 + Rea
 
 ---
 
-### 3.9 连接表单逻辑重复、校验薄弱
+### 3.9 连接表单逻辑重复、校验薄弱 — **已修复**
 
-**位置：** `src/components/connections/connection-dialog.tsx`、`src/page/connections/connection-profile-panel.tsx`
+**状态：** 已修复（2026-07-03）
 
-连接表单 state、`profileToForm`、`emptyForm`、`formToProfilePayload`、`persistCredentials` 在 dialog 与 page panel 中重复实现。且缺少明确校验：host/username 可为空、port 非法时静默 fallback、private key path 可为空。
+**原位置：** `connection-dialog.tsx`、`connection-profile-panel.tsx`
 
-**建议：**
+**原问题：** 表单转换与凭据持久化重复实现；host/username/port/privateKey 缺少校验。
 
-1. 抽出 `connection-profile-form.ts`，统一表单转换、校验与凭据持久化
-2. 保存前返回结构化 validation errors
-3. 使用现有 UI 组件展示字段级错误
-4. 对协议可用性做统一判断
+**修复：**
 
----
-
-### 3.10 配置文件写入不是原子写，解析失败会静默回退
-
-**位置：** `src-tauri/src/config.rs`、`src-tauri/src/known_hosts.rs`
-
-`save_config` 和 `save_known_hosts_file` 使用直接 `fs::write`。`load_config` 在 TOML 解析失败时尝试迁移旧 JSON 或回默认配置，不保留损坏文件提示。
-
-**影响：** 断电或写入中断可能损坏配置；解析失败时用户看到设置"突然恢复默认"但不知道原因。
-
-**建议：** 写入使用临时文件 + rename 原子替换；解析失败时备份原文件为 `config.toml.bak.<timestamp>`；前端或日志提示配置已恢复默认。
+1. 抽出 `connection-profile-form.ts` 统一状态转换、校验与凭据写入
+2. 抽出 `ConnectionProfileFields` 共享表单 UI
+3. 保存/连接前返回结构化字段错误并 inline 展示
+4. 协议可用性校验复用 `connection-protocol.ts`
 
 ---
 
-### 3.11 首屏 / 主 bundle 体积偏大
+### 3.10 配置文件写入不是原子写，解析失败会静默回退 — **已修复**
 
-**位置：** `src/App.tsx`、`src/layout/editor-shell.tsx`、`src/components/editor/monaco-editor-pane.tsx`
+**状态：** 已修复（2026-07-03）
 
-`App.tsx` 静态引入 `EditorShell`，从而引入 Monaco 路径。产物中 Monaco 相关 chunk 很大（`editor.main-*.js` 约 3.7 MB、`ts.worker-*.js` 约 7.0 MB），编辑器窗口不是主工作台首屏能力。
+**原位置：** `config.rs`、`known_hosts.rs`
 
-**建议：** `EditorShell` 使用 `React.lazy` 或按 `window=editor` 动态 import；主窗口不要静态引入 editor-only 模块；Monaco language/worker 按需加载。
+**原问题：** 直接 `fs::write`；TOML/JSON 解析失败静默回默认。
+
+**修复：**
+
+1. 新增 `atomic_file.rs`：临时文件 + rename 原子写入
+2. 解析失败时备份为 `<file>.bak.<timestamp>` 并 `eprintln!` 记录
+3. `get_config_load_warnings` IPC + bootstrap toast 提示用户配置已恢复默认
 
 ---
 
-### 3.12 Tauri 安全默认值偏宽
+### 3.11 首屏 / 主 bundle 体积偏大 — **已修复**
 
-**位置：** `src-tauri/tauri.conf.json`、`src-tauri/capabilities/default.json`
+**状态：** 已修复（2026-07-03）
 
-`tauri.conf.json` 中 `"csp": null`；capability 同时覆盖所有窗口 `["main", "settings", "connections", "editor-*"]`，并授予 `opener:default`、`dialog:default`。当前无 remote URL 短期风险可控，但后续一旦加入 markdown 预览、外链内容、插件系统或 AI 输出渲染，CSP 为空会放大攻击面。
+**原位置：** `App.tsx`、`editor-shell.tsx`
 
-**建议：**
+**原问题：** 静态引入 `EditorShell` 导致 Monaco 进入主 bundle。
 
-1. 生产环境配置最小 CSP
-2. 拆分 capabilities，各窗口分别声明需要的权限
-3. 避免所有窗口默认共享 dialog/opener 能力
+**修复：** `EditorShell` 改为 `React.lazy` + `Suspense`，仅 `window=editor` 时加载 Monaco chunk。
+
+---
+
+### 3.12 Tauri 安全默认值偏宽 — **已修复**
+
+**状态：** 已修复（2026-07-03）
+
+**原位置：** `tauri.conf.json`、`capabilities/default.json`
+
+**原问题：** CSP 为空；所有窗口共享 dialog/opener 权限。
+
+**修复：**
+
+1. 配置最小 CSP（self + ipc + asset + inline style + blob worker）
+2. 拆分 capabilities：`main` / `settings` / `connections` / `editor-*`
+3. 仅 main 保留 opener + webview 创建；connections 保留 dialog；settings/editor 无 dialog/opener
 
 ---
 
