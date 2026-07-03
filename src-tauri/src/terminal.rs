@@ -7,6 +7,7 @@ use tauri::{AppHandle, Emitter, State};
 use crate::error::puck_err;
 use crate::session::{SessionKind, SessionManager, TerminalBackend};
 use crate::shell::{find_shell, ShellInfo};
+use crate::utf8_stream::Utf8StreamDecoder;
 
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -114,11 +115,15 @@ pub fn open_local_terminal(
     std::thread::spawn(move || {
         let mut reader = reader;
         let mut buffer = [0u8; 8192];
+        let mut decoder = Utf8StreamDecoder::new();
         loop {
             match reader.read(&mut buffer) {
                 Ok(0) => break,
                 Ok(count) => {
-                    let data = String::from_utf8_lossy(&buffer[..count]).into_owned();
+                    let data = decoder.push(&buffer[..count]);
+                    if data.is_empty() {
+                        continue;
+                    }
                     let _ = app_handle.emit(
                         "terminal:data",
                         TerminalDataEvent {
@@ -129,6 +134,16 @@ pub fn open_local_terminal(
                 }
                 Err(_) => break,
             }
+        }
+        let tail = decoder.finish();
+        if !tail.is_empty() {
+            let _ = app_handle.emit(
+                "terminal:data",
+                TerminalDataEvent {
+                    session_id: read_session_id.clone(),
+                    data: tail,
+                },
+            );
         }
         let _ = app_handle.emit(
             "terminal:exit",

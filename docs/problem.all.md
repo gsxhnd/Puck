@@ -122,67 +122,73 @@ Puck 是一个架构清晰、文档诚实的 alpha 桌面应用（Tauri v2 + Rea
 
 ## 3. P1：运行期正确性与网络韧性
 
-### 3.1 PTY / SSH 输出在读边界处 UTF-8 被永久破坏（中文、emoji、绘框字符乱码）
+### 3.1 PTY / SSH 输出在读边界处 UTF-8 被永久破坏（中文、emoji、绘框字符乱码）— **已修复**
 
-**位置：** `src-tauri/src/terminal.rs:116-121`、`src-tauri/src/ssh.rs:204,269,279`
+**状态：** 已修复（2026-07-03）
 
-```rust
-let data = String::from_utf8_lossy(&buffer[..count]).into_owned(); // 半个多字节字符 → U+FFFD
-```
+**原位置：** `src-tauri/src/terminal.rs`、`src-tauri/src/ssh.rs`
 
-`read` 会在任意字节边界切断多字节 UTF-8 序列，`from_utf8_lossy` 把结尾不完整字节**永久**替换成 `�`，xterm.js 无从恢复。
+**原问题：** `read` 在任意字节边界切断多字节 UTF-8 序列，`from_utf8_lossy` 把不完整尾字节永久替换成 replacement character，xterm.js 无从恢复。
 
-**影响：** 任何跨读缓冲边界的 CJK 文本、emoji、box-drawing 输出都会乱码。SSH 的 `ChannelMsg::Data` / `ExtendedData` 处理有同样缺陷。
+**修复：** 新增 `utf8_stream.rs` 的 `Utf8StreamDecoder`，在 PTY 读循环与 SSH `ChannelMsg::Data` / `ExtendedData` 处理间保留不完整尾字节，流结束时 flush。
 
-**建议：** 在读循环间保留"不完整尾字节"，或直接把原始字节透传给前端由 xterm.js 解码（xterm 支持写入 `Uint8Array`）。
 
 ---
 
-### 3.2 SSH 无连接超时、无 keepalive，断网后残留"幽灵会话"
+### 3.2 SSH 无连接超时、无 keepalive，断网后残留"幽灵会话" — **已修复**
 
-**位置：** `src-tauri/src/ssh.rs:78-84`（全仓库 grep `keepalive|timeout|inactivity` 零命中）
+**状态：** 已修复（2026-07-03）
 
-```rust
-let config = Arc::new(client::Config::default()); // 从不设置 keepalive_interval
-let mut session = client::connect(config, (host, port), handler).await // 无 tokio::time::timeout
-```
+**原位置：** `src-tauri/src/ssh.rs`
 
-**影响：**
+**原问题：** 无连接/认证超时，无 SSH keepalive；半开连接时 `io_task` 永久阻塞，UI 停在 `creating` 或 `connected`。
 
-- 目标不可达 / 被防火墙丢弃时，`connect` 挂在 OS 默认 TCP 超时上，UI 一直停在 `creating` 不报错
-- 无 SSH keepalive：网络中断、笔记本休眠/唤醒造成半开连接时无法被检测，io_task 永远阻塞在 `channel.wait()`，既不发 `terminal:exit`，UI 也一直显示 `connected`，任务与连接句柄泄漏
+**修复：**
 
-**建议：** 为 `connect` 加 `tokio::time::timeout`；设置 `Config::keepalive_interval` / `keepalive_max`；断线转为 `disconnected` / `reconnecting` 状态。
+1. `connect` / `authenticate` 各加 30s `tokio::time::timeout`
+2. `ssh_client_config()` 设置 `keepalive_interval`（15s）与 `keepalive_max`（3）
+3. 非预期断线时发送 `terminal:exit` + `session:status: disconnected`
 
 ---
 
-### 3.3 SFTP 在握手完成前就上报 `connected`，握手失败留下无法复用的死会话
+### 3.3 SFTP 在握手完成前就上报 `connected`，握手失败留下无法复用的死会话 — **已修复**
 
-**位置：** `src-tauri/src/sftp.rs:77-96`、`:172-198`
+**状态：** 已修复（2026-07-03）
 
-`insert_sftp` 与 `connected` 事件在 `SftpSession::new` 完成**之前**同步触发。若 SFTP 子系统握手失败，前端已被告知 `connected`，registry 里却留着指向已死 task 的 entry。后续命令返回 `sftp response channel closed`，而用同一 `session_id` 重连又会被 `insert_sftp` 的 `contains_key` 永久拒绝。SSH 路径是先 await 好 pty/shell 再报 connected，两者不一致进一步佐证这是 bug。
+**原位置：** `src-tauri/src/sftp.rs`
 
-**建议：** 把握手移到 spawn 之前，await 成功后，再 `insert_sftp` + 报 `connected`；失败时清理 registry。
+**原问题：** `insert_sftp` 与 `connected` 在 `SftpSession::new` 完成前触发；握手失败时 registry 残留死 entry，同一 `session_id` 无法重连。
 
----
-
-### 3.4 同步 Tauri command 里 `block_on` 阻塞派发线程
-
-**位置：** `src-tauri/src/system_monitor.rs:115,152-153`；`src-tauri/src/sftp.rs:412,430,440,454,499,517`
-
-同步 command 中的 `block_on` 阻塞 Tauri 命令派发线程进行网络往返。`get_remote_system_stats` 还内嵌远程 `sleep 1`，每次轮询都卡 ≥1s。叠加无超时，若对端不发 `Eof`/`ExitStatus`，`exec_remote_command` 的 `while channel.wait()` 可能永久冻结线程。同时，远程资源监控定时器可能导致前一次请求未完成时开始下一次请求。
-
-**建议：** 改为异步 command（`async fn`）；移除远程 `sleep 1`，改用单次采样或前端做差值；前端增加 in-flight guard，下一次 poll 在上一次完成后再调度。
+**修复：** 在 spawn 之前 `await SftpSession::new`；成功后再 `insert_sftp` + 报 `connected`；失败时断开 SSH 并返回错误，不写入 registry。
 
 ---
 
-### 3.5 SFTP 传输阻塞同一 session 的其他文件操作
+### 3.4 同步 Tauri command 里 `block_on` 阻塞派发线程 — **已修复**
 
-**位置：** `src-tauri/src/sftp.rs`
+**状态：** 已修复（2026-07-03）
 
-SFTP session 使用一个 command loop 处理所有命令。`Upload` / `Download` 在 match 分支内直接 `await`。大文件传输时，同一 SFTP session 的刷新目录、删除/重命名、读写远程文件等操作排队等待，文件管理器卡住。
+**原位置：** `src-tauri/src/system_monitor.rs`、`src-tauri/src/sftp.rs`、`src-tauri/src/ssh.rs`
 
-**建议：** 传输任务使用独立 SFTP session 或独立队列；directory/list/edit 与 transfer 分离通道；增加取消信号以支持传输取消。
+**原问题：** 同步 command 用 `block_on` 阻塞派发线程；远程 stats 命令内嵌 `sleep 1`；`exec_remote_command` 无超时；前端 poll 可能重叠。
+
+**修复：**
+
+1. `get_remote_system_stats` 及 SFTP 文件操作 command 改为 `async fn`，移除 `block_on`
+2. 远程 stats 改为单次 `/proc/stat` 采样，后端按连续 poll 计算 CPU 差值
+3. `exec_remote_command` 加 30s 超时
+4. 前端 `SystemResourcesSection` 增加 in-flight guard
+
+---
+
+### 3.5 SFTP 传输阻塞同一 session 的其他文件操作 — **已修复**
+
+**状态：** 已修复（2026-07-03）
+
+**原位置：** `src-tauri/src/sftp.rs`、`src-tauri/src/session.rs`
+
+**原问题：** Upload/Download 与目录/编辑操作共用单 command loop，大文件传输阻塞文件管理器。
+
+**修复：** 为每个 SFTP 连接打开独立传输子通道（第二个 `SftpSession` + `SftpTransferCommand` 队列），`start_transfer` 走 `transfer_tx`，与文件操作并行。
 
 ---
 

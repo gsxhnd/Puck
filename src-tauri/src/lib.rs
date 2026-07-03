@@ -23,6 +23,7 @@ mod ssh;
 mod system_monitor;
 mod terminal;
 mod transfer;
+mod utf8_stream;
 mod workspace;
 
 use std::sync::Arc;

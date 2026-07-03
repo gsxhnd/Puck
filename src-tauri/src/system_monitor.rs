@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::sync::{Mutex, OnceLock};
 use std::time::Instant;
 
@@ -5,7 +6,6 @@ use serde::Deserialize;
 use serde::Serialize;
 use sysinfo::{Disk, Disks, System};
 
-use crate::runtime::block_on;
 use crate::ssh::exec_remote_command;
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -36,6 +36,8 @@ struct MonitorState {
 
 static MONITOR: OnceLock<Mutex<MonitorState>> = OnceLock::new();
 
+static REMOTE_CPU_BASELINE: OnceLock<Mutex<HashMap<String, (u64, u64)>>> = OnceLock::new();
+
 fn monitor_state() -> &'static Mutex<MonitorState> {
     MONITOR.get_or_init(|| {
         let mut system = System::new();
@@ -45,6 +47,10 @@ fn monitor_state() -> &'static Mutex<MonitorState> {
             last_cpu_refresh: None,
         })
     })
+}
+
+fn remote_cpu_baseline() -> &'static Mutex<HashMap<String, (u64, u64)>> {
+    REMOTE_CPU_BASELINE.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
 fn disk_stats(disk: &Disk) -> DiskStats {
@@ -112,12 +118,14 @@ pub fn get_system_stats() -> SystemStats {
     }
 }
 
-const REMOTE_STATS_COMMAND: &str = r#"sh -c 'if [ ! -r /proc/meminfo ]; then echo "{\"unsupported\":true}"; exit 0; fi; read _ u1 n1 s1 i1 iw1 irq1 sft1 _ </proc/stat; a1=$((u1+n1+s1)); t1=$((u1+n1+s1+i1+iw1+irq1+sft1)); sleep 1; read _ u2 n2 s2 i2 iw2 irq2 sft2 _ </proc/stat; a2=$((u2+n2+s2)); t2=$((u2+n2+s2+i2+iw2+irq2+sft2)); dt=$((t2-t1)); du=$((a2-a1)); if [ "$dt" -gt 0 ]; then cpu=$(awk -v d="$du" -v t="$dt" "BEGIN{printf \"%.1f\", d*100/t}"); else cpu=0; fi; mt=$(awk "/MemTotal/{print \$2*1024}" /proc/meminfo); ma=$(awk "/MemAvailable/{print \$2*1024}" /proc/meminfo); mu=$((mt-ma)); st=$(awk "/SwapTotal/{print \$2*1024}" /proc/meminfo); sf=$(awk "/SwapFree/{print \$2*1024}" /proc/meminfo); su=$((st-sf)); dm=$(df -B1 --output=target / 2>/dev/null | awk "NR==2{print \$1}"); dtb=$(df -B1 --output=size / 2>/dev/null | awk "NR==2{print \$1}"); da=$(df -B1 --output=avail / 2>/dev/null | awk "NR==2{print \$1}"); la1=$(awk "{print \$1}" /proc/loadavg); la5=$(awk "{print \$2}" /proc/loadavg); la15=$(awk "{print \$3}" /proc/loadavg); printf "{\"cpuUsage\":%s,\"memoryUsed\":%s,\"memoryTotal\":%s,\"swapUsed\":%s,\"swapTotal\":%s,\"primaryDisk\":{\"name\":\"%s\",\"mountPoint\":\"%s\",\"totalBytes\":%s,\"availableBytes\":%s},\"loadAverage\":[%s,%s,%s]}\n" "$cpu" "$mu" "$mt" "$su" "$st" "$dm" "$dm" "$dtb" "$da" "$la1" "$la5" "$la15"'"#;
+// Single /proc/stat sample; CPU usage is derived from successive polls on the backend.
+const REMOTE_STATS_COMMAND: &str = r#"sh -c 'if [ ! -r /proc/meminfo ]; then echo "{\"unsupported\":true}"; exit 0; fi; read _ u n s i iw irq sft rest </proc/stat; ca=$((u+n+s)); ct=$((u+n+s+i+iw+irq+sft)); mt=$(awk "/MemTotal/{print \$2*1024}" /proc/meminfo); ma=$(awk "/MemAvailable/{print \$2*1024}" /proc/meminfo); mu=$((mt-ma)); st=$(awk "/SwapTotal/{print \$2*1024}" /proc/meminfo); sf=$(awk "/SwapFree/{print \$2*1024}" /proc/meminfo); su=$((st-sf)); dm=$(df -B1 --output=target / 2>/dev/null | awk "NR==2{print \$1}"); dtb=$(df -B1 --output=size / 2>/dev/null | awk "NR==2{print \$1}"); da=$(df -B1 --output=avail / 2>/dev/null | awk "NR==2{print \$1}"); la1=$(awk "{print \$1}" /proc/loadavg); la5=$(awk "{print \$2}" /proc/loadavg); la15=$(awk "{print \$3}" /proc/loadavg); printf "{\"cpuActive\":%s,\"cpuTotal\":%s,\"memoryUsed\":%s,\"memoryTotal\":%s,\"swapUsed\":%s,\"swapTotal\":%s,\"primaryDisk\":{\"name\":\"%s\",\"mountPoint\":\"%s\",\"totalBytes\":%s,\"availableBytes\":%s},\"loadAverage\":[%s,%s,%s]}\n" "$ca" "$ct" "$mu" "$mt" "$su" "$st" "$dm" "$dm" "$dtb" "$da" "$la1" "$la5" "$la15"'"#;
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct RemoteStatsPayload {
-    cpu_usage: f32,
+    cpu_active: u64,
+    cpu_total: u64,
     memory_used: u64,
     memory_total: u64,
     swap_used: u64,
@@ -128,7 +136,27 @@ struct RemoteStatsPayload {
     unsupported: bool,
 }
 
-async fn get_remote_system_stats_async(session_id: String) -> Result<SystemStats, String> {
+fn remote_cpu_usage(session_id: &str, active: u64, total: u64) -> f32 {
+    let mut baseline = remote_cpu_baseline()
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    let cpu_usage = if let Some((prev_active, prev_total)) = baseline.get(session_id) {
+        let delta_active = active.saturating_sub(*prev_active);
+        let delta_total = total.saturating_sub(*prev_total);
+        if delta_total > 0 {
+            delta_active as f32 * 100.0 / delta_total as f32
+        } else {
+            0.0
+        }
+    } else {
+        0.0
+    };
+    baseline.insert(session_id.to_string(), (active, total));
+    cpu_usage
+}
+
+#[tauri::command]
+pub async fn get_remote_system_stats(session_id: String) -> Result<SystemStats, String> {
     let output = exec_remote_command(&session_id, REMOTE_STATS_COMMAND).await?;
     let payload: RemoteStatsPayload =
         serde_json::from_str(&output).map_err(|error| format!("invalid remote stats: {error}"))?;
@@ -138,7 +166,7 @@ async fn get_remote_system_stats_async(session_id: String) -> Result<SystemStats
     }
 
     Ok(SystemStats {
-        cpu_usage: payload.cpu_usage,
+        cpu_usage: remote_cpu_usage(&session_id, payload.cpu_active, payload.cpu_total),
         memory_used: payload.memory_used,
         memory_total: payload.memory_total,
         swap_used: payload.swap_used,
@@ -146,9 +174,4 @@ async fn get_remote_system_stats_async(session_id: String) -> Result<SystemStats
         primary_disk: payload.primary_disk,
         load_average: payload.load_average,
     })
-}
-
-#[tauri::command]
-pub fn get_remote_system_stats(session_id: String) -> Result<SystemStats, String> {
-    block_on(get_remote_system_stats_async(session_id))
 }

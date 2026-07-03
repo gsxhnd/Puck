@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CpuIcon, HardDriveIcon, MemoryStickIcon } from "lucide-react";
 import { parsePuckError } from "@/lib/puck-error";
@@ -143,6 +143,7 @@ export function SystemResourcesSection({
   const { t } = useTranslation("info");
   const [stats, setStats] = useState<SystemStats | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const pollInFlightRef = useRef(false);
   const localPollIntervalMs = useAppSettingsStore(
     (state) => state.systemResourcesLocalPollIntervalMs,
   );
@@ -167,6 +168,8 @@ export function SystemResourcesSection({
     let cancelled = false;
 
     const poll = async () => {
+      if (pollInFlightRef.current) return;
+      pollInFlightRef.current = true;
       try {
         const next =
           isRemote && scope.sessionId
@@ -178,12 +181,16 @@ export function SystemResourcesSection({
       } catch (err) {
         if (cancelled) return;
         setError(parsePuckError(err).message);
+      } finally {
+        pollInFlightRef.current = false;
       }
     };
 
     void poll();
     const intervalMs = isRemote ? remotePollIntervalMs : localPollIntervalMs;
-    const intervalId = window.setInterval(() => void poll(), intervalMs);
+    const intervalId = window.setInterval(() => {
+      void poll();
+    }, intervalMs);
 
     return () => {
       cancelled = true;

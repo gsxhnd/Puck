@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, OnceLock};
+use std::time::Duration;
 
 use bytes::Bytes;
 use russh::client;
@@ -17,6 +18,40 @@ use crate::session::{
     SessionStatusEvent, SshCommand, StoredSshProfile, TerminalBackend,
 };
 use crate::terminal::{TerminalDataEvent, TerminalExitEvent};
+use crate::utf8_stream::Utf8StreamDecoder;
+
+fn emit_terminal_chunk(
+    app: &AppHandle,
+    session_id: &str,
+    decoder: &mut Utf8StreamDecoder,
+    chunk: &[u8],
+) {
+    let payload = decoder.push(chunk);
+    if payload.is_empty() {
+        return;
+    }
+    let _ = app.emit(
+        "terminal:data",
+        TerminalDataEvent {
+            session_id: session_id.to_string(),
+            data: payload,
+        },
+    );
+}
+
+fn flush_terminal_decoder(app: &AppHandle, session_id: &str, decoder: &mut Utf8StreamDecoder) {
+    let tail = decoder.finish();
+    if tail.is_empty() {
+        return;
+    }
+    let _ = app.emit(
+        "terminal:data",
+        TerminalDataEvent {
+            session_id: session_id.to_string(),
+            data: tail,
+        },
+    );
+}
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -32,6 +67,20 @@ pub struct SshConnectRequest {
     pub passphrase: Option<String>,
     pub cols: u16,
     pub rows: u16,
+}
+
+const SSH_CONNECT_TIMEOUT: Duration = Duration::from_secs(30);
+const SSH_AUTH_TIMEOUT: Duration = Duration::from_secs(30);
+const SSH_KEEPALIVE_INTERVAL: Duration = Duration::from_secs(15);
+const SSH_KEEPALIVE_MAX: usize = 3;
+const REMOTE_EXEC_TIMEOUT: Duration = Duration::from_secs(30);
+
+fn ssh_client_config() -> Arc<client::Config> {
+    Arc::new(client::Config {
+        keepalive_interval: Some(SSH_KEEPALIVE_INTERVAL),
+        keepalive_max: SSH_KEEPALIVE_MAX,
+        ..client::Config::default()
+    })
 }
 
 pub(crate) struct SshClientHandler {
@@ -75,25 +124,28 @@ pub async fn connect_authenticated(
         pending: pending.clone(),
     };
 
-    let config = Arc::new(client::Config::default());
-    let mut session = match client::connect(
-        config,
-        (request.host.as_str(), request.port),
-        handler,
+    let config = ssh_client_config();
+    let mut session = match tokio::time::timeout(
+        SSH_CONNECT_TIMEOUT,
+        client::connect(config, (request.host.as_str(), request.port), handler),
     )
     .await
     {
-        Ok(session) => session,
-        Err(error) => {
+        Ok(Ok(session)) => session,
+        Ok(Err(error)) => {
             if let Some(prompt) = pending.lock().unwrap().take() {
                 return Err(PuckError::HostKeyUnknown(prompt));
             }
             return Err(PuckError::from(error));
         }
+        Err(_) => return Err(PuckError::network("connection timed out")),
     };
 
-    authenticate(&mut session, request).await?;
-    Ok(session)
+    match tokio::time::timeout(SSH_AUTH_TIMEOUT, authenticate(&mut session, request)).await {
+        Ok(Ok(())) => Ok(session),
+        Ok(Err(error)) => Err(error),
+        Err(_) => Err(PuckError::network("authentication timed out")),
+    }
 }
 
 async fn authenticate(
@@ -179,6 +231,21 @@ pub async fn exec_remote_command(
     session_id: &str,
     command: &str,
 ) -> Result<String, String> {
+    match tokio::time::timeout(
+        REMOTE_EXEC_TIMEOUT,
+        exec_remote_command_inner(session_id, command),
+    )
+    .await
+    {
+        Ok(result) => result,
+        Err(_) => Err("remote command timed out".into()),
+    }
+}
+
+async fn exec_remote_command_inner(
+    session_id: &str,
+    command: &str,
+) -> Result<String, String> {
     let handle = ssh_exec_handle(session_id).ok_or_else(|| "ssh session not found".to_string())?;
     let mut channel = handle
         .channel_open_session()
@@ -248,6 +315,9 @@ async fn open_ssh_terminal_inner(
 
     let io_handle = Arc::clone(&session_handle);
     let io_task = tokio::spawn(async move {
+        let mut utf8_decoder = Utf8StreamDecoder::new();
+        let mut intentional_shutdown = false;
+        let mut exit_emitted = false;
         loop {
             tokio::select! {
                 command = command_rx.recv() => {
@@ -260,32 +330,33 @@ async fn open_ssh_terminal_inner(
                         Some(SshCommand::Resize { cols, rows }) => {
                             let _ = channel.window_change(cols, rows, 0, 0).await;
                         }
-                        Some(SshCommand::Shutdown) | None => break,
+                        Some(SshCommand::Shutdown) => {
+                            intentional_shutdown = true;
+                            break;
+                        }
+                        None => break,
                     }
                 }
                 message = channel.wait() => {
                     match message {
                         Some(ChannelMsg::Data { data }) => {
-                            let payload = String::from_utf8_lossy(&data).into_owned();
-                            let _ = app_handle.emit(
-                                "terminal:data",
-                                TerminalDataEvent {
-                                    session_id: session_id.clone(),
-                                    data: payload,
-                                },
+                            emit_terminal_chunk(
+                                &app_handle,
+                                &session_id,
+                                &mut utf8_decoder,
+                                &data,
                             );
                         }
                         Some(ChannelMsg::ExtendedData { data, ext: 1, .. }) => {
-                            let payload = String::from_utf8_lossy(&data).into_owned();
-                            let _ = app_handle.emit(
-                                "terminal:data",
-                                TerminalDataEvent {
-                                    session_id: session_id.clone(),
-                                    data: payload,
-                                },
+                            emit_terminal_chunk(
+                                &app_handle,
+                                &session_id,
+                                &mut utf8_decoder,
+                                &data,
                             );
                         }
                         Some(ChannelMsg::ExitStatus { exit_status }) => {
+                            flush_terminal_decoder(&app_handle, &session_id, &mut utf8_decoder);
                             let _ = app_handle.emit(
                                 "terminal:exit",
                                 TerminalExitEvent {
@@ -293,9 +364,11 @@ async fn open_ssh_terminal_inner(
                                     code: Some(exit_status as i32),
                                 },
                             );
+                            exit_emitted = true;
                             break;
                         }
                         Some(ChannelMsg::Eof) | None => {
+                            flush_terminal_decoder(&app_handle, &session_id, &mut utf8_decoder);
                             let _ = app_handle.emit(
                                 "terminal:exit",
                                 TerminalExitEvent {
@@ -303,12 +376,33 @@ async fn open_ssh_terminal_inner(
                                     code: None,
                                 },
                             );
+                            exit_emitted = true;
                             break;
                         }
                         _ => {}
                     }
                 }
             }
+        }
+        flush_terminal_decoder(&app_handle, &session_id, &mut utf8_decoder);
+        if !exit_emitted && !intentional_shutdown {
+            let _ = app_handle.emit(
+                "terminal:exit",
+                TerminalExitEvent {
+                    session_id: session_id.clone(),
+                    code: None,
+                },
+            );
+            emit_session_status(
+                &app_handle,
+                SessionStatusEvent {
+                    session_id: session_id.clone(),
+                    status: "disconnected".into(),
+                    error_code: None,
+                    message: None,
+                    host_key: None,
+                },
+            );
         }
         remove_ssh_exec_handle(&session_id);
         let _ = io_handle

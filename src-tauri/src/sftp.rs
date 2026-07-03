@@ -7,10 +7,10 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 use crate::error::{puck_err, PuckError, PuckResult};
 use crate::known_hosts::KnownHostsStore;
-use crate::runtime::{block_on, runtime};
+use crate::runtime::runtime;
 use crate::session::{
     emit_connection_error, emit_session_status, RemoteFileEntry, SessionManager,
-    SessionStatusEvent, SftpCommand, SftpSessionEntry, StoredSshProfile,
+    SessionStatusEvent, SftpCommand, SftpSessionEntry, SftpTransferCommand, StoredSshProfile,
 };
 use crate::ssh::{connect_authenticated, SshConnectRequest};
 use crate::transfer::{emit_transfer_done, emit_transfer_error, emit_transfer_progress};
@@ -46,14 +46,9 @@ fn to_ssh_request(request: &OpenFileConnectionRequest) -> SshConnectRequest {
     }
 }
 
-async fn open_sftp_inner(
-    app: AppHandle,
-    known_hosts: Arc<KnownHostsStore>,
-    request: OpenFileConnectionRequest,
-) -> PuckResult<()> {
-    let ssh_request = to_ssh_request(&request);
-    let session_handle = connect_authenticated(known_hosts, &ssh_request).await?;
-
+async fn open_sftp_channel(
+    session_handle: &russh::client::Handle<crate::ssh::SshClientHandler>,
+) -> PuckResult<SftpSession> {
     let mut channel = session_handle
         .channel_open_session()
         .await
@@ -63,6 +58,38 @@ async fn open_sftp_inner(
         .await
         .map_err(PuckError::from)?;
     let stream = channel.into_stream();
+    SftpSession::new(stream)
+        .await
+        .map_err(|error| PuckError::protocol(error.to_string()))
+}
+
+async fn await_sftp_reply<T>(
+    reply_rx: tokio::sync::oneshot::Receiver<Result<T, String>>,
+) -> Result<T, String> {
+    reply_rx
+        .await
+        .map_err(|_| "sftp response channel closed".to_string())?
+}
+
+async fn open_sftp_inner(
+    app: AppHandle,
+    known_hosts: Arc<KnownHostsStore>,
+    request: OpenFileConnectionRequest,
+) -> PuckResult<()> {
+    let ssh_request = to_ssh_request(&request);
+    let session_handle = Arc::new(connect_authenticated(known_hosts, &ssh_request).await?);
+
+    let sftp = open_sftp_channel(session_handle.as_ref()).await?;
+    let transfer_sftp = match open_sftp_channel(session_handle.as_ref()).await {
+        Ok(session) => session,
+        Err(error) => {
+            let _ = sftp.close().await;
+            let _ = session_handle
+                .disconnect(russh::Disconnect::ByApplication, "", "en")
+                .await;
+            return Err(error);
+        }
+    };
 
     let cwd = request
         .default_directory
@@ -73,28 +100,11 @@ async fn open_sftp_inner(
     let session_id = request.session_id.clone();
     let app_handle = app.clone();
     let (command_tx, mut command_rx) = tokio::sync::mpsc::unbounded_channel::<SftpCommand>();
+    let (transfer_tx, mut transfer_rx) =
+        tokio::sync::mpsc::unbounded_channel::<SftpTransferCommand>();
 
+    let disconnect_handle = Arc::clone(&session_handle);
     let io_task = tokio::spawn(async move {
-        let sftp = match SftpSession::new(stream).await {
-            Ok(session) => session,
-            Err(error) => {
-                let _ = app_handle.emit(
-                    "session:status",
-                    SessionStatusEvent {
-                        session_id: session_id.clone(),
-                        status: "failed".into(),
-                        error_code: Some("protocol_error".into()),
-                        message: Some(error.to_string()),
-                        host_key: None,
-                    },
-                );
-                let _ = session_handle
-                    .disconnect(russh::Disconnect::ByApplication, "", "en")
-                    .await;
-                return;
-            }
-        };
-
         while let Some(command) = command_rx.recv().await {
             match command {
                 SftpCommand::ListDir { path, reply } => {
@@ -123,22 +133,6 @@ async fn open_sftp_inner(
                         .map_err(|error| error.to_string());
                     let _ = reply.send(result);
                 }
-                SftpCommand::Upload {
-                    transfer_id,
-                    local_path,
-                    remote_path,
-                    app,
-                } => {
-                    run_upload(&sftp, app, transfer_id, local_path, remote_path).await;
-                }
-                SftpCommand::Download {
-                    transfer_id,
-                    local_path,
-                    remote_path,
-                    app,
-                } => {
-                    run_download(&sftp, app, transfer_id, local_path, remote_path).await;
-                }
                 SftpCommand::ReadFile { path, reply } => {
                     let _ = reply.send(read_remote_file(&sftp, &path).await);
                 }
@@ -154,7 +148,7 @@ async fn open_sftp_inner(
         }
 
         let _ = sftp.close().await;
-        let _ = session_handle
+        let _ = disconnect_handle
             .disconnect(russh::Disconnect::ByApplication, "", "en")
             .await;
         let _ = app_handle.emit(
@@ -167,6 +161,32 @@ async fn open_sftp_inner(
                 host_key: None,
             },
         );
+    });
+
+    let transfer_io_task = tokio::spawn(async move {
+        while let Some(command) = transfer_rx.recv().await {
+            match command {
+                SftpTransferCommand::Upload {
+                    transfer_id,
+                    local_path,
+                    remote_path,
+                    app,
+                } => {
+                    run_upload(&transfer_sftp, app, transfer_id, local_path, remote_path).await;
+                }
+                SftpTransferCommand::Download {
+                    transfer_id,
+                    local_path,
+                    remote_path,
+                    app,
+                } => {
+                    run_download(&transfer_sftp, app, transfer_id, local_path, remote_path).await;
+                }
+                SftpTransferCommand::Shutdown => break,
+            }
+        }
+
+        let _ = transfer_sftp.close().await;
     });
 
     SessionManager::global().insert_sftp(
@@ -182,7 +202,9 @@ async fn open_sftp_inner(
             },
             cwd,
             command_tx: command_tx.clone(),
+            transfer_tx: transfer_tx.clone(),
             io_task,
+            transfer_io_task,
         },
     )?;
 
@@ -389,7 +411,7 @@ pub fn open_file_connection(
 }
 
 #[tauri::command]
-pub fn list_remote_dir(
+pub async fn list_remote_dir(
     session_id: String,
     path: Option<String>,
 ) -> Result<Vec<RemoteFileEntry>, String> {
@@ -409,8 +431,7 @@ pub fn list_remote_dir(
             reply: reply_tx,
         })
         .map_err(|_| "sftp channel closed".to_string())?;
-    let entries = block_on(async { reply_rx.await })
-        .map_err(|_| "sftp response channel closed".to_string())??;
+    let entries = await_sftp_reply(reply_rx).await?;
     manager
         .set_sftp_cwd(&session_id, target)
         .map_err(|error| error.to_string())?;
@@ -418,7 +439,7 @@ pub fn list_remote_dir(
 }
 
 #[tauri::command]
-pub fn mkdir_remote(session_id: String, path: String) -> Result<(), String> {
+pub async fn mkdir_remote(session_id: String, path: String) -> Result<(), String> {
     let (reply_tx, reply_rx) = tokio::sync::oneshot::channel();
     send_command(
         session_id,
@@ -427,21 +448,25 @@ pub fn mkdir_remote(session_id: String, path: String) -> Result<(), String> {
             reply: reply_tx,
         },
     )?;
-    block_on(async { reply_rx.await }).map_err(|_| "sftp response channel closed".to_string())?
+    await_sftp_reply(reply_rx).await
 }
 
 #[tauri::command]
-pub fn delete_remote(session_id: String, path: String) -> Result<(), String> {
+pub async fn delete_remote(session_id: String, path: String) -> Result<(), String> {
     let (reply_tx, reply_rx) = tokio::sync::oneshot::channel();
     send_command(
         session_id,
         SftpCommand::Remove { path, reply: reply_tx },
     )?;
-    block_on(async { reply_rx.await }).map_err(|_| "sftp response channel closed".to_string())?
+    await_sftp_reply(reply_rx).await
 }
 
 #[tauri::command]
-pub fn rename_remote(session_id: String, old_path: String, new_path: String) -> Result<(), String> {
+pub async fn rename_remote(
+    session_id: String,
+    old_path: String,
+    new_path: String,
+) -> Result<(), String> {
     let (reply_tx, reply_rx) = tokio::sync::oneshot::channel();
     send_command(
         session_id,
@@ -451,7 +476,7 @@ pub fn rename_remote(session_id: String, old_path: String, new_path: String) -> 
             reply: reply_tx,
         },
     )?;
-    block_on(async { reply_rx.await }).map_err(|_| "sftp response channel closed".to_string())?
+    await_sftp_reply(reply_rx).await
 }
 
 #[tauri::command]
@@ -464,16 +489,16 @@ pub fn start_transfer(
     remote_path: String,
 ) -> Result<(), String> {
     let command_tx = SessionManager::global()
-        .sftp_command_tx(&session_id)
+        .sftp_transfer_tx(&session_id)
         .ok_or_else(|| "sftp session not found".to_string())?;
     let command = match direction.as_str() {
-        "upload" => SftpCommand::Upload {
+        "upload" => SftpTransferCommand::Upload {
             transfer_id,
             local_path,
             remote_path,
             app,
         },
-        "download" => SftpCommand::Download {
+        "download" => SftpTransferCommand::Download {
             transfer_id,
             local_path,
             remote_path,
@@ -487,7 +512,7 @@ pub fn start_transfer(
 }
 
 #[tauri::command]
-pub fn read_remote_file_command(session_id: String, path: String) -> Result<String, String> {
+pub async fn read_remote_file_command(session_id: String, path: String) -> Result<String, String> {
     let (reply_tx, reply_rx) = tokio::sync::oneshot::channel();
     send_command(
         session_id,
@@ -496,11 +521,11 @@ pub fn read_remote_file_command(session_id: String, path: String) -> Result<Stri
             reply: reply_tx,
         },
     )?;
-    block_on(async { reply_rx.await }).map_err(|_| "sftp response channel closed".to_string())?
+    await_sftp_reply(reply_rx).await
 }
 
 #[tauri::command]
-pub fn write_remote_file_command(
+pub async fn write_remote_file_command(
     session_id: String,
     path: String,
     content: String,
@@ -514,7 +539,7 @@ pub fn write_remote_file_command(
             reply: reply_tx,
         },
     )?;
-    block_on(async { reply_rx.await }).map_err(|_| "sftp response channel closed".to_string())?
+    await_sftp_reply(reply_rx).await
 }
 
 fn send_command(session_id: String, command: SftpCommand) -> Result<(), String> {

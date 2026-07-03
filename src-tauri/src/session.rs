@@ -100,7 +100,25 @@ pub struct SftpSessionEntry {
     pub profile: StoredSshProfile,
     pub cwd: String,
     pub command_tx: tokio::sync::mpsc::UnboundedSender<SftpCommand>,
+    pub transfer_tx: tokio::sync::mpsc::UnboundedSender<SftpTransferCommand>,
     pub io_task: tokio::task::JoinHandle<()>,
+    pub transfer_io_task: tokio::task::JoinHandle<()>,
+}
+
+pub enum SftpTransferCommand {
+    Upload {
+        transfer_id: String,
+        local_path: String,
+        remote_path: String,
+        app: AppHandle,
+    },
+    Download {
+        transfer_id: String,
+        local_path: String,
+        remote_path: String,
+        app: AppHandle,
+    },
+    Shutdown,
 }
 
 pub enum SftpCommand {
@@ -120,18 +138,6 @@ pub enum SftpCommand {
         old_path: String,
         new_path: String,
         reply: tokio::sync::oneshot::Sender<Result<(), String>>,
-    },
-    Upload {
-        transfer_id: String,
-        local_path: String,
-        remote_path: String,
-        app: AppHandle,
-    },
-    Download {
-        transfer_id: String,
-        local_path: String,
-        remote_path: String,
-        app: AppHandle,
     },
     ReadFile {
         path: String,
@@ -311,10 +317,21 @@ impl SessionManager {
         sessions.get(session_id).map(|entry| entry.command_tx.clone())
     }
 
+    pub fn sftp_transfer_tx(
+        &self,
+        session_id: &str,
+    ) -> Option<tokio::sync::mpsc::UnboundedSender<SftpTransferCommand>> {
+        let sessions = self.sftp_sessions.lock().ok()?;
+        sessions
+            .get(session_id)
+            .map(|entry| entry.transfer_tx.clone())
+    }
+
     pub fn close_sftp(&self, session_id: &str) -> Option<SftpSessionEntry> {
         let mut sessions = self.sftp_sessions.lock().ok()?;
         let entry = sessions.remove(session_id)?;
         let _ = entry.command_tx.send(SftpCommand::Shutdown);
+        let _ = entry.transfer_tx.send(SftpTransferCommand::Shutdown);
         Some(entry)
     }
 }
