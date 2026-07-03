@@ -133,10 +133,11 @@ pub fn open_local_terminal(
         let _ = app_handle.emit(
             "terminal:exit",
             TerminalExitEvent {
-                session_id: read_session_id,
+                session_id: read_session_id.clone(),
                 code: None,
             },
         );
+        let _ = SessionManager::global().close_terminal(&read_session_id);
     });
 
     SessionManager::global()

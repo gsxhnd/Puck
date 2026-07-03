@@ -191,7 +191,7 @@ export function TerminalPane({
       resizeDisposable.dispose();
       unlistenData?.();
       unlistenExit?.();
-      if (!disposed) {
+      if (openedRef.current) {
         void closeBackendSession(sessionId);
       }
       terminal.dispose();

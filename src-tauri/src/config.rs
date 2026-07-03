@@ -1,6 +1,6 @@
 //! Unified on-disk configuration store backed by `config.toml`.
 //!
-//! 应用的统一配置中心。UI 状态（应用设置、侧栏布局、会话权限、Shell 布局）
+//! 应用的统一配置中心。UI 状态（应用设置、侧栏布局、主机分组布局、会话权限、Shell 布局）
 //! 保存在 `~/.config/puck/config.toml`；连接配置与 SSH known hosts 分别使用
 //! `connections.json` 与 `known_hosts.json`（见对应模块）。
 
@@ -18,12 +18,14 @@ const CONFIG_VERSION: u32 = 1;
 
 pub const SECTION_APP_SETTINGS: &str = "app_settings";
 pub const SECTION_SIDEBAR_LAYOUT: &str = "sidebar_layout";
+pub const SECTION_HOSTS_LAYOUT: &str = "hosts_layout";
 pub const SECTION_SESSION_PRIVILEGES: &str = "session_privileges";
 pub const SECTION_SHELL_LAYOUT: &str = "shell_layout";
 
-const UI_SECTIONS: [&str; 4] = [
+const UI_SECTIONS: [&str; 5] = [
     SECTION_APP_SETTINGS,
     SECTION_SIDEBAR_LAYOUT,
+    SECTION_HOSTS_LAYOUT,
     SECTION_SESSION_PRIVILEGES,
     SECTION_SHELL_LAYOUT,
 ];
@@ -56,6 +58,8 @@ pub struct PuckConfigFile {
     pub app_settings: Option<Value>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub sidebar_layout: Option<Value>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub hosts_layout: Option<Value>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub session_privileges: Option<Value>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -106,13 +110,13 @@ impl PuckConfigStore {
     pub fn set_section(&self, section: &str, json: &str) -> Result<(), String> {
         let value: Value = serde_json::from_str(json).map_err(|error| error.to_string())?;
         let mut config = self.config.lock().unwrap();
-        set_section_value(&mut config, section, Some(value));
+        set_section_value(&mut config, section, Some(value))?;
         save_config(&self.path, &config)
     }
 
     pub fn remove_section(&self, section: &str) -> Result<(), String> {
         let mut config = self.config.lock().unwrap();
-        set_section_value(&mut config, section, None);
+        set_section_value(&mut config, section, None)?;
         save_config(&self.path, &config)
     }
 
@@ -134,20 +138,29 @@ fn section_value<'a>(config: &'a PuckConfigFile, section: &str) -> Option<&'a Va
     match section {
         SECTION_APP_SETTINGS => config.app_settings.as_ref(),
         SECTION_SIDEBAR_LAYOUT => config.sidebar_layout.as_ref(),
+        SECTION_HOSTS_LAYOUT => config.hosts_layout.as_ref(),
         SECTION_SESSION_PRIVILEGES => config.session_privileges.as_ref(),
         SECTION_SHELL_LAYOUT => config.shell_layout.as_ref(),
         _ => None,
     }
 }
 
-fn set_section_value(config: &mut PuckConfigFile, section: &str, value: Option<Value>) {
+fn set_section_value(
+    config: &mut PuckConfigFile,
+    section: &str,
+    value: Option<Value>,
+) -> Result<(), String> {
     match section {
         SECTION_APP_SETTINGS => config.app_settings = value,
         SECTION_SIDEBAR_LAYOUT => config.sidebar_layout = value,
+        SECTION_HOSTS_LAYOUT => config.hosts_layout = value,
         SECTION_SESSION_PRIVILEGES => config.session_privileges = value,
         SECTION_SHELL_LAYOUT => config.shell_layout = value,
-        _ => {}
+        _ => {
+            return Err(format!("unknown config section: {section}"));
+        }
     }
+    Ok(())
 }
 
 fn load_config(path: &Path) -> PuckConfigFile {

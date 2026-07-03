@@ -59,39 +59,36 @@ Puck 是一个架构清晰、文档诚实的 alpha 桌面应用（Tauri v2 + Rea
 
 ---
 
-### 2.3 `hosts_layout` 持久化前后端契约不一致
+### 2.3 `hosts_layout` 持久化前后端契约不一致 — **已修复**
 
-**位置：** `src/lib/puck-config-storage.ts`、`src/stores/hosts-layout-store.ts`、`src-tauri/src/config.rs`
+**状态：** 已修复（2026-07-03）
 
-前端定义并使用 `hosts_layout`，但 Rust 配置存储的 `PuckConfigFile`、`UI_SECTIONS` 和 `section_value` / `set_section_value` 未接纳该区段。写入时缓存内看似成功，落盘时被静默忽略。
+**原位置：** `src/lib/puck-config-storage.ts`、`src/stores/hosts-layout-store.ts`、`src-tauri/src/config.rs`
 
-**影响：** 应用重启后主机分组布局丢失。
+**原问题：** 前端定义并使用 `hosts_layout`，但 Rust 配置存储的 `PuckConfigFile`、`UI_SECTIONS` 和 `section_value` / `set_section_value` 未接纳该区段。写入时缓存内看似成功，落盘时被静默忽略。
 
-**建议：**
+**修复：**
 
 1. Rust 增加 `SECTION_HOSTS_LAYOUT` 常量
 2. `PuckConfigFile` 增加 `hosts_layout: Option<Value>`
 3. 将 `hosts_layout` 加入 `UI_SECTIONS` 及读写 match 分支
-4. 前端 `PUCK_CONFIG_KEYS` 确保一致
-5. 对未知 section 返回错误或记录 warn，避免类似静默失败
-6. 修复后同步更新 README 与风险文档
+4. 前端 `PUCK_CONFIG_KEYS` 已包含 `hosts_layout`（无需改动）
+5. `set_section_value` 对未知 section 返回错误，避免静默失败
 
 ---
 
-### 2.4 本地终端关闭可能泄漏后端 PTY / 子进程
+### 2.4 本地终端关闭可能泄漏后端 PTY / 子进程 — **已修复**
 
-**位置：** `src/page/terminal/terminal-pane.tsx`、`src-tauri/src/terminal.rs`、`src-tauri/src/session.rs`
+**状态：** 已修复（2026-07-03）
 
-`TerminalPane` 的 cleanup 中先执行 `disposed = true;`，随后又判断 `if (!disposed) { void closeBackendSession(sessionId); }`——该分支永远不会执行。用户关闭本地终端 tab 时，前端卸载 xterm，但后端 `SessionManager` 中的 PTY、writer、child 可能不会被显式关闭。
+**原位置：** `src/page/terminal/terminal-pane.tsx`、`src-tauri/src/terminal.rs`、`src-tauri/src/session.rs`
 
-**影响：** 本地 shell 进程残留，Rust 侧 session registry 可能出现幽灵会话，长时间使用可能积累资源泄漏。
+**原问题：** `TerminalPane` 的 cleanup 中先执行 `disposed = true`，随后又判断 `if (!disposed)` 关闭后端会话——该分支永远不会执行。用户关闭本地终端 tab 时，前端卸载 xterm，但后端 PTY / 子进程可能不会被显式关闭。
 
-**建议：**
+**修复：**
 
-1. cleanup 中用单独变量区分"组件卸载"与"进程已退出事件"
-2. 用户主动关闭 tab 时始终调用 `close_session`
-3. 后端读线程自然退出时也应清理 `SessionManager` 中对应 entry
-4. 手动验证：打开本地终端、关闭 tab、检查子进程是否退出
+1. cleanup 改为用 `openedRef.current` 判断是否需要关闭后端（与 `ssh-terminal-pane.tsx` 一致）
+2. 本地终端读线程自然退出时调用 `SessionManager::close_terminal` 清理 registry
 
 ---
 
