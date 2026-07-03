@@ -192,23 +192,32 @@ Puck 是一个架构清晰、文档诚实的 alpha 桌面应用（Tauri v2 + Rea
 
 ---
 
-### 3.6 SSH 终端面板：`await` 之后无 `disposed` 兜底，泄漏监听器并在卸载后发起连接
+### 3.6 SSH 终端面板：`await` 之后无 `disposed` 兜底，泄漏监听器并在卸载后发起连接 — **已修复**
 
-**位置：** `src/page/terminal/ssh-terminal-pane.tsx:181-285`
+**状态：** 已修复（2026-07-03）
 
-与 `terminal-pane.tsx`（其在 await 后有 `if (disposed)` 守卫）不同，SSH 面板在三个 `await` 之后没有 `disposed` 兜底。若 cleanup 在 `await` 完成前先跑，监听器仍会被注册 → 永久泄漏，且 `connect()` 会为已卸载的面板发起 `openSshTerminal`。开发环境因 `<React.StrictMode>` 每次挂载 SSH 面板都会触发双连接 + 泄漏。
+**原位置：** `src/page/terminal/ssh-terminal-pane.tsx`
 
-**建议：** 三个 await 之后统一判断 `if (disposed) { unlistenData?.(); ...; return; }`；`connect()` 前也校验 `disposed`。
+**原问题：** 三个 `await` 注册监听器后无 `disposed` 守卫；cleanup 先跑时监听器泄漏，且 `connect()` 仍为已卸载面板发起 `openSshTerminal`。
+
+**修复：** 与 `terminal-pane.tsx` 对齐：await 后若 `disposed` 则立即 unlisten 并 return；`connect()` 在入口与 `resolveSecretsForConnection` 之后校验 `disposed`。
 
 ---
 
-### 3.7 前端无 React ErrorBoundary，任一渲染期异常直接白屏
+### 3.7 前端无 React ErrorBoundary，任一渲染期异常直接白屏 — **已修复**
 
-**位置：** `src/main.tsx:9-16`、`src/App.tsx`（全仓库无 `ErrorBoundary`）
+**状态：** 已修复（2026-07-03）
 
-任何渲染期抛错都会卸载整棵 React 树，只剩空白窗口，且无恢复途径。多处直接消费未经校验的 IPC 数据（`invoke<T>` 断言）和数组下标访问（如 `stats.loadAverage[0]`）。此外 `main.tsx:16` 的 `void bootstrap()` 吞掉了 `bootstrapPersistStores()` 的 rejection——若水合抛错，React 根本不渲染。
+**原位置：** `src/main.tsx`、`src/App.tsx`
 
-**建议：** 顶层加 ErrorBoundary（含错误上报/复位按钮）；对 IPC 响应做运行时校验；`bootstrap()` 补 `.catch`。
+**原问题：** 渲染期抛错导致整树卸载白屏；`void bootstrap()` 吞掉 hydration 失败；IPC 数据未校验。
+
+**修复：**
+
+1. 新增 `AppErrorBoundary` + `AppFatalScreen`，提供重试与重新加载
+2. `bootstrap()` 捕获持久化初始化失败并显示启动错误页
+3. `parseSystemStats` 校验 `get_system_stats` / `get_remote_system_stats` 响应
+4. `loadAverage` 展示前增加长度守卫
 
 ---
 

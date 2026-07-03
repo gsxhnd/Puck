@@ -56,5 +56,15 @@
     "maximize": "Maximize",
     "restore": "Restore",
     "close": "Close"
+  },
+  "errorBoundary": {
+    "title": "Something went wrong",
+    "description": "The interface hit an unexpected render error. You can retry or reload the app.",
+    "retry": "Try again",
+    "reload": "Reload"
+  },
+  "bootstrapFailed": {
+    "title": "Startup failed",
+    "description": "Puck could not load persisted configuration, so the app cannot start."
   }
 }

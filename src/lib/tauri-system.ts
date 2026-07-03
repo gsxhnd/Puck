@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { parseSystemStats } from "@/lib/parse-system-stats";
 
 export type DiskStats = {
   name: string;
@@ -18,9 +19,11 @@ export type SystemStats = {
 };
 
 export function getSystemStats(): Promise<SystemStats> {
-  return invoke<SystemStats>("get_system_stats");
+  return invoke<unknown>("get_system_stats").then(parseSystemStats);
 }
 
 export function getRemoteSystemStats(sessionId: string): Promise<SystemStats> {
-  return invoke<SystemStats>("get_remote_system_stats", { sessionId });
+  return invoke<unknown>("get_remote_system_stats", { sessionId }).then(
+    parseSystemStats,
+  );
 }

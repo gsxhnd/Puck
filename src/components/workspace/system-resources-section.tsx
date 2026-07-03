@@ -112,7 +112,7 @@ function SystemResourcesContent({
           percent={diskPercent}
         />
       ) : null}
-      {metrics.loadAverage && stats.loadAverage ? (
+      {metrics.loadAverage && stats.loadAverage && stats.loadAverage.length >= 3 ? (
         <div className="px-2 pt-1 text-[10px] text-muted-foreground">
           {t("loadAverage", {
             one: stats.loadAverage[0].toFixed(2),

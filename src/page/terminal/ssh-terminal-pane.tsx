@@ -115,32 +115,6 @@ export function SshTerminalPane({
 
     const getProfile = () => useConnectionStore.getState().getProfile(profileId);
 
-    const connect = async (cols: number, rows: number) => {
-      const currentProfile = getProfile();
-      if (!currentProfile) {
-        updateSessionStatus(sessionId, "failed");
-        return;
-      }
-      if (openedRef.current) {
-        return;
-      }
-      updateSessionStatus(sessionId, "creating");
-
-      const secrets =
-        peekConnectionSecrets(currentProfile.id) ??
-        (await resolveSecretsForConnection(currentProfile));
-      if (secrets === null) {
-        updateSessionStatus(sessionId, "failed");
-        return;
-      }
-
-      void openSshTerminal({
-        ...profileToSshRequest(sessionId, currentProfile, cols, rows),
-        ...secrets,
-      });
-    };
-    connectRef.current = connect;
-
     const currentProfile = getProfile();
     if (!currentProfile) return;
 
@@ -179,8 +153,37 @@ export function SshTerminalPane({
     let unlistenStatus: (() => void) | undefined;
     let disposed = false;
 
+    const connect = async (cols: number, rows: number) => {
+      if (disposed) return;
+      const liveProfile = getProfile();
+      if (!liveProfile) {
+        updateSessionStatus(sessionId, "failed");
+        return;
+      }
+      if (openedRef.current) {
+        return;
+      }
+      updateSessionStatus(sessionId, "creating");
+
+      const secrets =
+        peekConnectionSecrets(liveProfile.id) ??
+        (await resolveSecretsForConnection(liveProfile));
+      if (disposed || secrets === null) {
+        if (secrets === null && !disposed) {
+          updateSessionStatus(sessionId, "failed");
+        }
+        return;
+      }
+
+      void openSshTerminal({
+        ...profileToSshRequest(sessionId, liveProfile, cols, rows),
+        ...secrets,
+      });
+    };
+    connectRef.current = connect;
+
     void (async () => {
-      unlistenData = await onTerminalData((event) => {
+      const unlistenDataFn = await onTerminalData((event) => {
         if (event.sessionId !== sessionId || disposed) return;
         terminal.write(event.data);
 
@@ -199,14 +202,14 @@ export function SshTerminalPane({
           }
         }
       });
-      unlistenExit = await onTerminalExit((event) => {
+      const unlistenExitFn = await onTerminalExit((event) => {
         if (event.sessionId !== sessionId || disposed) return;
         disposed = true;
         openedRef.current = false;
         removeSession(sessionId);
         void closeBackendSession(sessionId);
       });
-      unlistenStatus = await onSessionStatus((event) => {
+      const unlistenStatusFn = await onSessionStatus((event) => {
         if (event.sessionId !== sessionId || disposed) return;
         if (event.errorCode === "host_key_unknown" && event.hostKey) {
           useShellUiStore.getState().showSessionPanel();
@@ -262,8 +265,21 @@ export function SshTerminalPane({
         }
       });
 
+      if (disposed) {
+        unlistenDataFn();
+        unlistenExitFn();
+        unlistenStatusFn();
+        return;
+      }
+
+      unlistenData = unlistenDataFn;
+      unlistenExit = unlistenExitFn;
+      unlistenStatus = unlistenStatusFn;
+
       fitAddon.fit();
-      connect(Math.max(terminal.cols, 2), Math.max(terminal.rows, 2));
+      if (!disposed) {
+        void connect(Math.max(terminal.cols, 2), Math.max(terminal.rows, 2));
+      }
     })();
 
     const resizeObserver = new ResizeObserver(() => {
