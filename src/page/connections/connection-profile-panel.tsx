@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
 import { open } from "@tauri-apps/plugin-dialog";
 import { PlugIcon } from "lucide-react";
 import type { AuthMethod, ConnectionProfile, ConnectionProtocol } from "@/types/connection";
@@ -7,6 +8,11 @@ import { DEFAULT_PORTS } from "@/types/connection";
 import { useConnectionStore } from "@/stores/connection-store";
 import { useShellUiStore } from "@/stores/shell-ui-store";
 import { openProfileSession } from "@/lib/open-profile-session";
+import {
+  isImplementedRemoteProtocol,
+  protocolOptionLabel,
+  REMOTE_PROTOCOL_SELECT_OPTIONS,
+} from "@/lib/connection-protocol";
 import {
   deleteConnectionCredentials,
   deleteCredential,
@@ -31,12 +37,19 @@ export type ConnectionProfileFormState = {
   defaultDirectory: string;
 };
 
-const REMOTE_PROTOCOLS: Array<Exclude<ConnectionProtocol, "local">> = [
-  "ssh",
-  "sftp",
-  "ftp",
-  "ftps",
-];
+function ensureImplementedProtocol(
+  protocol: Exclude<ConnectionProtocol, "local">,
+  t: ReturnType<typeof useTranslation>[0],
+): boolean {
+  if (isImplementedRemoteProtocol(protocol)) {
+    return true;
+  }
+
+  toast.error(t("connections:protocolNotSupported.title"), {
+    description: t("connections:protocolNotSupported.description"),
+  });
+  return false;
+}
 
 export function profileToForm(profile: ConnectionProfile): ConnectionProfileFormState {
   return {
@@ -131,6 +144,10 @@ function ConnectionProfileFields({
   const { t } = useTranslation(["connections", "common"]);
 
   const handleProtocolChange = (protocol: Exclude<ConnectionProtocol, "local">) => {
+    if (!isImplementedRemoteProtocol(protocol)) {
+      return;
+    }
+
     onChange("protocol", protocol);
     onChange("port", String(DEFAULT_PORTS[protocol]));
   };
@@ -160,9 +177,9 @@ function ConnectionProfileFields({
             )
           }
         >
-          {REMOTE_PROTOCOLS.map((protocol) => (
-            <option key={protocol} value={protocol}>
-              {t(`common:protocol.${protocol}`)}
+          {REMOTE_PROTOCOL_SELECT_OPTIONS.map(({ protocol, disabled }) => (
+            <option key={protocol} value={protocol} disabled={disabled}>
+              {protocolOptionLabel(t, protocol, disabled)}
             </option>
           ))}
         </select>
@@ -350,6 +367,10 @@ export function ConnectionProfilePanel({
   };
 
   const handleSave = async () => {
+    if (!ensureImplementedProtocol(form.protocol, t)) {
+      return;
+    }
+
     setSaving(true);
     try {
       const payload = formToProfilePayload(
@@ -376,6 +397,10 @@ export function ConnectionProfilePanel({
 
   const handleConnect = async () => {
     if (!profileId || !profile) return;
+    if (!ensureImplementedProtocol(form.protocol, t)) {
+      return;
+    }
+
     setSaving(true);
     try {
       await persistCredentials(profileId, form);

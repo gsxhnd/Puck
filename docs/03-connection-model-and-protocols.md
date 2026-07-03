@@ -33,8 +33,8 @@ type ConnectionProfile = {
 - Profile 不保存明文密码或私钥口令。
 - `askPasswordEachTime` 为 true 时，连接前弹出凭据输入框，凭据只在当前连接尝试中使用。
 - `ephemeral` 表示快速连接创建的临时 profile，不写入持久化配置；最后一个引用会话关闭后清理凭据和 profile。
-- 同一个 SSH Profile 可以被 SSH 终端和 SFTP 文件浏览复用。
-- FTP/FTPS Profile 是后续文件传输能力预留，不创建终端 shell。
+- 同一 SSH Profile 可以被 SSH 终端和 SFTP 文件浏览复用。
+- FTP/FTPS 类型在连接模型中保留以便后续扩展，但 UI 已禁用，不创建终端 shell。
 - `credentialRef` 可作为兼容字段存在，但实际凭据 key 由后端按 `connectionId` 和字段名生成。
 
 ## 2. Session 生命周期
@@ -185,7 +185,7 @@ SFTP 基于 SSH 连接，主要用于文件管理器和右侧 Files 面板。
 
 ## 6. FTP / FTPS
 
-FTP/FTPS 用于后续文件传输能力，不提供终端 shell。当前仅在连接模型和 UI 中保留协议类型，Rust 后端连接与文件操作尚未实现。
+FTP/FTPS 用于后续文件传输能力，不提供终端 shell。连接模型保留 `ftp` / `ftps` 类型，但 UI 中已禁用协议选项并标注「即将支持」；`openProfileSession` 会拦截未实现协议。Rust 后端连接与文件操作尚未实现。
 
 当前限制：
 

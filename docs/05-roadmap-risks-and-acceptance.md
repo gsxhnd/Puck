@@ -73,7 +73,7 @@
 ### P0：稳定化与一致性
 
 - 修复 `hosts_layout` 持久化区段不一致。
-- 为连接表单补充更明确的协议可用性提示，避免用户误以为 FTP/FTPS 已可用。
+- ~~为连接表单补充更明确的协议可用性提示，避免用户误以为 FTP/FTPS 已可用。~~ ✅ 已完成
 - 增强连接失败、凭据缺失、host key、SFTP 操作失败的错误展示。
 - 为关键 store 纯函数和配置迁移补充测试。
 - 手动验证 macOS / Windows / Linux 基础路径。
@@ -109,7 +109,7 @@
 | 主题可读性 | 颜色组合导致不可读 | 应用主题和终端外观分离，人工验证主要主题 |
 | `hosts_layout` 未写入 Rust 配置区段 | 主机分组跨重启丢失 | 将 `hosts_layout` 加入 Rust config schema 和 UI sections |
 | `open_path_in_app` 仅 macOS | Windows/Linux 外部打开失败 | 为 Windows/Linux 增加平台实现或在 UI 中按平台隐藏不可用项 |
-| FTP/FTPS UI 先于后端 | 用户误认为协议可用 | 文档和 UI 中明确标注预留状态 |
+| FTP/FTPS UI 先于后端 | 用户误认为协议可用 | ~~文档和 UI 中明确标注预留状态~~ ✅ 已缓解：UI 禁用并拦截连接 |
 
 ## 4. 当前功能验收标准
 

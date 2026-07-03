@@ -2,19 +2,14 @@ import type { ConnectionProfile } from "@/types/connection";
 import { profileTabLabel } from "@/lib/session-display";
 
 export function buildProfileSessionRequest(profile: ConnectionProfile) {
-  if (
-    profile.protocol === "sftp" ||
-    profile.protocol === "ftp" ||
-    profile.protocol === "ftps"
-  ) {
+  if (profile.protocol === "sftp") {
     return {
       kind: "files" as const,
       title: profile.name,
       profileId: profile.id,
       protocol: profile.protocol,
       tabLabel: profileTabLabel(profile),
-      status:
-        profile.protocol === "sftp" ? ("creating" as const) : undefined,
+      status: "creating" as const,
     };
   }
 

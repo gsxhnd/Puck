@@ -9,6 +9,7 @@ import {
 import type { ConnectionProfile } from "@/types/connection";
 import { requestOpenConnectionProfile } from "@/lib/connection-bridge";
 import { autoGroupId } from "@/lib/sidebar-groups";
+import { isUnimplementedFileProtocol } from "@/lib/connection-protocol";
 import { openProfileSession } from "@/lib/open-profile-session";
 import { useConnectionStore } from "@/stores/connection-store";
 import { useHostsLayoutStore } from "@/stores/hosts-layout-store";
@@ -62,13 +63,10 @@ export function SortableHostItem({
   });
 
   const isSelected = profile.id === selectedProfileId;
-  const isFileProtocol =
-    profile.protocol === "sftp" ||
-    profile.protocol === "ftp" ||
-    profile.protocol === "ftps";
+  const isFileProtocol = profile.protocol === "sftp";
 
   const handleConnect = () => {
-    if (isFileProtocol) {
+    if (profile.protocol === "sftp" || isUnimplementedFileProtocol(profile.protocol)) {
       void openProfileSession(profile);
       return;
     }

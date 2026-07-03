@@ -1,5 +1,8 @@
+import { toast } from "sonner";
+import i18n from "@/i18n";
 import type { ConnectionProfile } from "@/types/connection";
 import type { Session } from "@/types/connection";
+import { isImplementedRemoteProtocol } from "@/lib/connection-protocol";
 import { buildProfileSessionRequest } from "@/lib/open-connection-profile";
 import { prepareProfileConnection } from "@/lib/resolve-connection-credential";
 import { requestSessionReconnect } from "@/lib/reconnect-session";
@@ -10,6 +13,16 @@ import { useShellUiStore } from "@/stores/shell-ui-store";
 export async function openProfileSession(
   profile: ConnectionProfile,
 ): Promise<Session | null> {
+  if (
+    profile.protocol !== "local" &&
+    !isImplementedRemoteProtocol(profile.protocol)
+  ) {
+    toast.error(i18n.t("connections:protocolNotSupported.title"), {
+      description: i18n.t("connections:protocolNotSupported.description"),
+    });
+    return null;
+  }
+
   const request = buildProfileSessionRequest(profile);
   const sessionState = useSessionStore.getState();
 

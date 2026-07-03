@@ -29,6 +29,13 @@
     "askPasswordEachTimeHint": "连接时将弹出对话框输入密码，不会保存到钥匙串。",
     "askPassphraseEachTimeHint": "连接时将弹出对话框输入私钥口令，不会保存到钥匙串。"
   },
+  "protocol": {
+    "comingSoon": "即将支持"
+  },
+  "protocolNotSupported": {
+    "title": "协议暂不支持",
+    "description": "FTP / FTPS 正在开发中，请改用 SSH 或 SFTP。"
+  },
   "actions": {
     "openTerminal": "打开终端",
     "openSftp": "打开 SFTP",

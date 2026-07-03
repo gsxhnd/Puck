@@ -4,12 +4,7 @@ import { useSessionStore } from "@/stores/session-store";
 export const RECONNECT_SESSION_EVENT = "puck:reconnect-session";
 
 export function isRemoteSession(session: Session): boolean {
-  return (
-    session.protocol === "ssh" ||
-    session.protocol === "sftp" ||
-    session.protocol === "ftp" ||
-    session.protocol === "ftps"
-  );
+  return session.protocol === "ssh" || session.protocol === "sftp";
 }
 
 export function canReconnectSession(session: Session): boolean {

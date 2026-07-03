@@ -1,10 +1,16 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
 import { open } from "@tauri-apps/plugin-dialog";
 import type { AuthMethod, ConnectionProfile, ConnectionProtocol } from "@/types/connection";
 import { DEFAULT_PORTS } from "@/types/connection";
 import { useConnectionStore } from "@/stores/connection-store";
 import { openProfileSession } from "@/lib/open-profile-session";
+import {
+  isImplementedRemoteProtocol,
+  protocolOptionLabel,
+  REMOTE_PROTOCOL_SELECT_OPTIONS,
+} from "@/lib/connection-protocol";
 import {
   deleteConnectionCredentials,
   deleteCredential,
@@ -43,12 +49,19 @@ type FormState = {
   defaultDirectory: string;
 };
 
-const REMOTE_PROTOCOLS: Array<Exclude<ConnectionProtocol, "local">> = [
-  "ssh",
-  "sftp",
-  "ftp",
-  "ftps",
-];
+function ensureImplementedProtocol(
+  protocol: Exclude<ConnectionProtocol, "local">,
+  t: ReturnType<typeof useTranslation>[0],
+): boolean {
+  if (isImplementedRemoteProtocol(protocol)) {
+    return true;
+  }
+
+  toast.error(t("connections:protocolNotSupported.title"), {
+    description: t("connections:protocolNotSupported.description"),
+  });
+  return false;
+}
 
 function profileToForm(profile: ConnectionProfile): FormState {
   return {
@@ -156,6 +169,10 @@ export function ConnectionDialog({
   };
 
   const handleProtocolChange = (protocol: Exclude<ConnectionProtocol, "local">) => {
+    if (!isImplementedRemoteProtocol(protocol)) {
+      return;
+    }
+
     setForm((current) => ({
       ...current,
       protocol,
@@ -174,6 +191,10 @@ export function ConnectionDialog({
   };
 
   const handleSave = async () => {
+    if (!ensureImplementedProtocol(form.protocol, t)) {
+      return;
+    }
+
     setSaving(true);
     try {
       const payload = formToProfilePayload(
@@ -197,6 +218,10 @@ export function ConnectionDialog({
   };
 
   const handleConnect = async () => {
+    if (!ensureImplementedProtocol(form.protocol, t)) {
+      return;
+    }
+
     setSaving(true);
     try {
       const payload = formToProfilePayload(
@@ -263,9 +288,9 @@ export function ConnectionDialog({
                 )
               }
             >
-              {REMOTE_PROTOCOLS.map((protocol) => (
-                <option key={protocol} value={protocol}>
-                  {t(`common:protocol.${protocol}`)}
+              {REMOTE_PROTOCOL_SELECT_OPTIONS.map(({ protocol, disabled }) => (
+                <option key={protocol} value={protocol} disabled={disabled}>
+                  {protocolOptionLabel(t, protocol, disabled)}
                 </option>
               ))}
             </select>

@@ -221,19 +221,20 @@ Puck 是一个架构清晰、文档诚实的 alpha 桌面应用（Tauri v2 + Rea
 
 ---
 
-### 3.8 FTP / FTPS 在 UI 中可选，但后端未实现
+### 3.8 FTP / FTPS 在 UI 中可选，但后端未实现 — **已修复**
 
-**位置：** `src/types/connection.ts`、`src/page/connections/connection-profile-panel.tsx`、`src/components/connections/connection-dialog.tsx`
+**状态：** 已修复（2026-07-03）
 
-连接类型包含 `"ftp" | "ftps"`，连接表单允许选择 FTP/FTPS，`buildProfileSessionRequest` 也会为 FTP/FTPS 创建 files session。但 `FileManager` 只支持 `sftp` 或 `ssh`，最终进入 unsupported 状态。
+**原位置：** `src/types/connection.ts`、`src/page/connections/connection-profile-panel.tsx`、`src/components/connections/connection-dialog.tsx`
 
-**影响：** 用户会误以为 FTP/FTPS 已可用，创建配置后连接失败。
+**原问题：** 连接类型包含 `"ftp" | "ftps"`，连接表单允许选择 FTP/FTPS，`buildProfileSessionRequest` 也会为 FTP/FTPS 创建 files session。但 `FileManager` 只支持 `sftp` 或 `ssh`，最终进入 unsupported 状态。
 
-**建议：**
+**修复：**
 
-1. 在协议下拉中禁用 FTP/FTPS，标注"即将支持"
-2. `openProfileSession` 前置拦截未实现协议
-3. 后端实现前，README 和 UI 保持一致表达
+1. 协议下拉中 FTP/FTPS 显示为禁用项，标注「即将支持」
+2. `openProfileSession` 前置拦截未实现协议并 toast 提示
+3. 保存/连接表单时校验协议可用性
+4. 文档与 UI 保持一致，明确 FTP/FTPS 暂未实现
 
 ---
 
@@ -452,7 +453,7 @@ exec-handle registry 仅以 `session_id` 为 key。重连时新 task 存入句�
 
 | 能力 | 当前状态 | 用户风险 |
 | --- | --- | --- |
-| FTP / FTPS | 连接模型 + UI 预留，无 Rust 后端 | 用户可能误以为协议已可用 |
+| FTP / FTPS | 连接模型保留，UI 已禁用并标注「即将支持」，无 Rust 后端 | 用户无法误选或连接 |
 | SSH Agent | 认证类型已定义，未实现 | 选项无效或行为不符预期 |
 | ProxyJump | 类型/UI 预留 | 同上 |
 | 端口转发 | 未实现 | — |
@@ -463,7 +464,7 @@ exec-handle registry 仅以 `session_id` 为 key。重连时新 task 存入句�
 
 **建议：**
 
-1. **P0**：连接表单对 FTP/FTPS 等未实现协议做禁用或明确"尚未支持"标注
+1. ~~**P0**：连接表单对 FTP/FTPS 等未实现协议做禁用或明确"尚未支持"标注~~ ✅ 已修复
 2. **P1**：传输取消；`open_path_in_app` 跨平台实现或按平台隐藏
 3. **P2**：SSH Agent、ProxyJump、FTP 后端等按路线图推进
 
@@ -492,7 +493,7 @@ exec-handle registry 仅以 `session_id` 为 key。重连时新 task 存入句�
 | 5 | SFTP 传输与文件操作解耦 | 大文件场景体验改善 |
 | 6 | 顶层 ErrorBoundary | 防止渲染异常白屏 |
 | 7 | SSH 面板 disposed 兜底 | 监听器/连接泄漏 |
-| 8 | FTP/FTPS UI 标注未实现或禁用 | 降低用户误解 |
+| 8 | ~~FTP/FTPS UI 标注未实现或禁用~~ ✅ 已修复 | 降低用户误解 |
 | 9 | 收紧 CSP 与 capability | 发布前安全基线 |
 | 10 | 拆分连接表单逻辑并补校验 | 降低重复维护成本 |
 | 11 | 配置文件原子写 + 损坏备份 | 防止配置损坏丢失 |
@@ -554,3 +555,4 @@ exec-handle registry 仅以 `session_id` 为 key。重连时新 task 存入句�
 | --- | --- | --- |
 | 1.0 | 2026-07-01 | 初版：整合 problem.1、problem.2、problem.3 |
 | 1.1 | 2026-07-02 | 标记 2.2（连接种子复活）已修复 |
+| 1.2 | 2026-07-03 | 标记 3.8（FTP/FTPS UI 禁用）已修复 |

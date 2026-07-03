@@ -38,7 +38,7 @@ There are **no automated tests** (no `*.test.ts`, no Rust `#[test]`). Verificati
 - Connections: `~/.config/puck/connections.json`.
 - Secrets (passwords, key passphrases) go to the OS keychain via `keyring`, keyed `puck.connection.<connectionId>.<field>` — never written to `config.toml`.
 - macOS-only: native menu (`macos_menu.rs`), window vibrancy, `macOSPrivateApi`. Shortcuts are re-implemented in the frontend so they work cross-platform.
-- Not implemented despite existing UI/types: FTP/FTPS backend, SSH Agent, ProxyJump, port forwarding, transfer cancel/pause. `open_path_in_app` is macOS-only.
+- Not implemented despite existing types: FTP/FTPS backend (UI disabled with "coming soon"), SSH Agent, ProxyJump, port forwarding, transfer cancel/pause. `open_path_in_app` is macOS-only.
 
 ## Reference material
 

@@ -29,6 +29,13 @@
     "askPasswordEachTimeHint": "You will be prompted on each connect. The password is not saved to the keychain.",
     "askPassphraseEachTimeHint": "You will be prompted on each connect. The passphrase is not saved to the keychain."
   },
+  "protocol": {
+    "comingSoon": "coming soon"
+  },
+  "protocolNotSupported": {
+    "title": "Protocol not supported",
+    "description": "FTP / FTPS are not available yet. Use SSH or SFTP instead."
+  },
   "actions": {
     "openTerminal": "Open Terminal",
     "openSftp": "Open SFTP",
