@@ -206,7 +206,7 @@ export function RemoteFileExplorerPanel({
               key={entry.path}
               type="button"
               className={cn(
-                "flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm transition-colors hover:bg-muted/50",
+                "file-list-row flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm transition-colors hover:bg-muted/50",
                 entry.name.startsWith(".") && "text-muted-foreground",
               )}
               onClick={() => {

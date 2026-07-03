@@ -76,18 +76,25 @@ export function WindowControls({ className }: WindowControlsProps) {
   useEffect(() => {
     if (!isTauri()) return;
 
+    let disposed = false;
     let unlisten: (() => void) | undefined;
 
     void (async () => {
       const { getCurrentWindow } = await import("@tauri-apps/api/window");
       const appWindow = getCurrentWindow();
       setIsMaximized(await appWindow.isMaximized());
-      unlisten = await appWindow.onResized(async () => {
+      const dispose = await appWindow.onResized(async () => {
         setIsMaximized(await appWindow.isMaximized());
       });
+      if (disposed) {
+        dispose();
+        return;
+      }
+      unlisten = dispose;
     })();
 
     return () => {
+      disposed = true;
       unlisten?.();
     };
   }, []);

@@ -21,6 +21,50 @@ export const PUCK_CONFIG_KEYS = {
 
 const cache = new Map<string, string | null>();
 let initPromise: Promise<void> | null = null;
+const writeQueues = new Map<string, Promise<void>>();
+
+async function persistSection(key: string, value: string): Promise<void> {
+  if (!isTauri()) {
+    try {
+      localStorage.setItem(key, value);
+    } catch {
+      // Ignore quota or private browsing errors.
+    }
+    return;
+  }
+
+  try {
+    await invoke("set_puck_config_section", { section: key, value });
+  } catch (error) {
+    console.warn(`Failed to persist config section "${key}":`, error);
+  }
+}
+
+function enqueueSectionWrite(key: string, value: string): Promise<void> {
+  const previous = writeQueues.get(key) ?? Promise.resolve();
+  const next = previous
+    .catch(() => undefined)
+    .then(() => persistSection(key, value));
+  writeQueues.set(key, next);
+  return next;
+}
+
+async function removeSection(key: string): Promise<void> {
+  if (!isTauri()) {
+    try {
+      localStorage.removeItem(key);
+    } catch {
+      // Ignore storage errors.
+    }
+    return;
+  }
+
+  try {
+    await invoke("remove_puck_config_section", { section: key });
+  } catch (error) {
+    console.warn(`Failed to remove config section "${key}":`, error);
+  }
+}
 
 async function loadSectionsFromDisk(): Promise<void> {
   if (!isTauri()) return;
@@ -73,34 +117,19 @@ export async function writePuckConfigValue(
   value: string,
 ): Promise<void> {
   await initPuckConfigStorage();
-  puckConfigStorage.setItem(key, value);
+  cache.set(key, value);
+  await enqueueSectionWrite(key, value);
 }
 
 export const puckConfigStorage: StateStorage = {
   getItem: (name) => readPuckConfigValue(name),
   setItem: (name, value) => {
     cache.set(name, value);
-    if (isTauri()) {
-      void invoke("set_puck_config_section", { section: name, value });
-      return;
-    }
-    try {
-      localStorage.setItem(name, value);
-    } catch {
-      // Ignore quota or private browsing errors.
-    }
+    void enqueueSectionWrite(name, value);
   },
   removeItem: (name) => {
     cache.delete(name);
-    if (isTauri()) {
-      void invoke("remove_puck_config_section", { section: name });
-      return;
-    }
-    try {
-      localStorage.removeItem(name);
-    } catch {
-      // Ignore storage errors.
-    }
+    void removeSection(name);
   },
 };
 

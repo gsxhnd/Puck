@@ -19,6 +19,7 @@ import {
 import { deleteConnectionCredentials } from "@/lib/tauri-ssh";
 import { ConnectionProfileFields } from "@/components/connections/connection-profile-fields";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 export function ConnectionProfilePanel({
@@ -39,6 +40,7 @@ export function ConnectionProfilePanel({
   const [form, setForm] = useState<ConnectionProfileFormState>(emptyConnectionForm);
   const [fieldErrors, setFieldErrors] = useState<ConnectionProfileValidationErrors>({});
   const [saving, setSaving] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
   useEffect(() => {
     setFieldErrors({});
@@ -130,15 +132,15 @@ export function ConnectionProfilePanel({
     }
   };
 
-  const handleDelete = async () => {
+  const confirmDelete = async () => {
     if (!profileId) return;
-    if (!window.confirm(t("connections:manager.deleteConfirm"))) return;
     await deleteConnectionCredentials(profileId);
     removeProfile(profileId);
     closeHostEditor();
   };
 
   return (
+    <>
     <ScrollArea className="min-h-0 flex-1">
       <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 p-6">
         <div className="space-y-1">
@@ -167,7 +169,7 @@ export function ConnectionProfilePanel({
             <Button
               type="button"
               variant="destructive"
-              onClick={() => void handleDelete()}
+              onClick={() => setDeleteConfirmOpen(true)}
             >
               {t("common:actions.delete")}
             </Button>
@@ -193,5 +195,14 @@ export function ConnectionProfilePanel({
         </div>
       </div>
     </ScrollArea>
+    <ConfirmDialog
+      open={deleteConfirmOpen}
+      description={t("connections:manager.deleteConfirm")}
+      confirmLabel={t("common:actions.delete")}
+      destructive
+      onConfirm={() => void confirmDelete()}
+      onOpenChange={setDeleteConfirmOpen}
+    />
+    </>
   );
 }

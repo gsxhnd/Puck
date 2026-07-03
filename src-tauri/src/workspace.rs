@@ -152,7 +152,7 @@ fn git_status_inner(path: &str) -> PuckResult<GitStatusResult> {
 
         let index_status = line.chars().next().unwrap_or(' ').to_string();
         let worktree_status = line.chars().nth(1).unwrap_or(' ').to_string();
-        let file_path = line[3..].trim().to_string();
+        let file_path = parse_porcelain_path(&line[3..]);
 
         if index_status == "?" && worktree_status == "?" {
             untracked.push(file_path);
@@ -238,6 +238,21 @@ pub fn write_local_file(path: String, content: String) -> Result<(), String> {
     write_local_file_inner(&path, &content).map_err(to_invoke_error)
 }
 
+fn parse_porcelain_path(raw: &str) -> String {
+    let trimmed = raw.trim();
+    if trimmed.starts_with('"') && trimmed.ends_with('"') && trimmed.len() >= 2 {
+        return trimmed[1..trimmed.len() - 1]
+            .replace("\\\"", "\"")
+            .replace("\\\\", "\\");
+    }
+
+    if let Some((_, renamed_to)) = trimmed.split_once(" -> ") {
+        return parse_porcelain_path(renamed_to);
+    }
+
+    trimmed.to_string()
+}
+
 fn open_path_in_app_inner(path: &str, app: &str) -> PuckResult<()> {
     let resolved = resolve_path(path)?;
     let target = if resolved.is_dir() {
@@ -281,10 +296,60 @@ fn open_path_in_app_inner(path: &str, app: &str) -> PuckResult<()> {
 
     #[cfg(not(target_os = "macos"))]
     {
-        let _ = (target, app);
-        return Err(PuckError::config(
-            "Open in application is only supported on macOS",
-        ));
+        open_path_in_app_other(&resolved, &target, app)?;
+    }
+
+    Ok(())
+}
+
+#[cfg(not(target_os = "macos"))]
+fn open_path_in_app_other(resolved: &Path, target: &Path, app: &str) -> PuckResult<()> {
+    let target_str = target.to_string_lossy();
+    let resolved_str = resolved.to_string_lossy();
+
+    #[cfg(target_os = "windows")]
+    {
+        let mut command = match app {
+            "finder" => {
+                let mut cmd = Command::new("explorer");
+                cmd.arg(format!("/select,{resolved_str}"));
+                cmd
+            }
+            "terminal" => {
+                let mut cmd = Command::new("cmd");
+                cmd.args(["/C", "start", "", "wt.exe", "-d", &target_str]);
+                cmd
+            }
+            "vscode" => Command::new("code").arg(&target_str),
+            "cursor" => Command::new("cursor").arg(&target_str),
+            "zed" => Command::new("zed").arg(&target_str),
+            _ => return Err(PuckError::config("Unknown application")),
+        };
+        command
+            .spawn()
+            .map_err(|error| PuckError::config(format!("Failed to open application: {error}")))?;
+        return Ok(());
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        let mut command = match app {
+            "finder" => Command::new("xdg-open").arg(target),
+            "terminal" => {
+                if Command::new("x-terminal-emulator").arg("--version").output().is_ok() {
+                    Command::new("x-terminal-emulator").arg("--working-directory").arg(target)
+                } else {
+                    Command::new("gnome-terminal").arg("--working-directory").arg(target)
+                }
+            }
+            "vscode" => Command::new("code").arg(target),
+            "cursor" => Command::new("cursor").arg(target),
+            "zed" => Command::new("zed").arg(target),
+            _ => return Err(PuckError::config("Unknown application")),
+        };
+        command
+            .spawn()
+            .map_err(|error| PuckError::config(format!("Failed to open application: {error}")))?;
     }
 
     Ok(())

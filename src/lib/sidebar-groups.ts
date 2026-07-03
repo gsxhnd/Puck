@@ -264,7 +264,11 @@ export function reorderFlatItems(
 
   const next = [...flat];
   const [moved] = next.splice(fromIndex, 1);
-  moved.groupId = flat[toIndex].groupId;
+  const overItem = flat[toIndex];
+  if (!moved || !overItem) {
+    return flat;
+  }
+  moved.groupId = overItem.groupId;
   next.splice(toIndex, 0, moved);
   return next;
 }
@@ -277,7 +281,7 @@ export function moveFlatItemToGroup(
   const next = flat.filter((item) => item.sessionId !== activeId);
   let lastInGroup = -1;
   for (let i = 0; i < next.length; i++) {
-    if (next[i].groupId === targetGroupId) {
+    if (next[i]?.groupId === targetGroupId) {
       lastInGroup = i;
     }
   }

@@ -11,6 +11,11 @@ import {
 import { listLocalDir } from "@/lib/tauri-workspace";
 import { getWorkspacePath } from "@/lib/use-active-local-session";
 import { parsePuckError } from "@/lib/puck-error";
+import {
+  joinLocalPath,
+  parentLocalPath,
+  splitLocalPath,
+} from "@/lib/local-path";
 import { shortenPath } from "@/lib/session-display";
 import type { Session } from "@/types/connection";
 import { Button } from "@/components/ui/button";
@@ -47,14 +52,7 @@ export function LocalFileExplorerPanel({
     setCwd(workspacePath);
   }, [workspacePath, activeSession.id]);
 
-  const breadcrumbs = useMemo(() => {
-    if (cwd === "~") return ["~"];
-    if (cwd.startsWith("~/")) {
-      return ["~", ...cwd.slice(2).split("/").filter(Boolean)];
-    }
-    if (cwd === "/") return ["/"];
-    return ["/", ...cwd.split("/").filter(Boolean)];
-  }, [cwd]);
+  const breadcrumbs = useMemo(() => splitLocalPath(cwd), [cwd]);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -80,13 +78,13 @@ export function LocalFileExplorerPanel({
   const resolveBreadcrumbPath = (index: number) => {
     if (breadcrumbs[0] === "~") {
       if (index === 0) return "~";
-      return `~/${breadcrumbs.slice(1, index + 1).join("/")}`;
+      return joinLocalPath("~", ...breadcrumbs.slice(1, index + 1));
     }
     if (breadcrumbs[0] === "/") {
       if (index === 0) return "/";
-      return `/${breadcrumbs.slice(1, index + 1).join("/")}`;
+      return joinLocalPath("/", ...breadcrumbs.slice(1, index + 1));
     }
-    return breadcrumbs.slice(0, index + 1).join("/");
+    return joinLocalPath(...breadcrumbs.slice(0, index + 1));
   };
 
   return (
@@ -152,15 +150,7 @@ export function LocalFileExplorerPanel({
             <button
               type="button"
               className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
-              onClick={() => {
-                if (cwd.startsWith("~/")) {
-                  const parent = cwd.replace(/\/[^/]+$/, "");
-                  navigateTo(parent === "~" ? "~" : parent || "~");
-                  return;
-                }
-                const parent = cwd.replace(/\/[^/]+$/, "") || "/";
-                navigateTo(parent);
-              }}
+              onClick={() => navigateTo(parentLocalPath(cwd))}
             >
               <FolderIcon className="size-3.5 shrink-0 opacity-70" />
               <span>..</span>
@@ -172,7 +162,7 @@ export function LocalFileExplorerPanel({
               key={entry.path}
               type="button"
               className={cn(
-                "flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm transition-colors hover:bg-muted/50",
+                "file-list-row flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm transition-colors hover:bg-muted/50",
                 entry.name.startsWith(".") && "text-muted-foreground",
               )}
               onClick={() => {

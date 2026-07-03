@@ -10,6 +10,7 @@ mod connections;
 mod themes;
 mod connections_window;
 mod credential;
+mod desktop_menu;
 mod editor_window;
 mod error;
 mod known_hosts;
@@ -21,6 +22,7 @@ mod settings_window;
 mod sftp;
 mod shell;
 mod ssh;
+mod sync_mutex;
 mod system_monitor;
 mod terminal;
 mod transfer;
@@ -53,6 +55,15 @@ pub(crate) fn apply_macos_window_effects(window: &tauri::WebviewWindow) {
 #[cfg(not(target_os = "macos"))]
 pub(crate) fn apply_macos_window_effects(_window: &tauri::WebviewWindow) {}
 
+fn init_tracing() {
+    let _ = tracing_subscriber::fmt()
+        .with_env_filter(
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("puck=info,warn")),
+        )
+        .try_init();
+}
+
 #[cfg(target_os = "macos")]
 fn configure_macos_window(app: &tauri::App) {
     use tauri::Manager;
@@ -83,6 +94,8 @@ fn apply_macos_window_chrome(
 /// 事件循环，直到应用退出。
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    init_tracing();
+
     let config_store = Arc::new(PuckConfigStore::new());
     let _themes_state = themes::ThemesState::new();
 
@@ -106,6 +119,15 @@ pub fn run() {
             .menu(|app| macos_menu::build_app_menu(app))
             .on_menu_event(|app, event| {
                 macos_menu::handle_menu_event(app, event);
+            });
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    {
+        builder = builder
+            .menu(|app| desktop_menu::build_app_menu(app))
+            .on_menu_event(|app, event| {
+                desktop_menu::handle_menu_event(app, event);
             });
     }
 

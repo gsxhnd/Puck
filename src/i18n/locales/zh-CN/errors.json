@@ -4,5 +4,13 @@
   "auth_failed": "认证失败",
   "network_error": "网络错误",
   "config_error": "配置错误",
-  "protocol_error": "协议错误"
+  "protocol_error": "协议错误",
+  "session_not_found": "会话不存在",
+  "sftp_not_found": "SFTP 连接不存在",
+  "credential_error": "凭据错误",
+  "file_error": "文件操作失败",
+  "git_error": "Git 操作失败",
+  "config_write_error": "配置写入失败",
+  "remote_command_failed": "远程命令执行失败",
+  "transfer_failed": "文件传输失败"
 }

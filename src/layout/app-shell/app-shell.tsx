@@ -5,7 +5,7 @@
  * 协调面板的折叠/展开与持久化宽度，注册全局快捷键（命令面板、切换面板、打开
  * 设置等），并在运行时与已保存设置之间同步面板可见性。
  */
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import type { PanelImperativeHandle } from "react-resizable-panels";
 import { PrimaryPanel } from "@/layout/app-shell/primary-panel";
 import { MainPanel } from "@/layout/app-shell/main-panel";
@@ -14,24 +14,18 @@ import { usePrimaryPanelOverlayWidth } from "@/layout/app-shell/use-primary-pane
 import { CommandPalette } from "@/components/command-palette";
 import { CredentialPromptDialog } from "@/components/connections/credential-prompt-dialog";
 import { openSettingsWindow } from "@/lib/open-settings-window";
-import {
-  PUCK_CONFIG_KEYS,
-  readPuckConfigValue,
-  writePuckConfigValue,
-} from "@/lib/puck-config-storage";
 import { getPlatform } from "@/lib/platform";
 import { useAppSettingsStore } from "@/stores/app-settings-store";
 import { useCommandPaletteStore } from "@/stores/command-palette-store";
 import { useSessionStore } from "@/stores/session-store";
 import { useSessionPrivilegesStore } from "@/stores/session-privileges-store";
+import { useShellLayoutStore } from "@/stores/shell-layout-store";
 import { useShellUiStore } from "@/stores/shell-ui-store";
 import {
   ResizableHandle,
   ResizablePanel,
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
-
-const SHELL_LAYOUT_KEY = PUCK_CONFIG_KEYS.shellLayout;
 
 /** Panel width constraints (px), aligned with shadcn default 16rem ≈ 256px */
 const SHELL_PANEL_SIZES = {
@@ -40,28 +34,6 @@ const SHELL_PANEL_SIZES = {
   main: { min: 480 },
 } as const;
 
-function migrateStoredLayout(
-  layout: Record<string, number>,
-): Record<string, number> {
-  const { left, right, primary, second, main, ...rest } = layout;
-  return {
-    ...rest,
-    primary: primary ?? left,
-    main,
-    second: second ?? right,
-  };
-}
-
-function readStoredLayout(): Record<string, number> | undefined {
-  try {
-    const raw = readPuckConfigValue(SHELL_LAYOUT_KEY);
-    if (!raw) return undefined;
-    return migrateStoredLayout(JSON.parse(raw) as Record<string, number>);
-  } catch {
-    return undefined;
-  }
-}
-
 export function AppShell() {
   const primaryPanelOpen = useShellUiStore((state) => state.primaryPanelOpen);
   const secondPanelOpen = useShellUiStore((state) => state.secondPanelOpen);
@@ -69,6 +41,11 @@ export function AppShell() {
   const setSecondPanelOpen = useShellUiStore((state) => state.setSecondPanelOpen);
   const togglePrimaryPanel = useShellUiStore((state) => state.togglePrimaryPanel);
   const toggleSecondPanel = useShellUiStore((state) => state.toggleSecondPanel);
+  const setLayout = useShellLayoutStore((state) => state.setLayout);
+  const defaultLayout = useMemo(
+    () => useShellLayoutStore.getState().getDefaultLayout(),
+    [],
+  );
   const openPalette = useCommandPaletteStore((state) => state.openPalette);
   const primaryPanelRef = useRef<PanelImperativeHandle>(null);
   const secondPanelRef = useRef<PanelImperativeHandle>(null);
@@ -206,14 +183,9 @@ export function AppShell() {
         id="app-shell"
         orientation="horizontal"
         className="h-full"
-        defaultLayout={
-          readStoredLayout() ?? { primary: 20, main: 55, second: 25 }
-        }
+        defaultLayout={defaultLayout}
         onLayoutChanged={(layout) => {
-          void writePuckConfigValue(
-            SHELL_LAYOUT_KEY,
-            JSON.stringify(migrateStoredLayout(layout)),
-          );
+          setLayout(layout);
 
           const primarySize = layout.primary ?? layout.left ?? 0;
           const secondSize = layout.second ?? layout.right ?? 0;

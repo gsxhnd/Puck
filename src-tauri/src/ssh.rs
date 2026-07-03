@@ -4,19 +4,20 @@ use std::time::Duration;
 
 use bytes::Bytes;
 use russh::client;
+use russh::keys::{decode_secret_key, PrivateKey, PrivateKeyWithHashAlg, PublicKey};
 use russh::ChannelMsg;
-use russh::keys::{decode_secret_key, PrivateKeyWithHashAlg, PublicKey};
 use serde::Deserialize;
 use tauri::{AppHandle, Emitter, State};
 
 use crate::credential::read_credential;
-use crate::error::{host_key_prompt, puck_err, HostKeyPrompt, PuckError, PuckResult};
+use crate::error::{host_key_prompt, HostKeyPrompt, PuckError, PuckResult};
 use crate::known_hosts::KnownHostsStore;
 use crate::runtime::runtime;
 use crate::session::{
     emit_connection_error, emit_session_status, SessionKind, SessionManager,
     SessionStatusEvent, SshCommand, StoredSshProfile, TerminalBackend,
 };
+use crate::sync_mutex::lock_or_recover;
 use crate::terminal::{TerminalDataEvent, TerminalExitEvent};
 use crate::utf8_stream::Utf8StreamDecoder;
 
@@ -30,13 +31,15 @@ fn emit_terminal_chunk(
     if payload.is_empty() {
         return;
     }
-    let _ = app.emit(
+    if let Err(error) = app.emit(
         "terminal:data",
         TerminalDataEvent {
             session_id: session_id.to_string(),
             data: payload,
         },
-    );
+    ) {
+        tracing::warn!(?error, session_id, "failed to emit terminal:data");
+    }
 }
 
 fn flush_terminal_decoder(app: &AppHandle, session_id: &str, decoder: &mut Utf8StreamDecoder) {
@@ -44,13 +47,15 @@ fn flush_terminal_decoder(app: &AppHandle, session_id: &str, decoder: &mut Utf8S
     if tail.is_empty() {
         return;
     }
-    let _ = app.emit(
+    if let Err(error) = app.emit(
         "terminal:data",
         TerminalDataEvent {
             session_id: session_id.to_string(),
             data: tail,
         },
-    );
+    ) {
+        tracing::warn!(?error, session_id, "failed to emit terminal:data flush");
+    }
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -103,7 +108,7 @@ impl client::Handler for SshClientHandler {
         {
             return Ok(true);
         }
-        *self.pending.lock().unwrap() = Some(host_key_prompt(
+        *lock_or_recover(&self.pending) = Some(host_key_prompt(
             &self.host,
             self.port,
             server_public_key,
@@ -133,7 +138,7 @@ pub async fn connect_authenticated(
     {
         Ok(Ok(session)) => session,
         Ok(Err(error)) => {
-            if let Some(prompt) = pending.lock().unwrap().take() {
+            if let Some(prompt) = lock_or_recover(&pending).take() {
                 return Err(PuckError::HostKeyUnknown(prompt));
             }
             return Err(PuckError::from(error));
@@ -148,6 +153,42 @@ pub async fn connect_authenticated(
     }
 }
 
+async fn resolve_password(request: &SshConnectRequest) -> PuckResult<String> {
+    if let Some(password) = request.password.clone() {
+        return Ok(password);
+    }
+
+    let connection_id = request.connection_id.clone();
+    tokio::task::spawn_blocking(move || {
+        read_credential(&connection_id, "password")?.ok_or_else(|| {
+            PuckError::config("missing credential: password")
+        })
+    })
+    .await
+    .map_err(|error| PuckError::Message(error.to_string()))?
+}
+
+async fn load_private_key(request: &SshConnectRequest) -> PuckResult<PrivateKey> {
+    let path = request
+        .private_key_path
+        .clone()
+        .ok_or_else(|| PuckError::config("private key path is required"))?;
+    let connection_id = request.connection_id.clone();
+    let passphrase = request.passphrase.clone();
+
+    tokio::task::spawn_blocking(move || {
+        let content = std::fs::read_to_string(&path).map_err(PuckError::from)?;
+        let passphrase = match passphrase {
+            Some(value) => Some(value),
+            None => read_credential(&connection_id, "passphrase")?,
+        };
+        decode_secret_key(&content, passphrase.as_deref())
+            .map_err(|error| PuckError::auth_failed(error.to_string()))
+    })
+    .await
+    .map_err(|error| PuckError::Message(error.to_string()))?
+}
+
 async fn authenticate(
     session: &mut client::Handle<SshClientHandler>,
     request: &SshConnectRequest,
@@ -156,32 +197,14 @@ async fn authenticate(
 
     let auth_result = match request.auth_method.as_str() {
         "password" => {
-            let password = request
-                .password
-                .clone()
-                .or_else(|| {
-                    read_credential(&request.connection_id, "password")
-                        .ok()
-                        .flatten()
-                })
-                .ok_or_else(|| PuckError::config("missing credential: password"))?;
+            let password = resolve_password(request).await?;
             session
                 .authenticate_password(username, password)
                 .await
                 .map_err(PuckError::from)?
         }
         "privateKey" => {
-            let path = request
-                .private_key_path
-                .as_ref()
-                .ok_or_else(|| PuckError::config("private key path is required"))?;
-            let content = std::fs::read_to_string(path).map_err(PuckError::from)?;
-            let passphrase = request
-                .passphrase
-                .clone()
-                .or(read_credential(&request.connection_id, "passphrase")?);
-            let key = decode_secret_key(&content, passphrase.as_deref())
-                .map_err(|error| PuckError::auth_failed(error.to_string()))?;
+            let key = load_private_key(request).await?;
             session
                 .authenticate_publickey(
                     username,
@@ -200,31 +223,52 @@ async fn authenticate(
     Ok(())
 }
 
-static SSH_EXEC_HANDLES: OnceLock<Mutex<HashMap<String, Arc<client::Handle<SshClientHandler>>>>> =
-    OnceLock::new();
+struct ExecHandleEntry {
+    generation: u64,
+    handle: Arc<client::Handle<SshClientHandler>>,
+}
 
-fn ssh_exec_handles() -> &'static Mutex<HashMap<String, Arc<client::Handle<SshClientHandler>>>> {
+static SSH_EXEC_HANDLES: OnceLock<Mutex<HashMap<String, ExecHandleEntry>>> = OnceLock::new();
+
+fn ssh_exec_handles() -> &'static Mutex<HashMap<String, ExecHandleEntry>> {
     SSH_EXEC_HANDLES.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
-pub fn store_ssh_exec_handle(session_id: &str, handle: Arc<client::Handle<SshClientHandler>>) {
-    if let Ok(mut handles) = ssh_exec_handles().lock() {
-        handles.insert(session_id.to_string(), handle);
-    }
+pub fn store_ssh_exec_handle(session_id: &str, handle: Arc<client::Handle<SshClientHandler>>) -> u64 {
+    let mut handles = lock_or_recover(ssh_exec_handles());
+    let generation = handles
+        .get(session_id)
+        .map(|entry| entry.generation.saturating_add(1))
+        .unwrap_or(1);
+    handles.insert(
+        session_id.to_string(),
+        ExecHandleEntry {
+            generation,
+            handle,
+        },
+    );
+    generation
 }
 
-pub fn remove_ssh_exec_handle(session_id: &str) {
-    if let Ok(mut handles) = ssh_exec_handles().lock() {
+pub fn remove_ssh_exec_handle(session_id: &str, generation: u64) {
+    let mut handles = lock_or_recover(ssh_exec_handles());
+    let should_remove = handles
+        .get(session_id)
+        .map(|entry| entry.generation == generation)
+        .unwrap_or(false);
+    if should_remove {
         handles.remove(session_id);
     }
 }
 
+pub fn clear_ssh_exec_handle(session_id: &str) {
+    lock_or_recover(ssh_exec_handles()).remove(session_id);
+}
+
 pub fn ssh_exec_handle(session_id: &str) -> Option<Arc<client::Handle<SshClientHandler>>> {
-    ssh_exec_handles()
-        .lock()
-        .ok()?
+    lock_or_recover(ssh_exec_handles())
         .get(session_id)
-        .cloned()
+        .map(|entry| Arc::clone(&entry.handle))
 }
 
 pub async fn exec_remote_command(
@@ -310,7 +354,8 @@ async fn open_ssh_terminal_inner(
 
     let session_id = request.session_id.clone();
     let app_handle = app.clone();
-    store_ssh_exec_handle(&session_id, Arc::clone(&session_handle));
+    let exec_generation =
+        store_ssh_exec_handle(&session_id, Arc::clone(&session_handle));
     let (command_tx, mut command_rx) = tokio::sync::mpsc::unbounded_channel::<SshCommand>();
 
     let io_handle = Arc::clone(&session_handle);
@@ -357,25 +402,29 @@ async fn open_ssh_terminal_inner(
                         }
                         Some(ChannelMsg::ExitStatus { exit_status }) => {
                             flush_terminal_decoder(&app_handle, &session_id, &mut utf8_decoder);
-                            let _ = app_handle.emit(
+                            if let Err(error) = app_handle.emit(
                                 "terminal:exit",
                                 TerminalExitEvent {
                                     session_id: session_id.clone(),
                                     code: Some(exit_status as i32),
                                 },
-                            );
+                            ) {
+                                tracing::warn!(?error, session_id, "failed to emit terminal:exit");
+                            }
                             exit_emitted = true;
                             break;
                         }
                         Some(ChannelMsg::Eof) | None => {
                             flush_terminal_decoder(&app_handle, &session_id, &mut utf8_decoder);
-                            let _ = app_handle.emit(
+                            if let Err(error) = app_handle.emit(
                                 "terminal:exit",
                                 TerminalExitEvent {
                                     session_id: session_id.clone(),
                                     code: None,
                                 },
-                            );
+                            ) {
+                                tracing::warn!(?error, session_id, "failed to emit terminal:exit");
+                            }
                             exit_emitted = true;
                             break;
                         }
@@ -386,13 +435,15 @@ async fn open_ssh_terminal_inner(
         }
         flush_terminal_decoder(&app_handle, &session_id, &mut utf8_decoder);
         if !exit_emitted && !intentional_shutdown {
-            let _ = app_handle.emit(
+            if let Err(error) = app_handle.emit(
                 "terminal:exit",
                 TerminalExitEvent {
                     session_id: session_id.clone(),
                     code: None,
                 },
-            );
+            ) {
+                tracing::warn!(?error, session_id, "failed to emit terminal:exit");
+            }
             emit_session_status(
                 &app_handle,
                 SessionStatusEvent {
@@ -404,10 +455,13 @@ async fn open_ssh_terminal_inner(
                 },
             );
         }
-        remove_ssh_exec_handle(&session_id);
-        let _ = io_handle
+        remove_ssh_exec_handle(&session_id, exec_generation);
+        if let Err(error) = io_handle
             .disconnect(russh::Disconnect::ByApplication, "", "en")
-            .await;
+            .await
+        {
+            tracing::warn!(?error, session_id, "failed to disconnect ssh session");
+        }
     });
 
     SessionManager::global().insert_terminal(
@@ -496,7 +550,7 @@ pub fn reconnect_ssh_terminal(
     );
 
     let _ = SessionManager::global().close_terminal(&session_id);
-    remove_ssh_exec_handle(&session_id);
+    clear_ssh_exec_handle(&session_id);
 
     open_ssh_terminal(
         app,

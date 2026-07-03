@@ -5,6 +5,7 @@
 //! `connections.json` 与 `known_hosts.json`（见对应模块）。
 
 use crate::atomic_file::{atomic_write, backup_corrupt_file};
+use crate::sync_mutex::lock_or_recover;
 
 use std::collections::HashMap;
 use std::fs;
@@ -72,11 +73,53 @@ fn default_config_version() -> u32 {
     CONFIG_VERSION
 }
 
-/// Returns `~/.config/puck` on Linux, macOS, and Windows.
+fn legacy_config_dir() -> PathBuf {
+    dirs::home_dir()
+        .unwrap_or_else(|| PathBuf::from("."))
+        .join(".config")
+        .join("puck")
+}
+
+fn migrate_legacy_config_dir(target_dir: &Path) {
+    let legacy_dir = legacy_config_dir();
+    if legacy_dir == target_dir || !legacy_dir.is_dir() {
+        return;
+    }
+
+    let target_has_data = fs::read_dir(target_dir)
+        .map(|mut entries| entries.next().is_some())
+        .unwrap_or(false);
+    if target_has_data {
+        return;
+    }
+
+    if let Ok(entries) = fs::read_dir(&legacy_dir) {
+        for entry in entries.flatten() {
+            let source = entry.path();
+            let destination = target_dir.join(entry.file_name());
+            if source.is_dir() {
+                let _ = fs::create_dir_all(&destination);
+                continue;
+            }
+            if fs::copy(&source, &destination).is_ok() {
+                tracing::info!(
+                    "migrated config file {} -> {}",
+                    source.display(),
+                    destination.display()
+                );
+            }
+        }
+    }
+}
+
+/// Returns the platform config directory with a `puck` subfolder.
 pub fn config_dir() -> PathBuf {
-    let home = dirs::home_dir().unwrap_or_else(|| PathBuf::from("."));
-    let dir = home.join(".config").join("puck");
+    let dir = dirs::config_dir()
+        .or_else(dirs::data_dir)
+        .unwrap_or_else(|| PathBuf::from("."))
+        .join("puck");
     let _ = fs::create_dir_all(&dir);
+    migrate_legacy_config_dir(&dir);
     dir
 }
 
@@ -107,29 +150,29 @@ impl PuckConfigStore {
     }
 
     pub fn take_load_warnings(&self) -> Vec<String> {
-        self.load_warnings.lock().unwrap().drain(..).collect()
+        lock_or_recover(&self.load_warnings).drain(..).collect()
     }
 
     pub fn get_section(&self, section: &str) -> Option<String> {
-        let config = self.config.lock().unwrap();
+        let config = lock_or_recover(&self.config);
         section_value(&config, section).and_then(|value| serde_json::to_string(value).ok())
     }
 
     pub fn set_section(&self, section: &str, json: &str) -> Result<(), String> {
         let value: Value = serde_json::from_str(json).map_err(|error| error.to_string())?;
-        let mut config = self.config.lock().unwrap();
+        let mut config = lock_or_recover(&self.config);
         set_section_value(&mut config, section, Some(value))?;
         save_config(&self.path, &config)
     }
 
     pub fn remove_section(&self, section: &str) -> Result<(), String> {
-        let mut config = self.config.lock().unwrap();
+        let mut config = lock_or_recover(&self.config);
         set_section_value(&mut config, section, None)?;
         save_config(&self.path, &config)
     }
 
     pub fn load_ui_sections(&self) -> HashMap<String, String> {
-        let config = self.config.lock().unwrap();
+        let config = lock_or_recover(&self.config);
         let mut sections = HashMap::new();
         for section in UI_SECTIONS {
             if let Some(value) = section_value(&config, section) {
@@ -250,7 +293,9 @@ pub fn set_puck_config_section(
     value: String,
 ) -> Result<(), String> {
     store.set_section(&section, &value)?;
-    let _ = app.emit("puck:config-changed", section);
+    if let Err(error) = app.emit("puck:config-changed", section) {
+        tracing::warn!(?error, "failed to emit puck:config-changed");
+    }
     Ok(())
 }
 
@@ -261,6 +306,8 @@ pub fn remove_puck_config_section(
     section: String,
 ) -> Result<(), String> {
     store.remove_section(&section)?;
-    let _ = app.emit("puck:config-changed", section);
+    if let Err(error) = app.emit("puck:config-changed", section) {
+        tracing::warn!(?error, "failed to emit puck:config-changed");
+    }
     Ok(())
 }

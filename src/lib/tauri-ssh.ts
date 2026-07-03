@@ -1,5 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+import { isRecord } from "@/lib/ipc-parse";
+import { listenWithCleanup } from "@/lib/tauri-listener";
 import type { ConnectionProfile } from "@/types/connection";
 import type { HostKeyPrompt } from "@/lib/puck-error";
 
@@ -29,6 +31,49 @@ export type KnownHostRecord = HostKeyPrompt & {
   publicKey: string;
 };
 
+function parseHostKeyPrompt(value: unknown): HostKeyPrompt | null {
+  if (!isRecord(value)) return null;
+  if (
+    typeof value.host !== "string" ||
+    typeof value.port !== "number" ||
+    typeof value.keyType !== "string" ||
+    typeof value.fingerprint !== "string" ||
+    typeof value.publicKey !== "string"
+  ) {
+    return null;
+  }
+  return {
+    host: value.host,
+    port: value.port,
+    keyType: value.keyType,
+    fingerprint: value.fingerprint,
+    publicKey: value.publicKey,
+  };
+}
+
+function parseKnownHostRecord(value: unknown): KnownHostRecord | null {
+  const prompt = parseHostKeyPrompt(value);
+  return prompt;
+}
+
+function parseSessionStatusEvent(value: unknown): SessionStatusEvent | null {
+  if (!isRecord(value)) return null;
+  if (typeof value.sessionId !== "string" || typeof value.status !== "string") {
+    return null;
+  }
+  const hostKey = value.hostKey
+    ? parseHostKeyPrompt(value.hostKey) ?? undefined
+    : undefined;
+  return {
+    sessionId: value.sessionId,
+    status: value.status,
+    errorCode:
+      typeof value.errorCode === "string" ? value.errorCode : undefined,
+    message: typeof value.message === "string" ? value.message : undefined,
+    hostKey,
+  };
+}
+
 export function profileToSshRequest(
   sessionId: string,
   profile: ConnectionProfile,
@@ -48,11 +93,12 @@ export function profileToSshRequest(
   };
 }
 
-export function hasCredential(
+export async function hasCredential(
   connectionId: string,
   field: "password" | "passphrase",
 ): Promise<boolean> {
-  return invoke("has_credential", { connectionId, field });
+  const result = await invoke<unknown>("has_credential", { connectionId, field });
+  return result === true;
 }
 
 export function saveCredential(
@@ -74,20 +120,30 @@ export function deleteConnectionCredentials(connectionId: string): Promise<void>
   return invoke("delete_connection_credentials", { connectionId });
 }
 
-export function listKnownHosts(): Promise<KnownHostRecord[]> {
-  return invoke("list_known_hosts");
+export async function listKnownHosts(): Promise<KnownHostRecord[]> {
+  const result = await invoke<unknown>("list_known_hosts");
+  if (!Array.isArray(result)) return [];
+  return result
+    .map((item) => parseKnownHostRecord(item))
+    .filter((item): item is KnownHostRecord => item !== null);
 }
 
-export function deleteKnownHost(host: string, port: number): Promise<boolean> {
-  return invoke("delete_known_host", { host, port });
+export async function deleteKnownHost(host: string, port: number): Promise<boolean> {
+  const result = await invoke<unknown>("delete_known_host", { host, port });
+  return result === true;
 }
 
-export function trustSshHostKey(prompt: HostKeyPrompt): Promise<KnownHostRecord> {
-  return invoke("trust_ssh_host_key", {
+export async function trustSshHostKey(prompt: HostKeyPrompt): Promise<KnownHostRecord> {
+  const result = await invoke<unknown>("trust_ssh_host_key", {
     host: prompt.host,
     port: prompt.port,
     publicKey: prompt.publicKey,
   });
+  const parsed = parseKnownHostRecord(result);
+  if (!parsed) {
+    throw new Error("Invalid trust host key response");
+  }
+  return parsed;
 }
 
 export function openSshTerminal(request: SshConnectRequest): Promise<void> {
@@ -105,7 +161,17 @@ export function reconnectSshTerminal(
 export function onSessionStatus(
   handler: (event: SessionStatusEvent) => void,
 ): Promise<UnlistenFn> {
-  return listen<SessionStatusEvent>("session:status", (event) => {
-    handler(event.payload);
+  return listen<unknown>("session:status", (event) => {
+    const parsed = parseSessionStatusEvent(event.payload);
+    if (parsed) handler(parsed);
+  });
+}
+
+export function subscribeSessionStatus(
+  handler: (event: SessionStatusEvent) => void,
+): () => void {
+  return listenWithCleanup<unknown>("session:status", (event) => {
+    const parsed = parseSessionStatusEvent(event.payload);
+    if (parsed) handler(parsed);
   });
 }

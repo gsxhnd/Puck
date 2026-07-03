@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { BUILTIN_COLOR_THEME_ID } from "@/lib/color-themes";
+import { isRecord } from "@/lib/ipc-parse";
 import { isTauri } from "@/lib/platform";
 
 export type ColorThemeInfo = {
@@ -12,12 +13,24 @@ const BUILTIN_THEME: ColorThemeInfo = {
   source: "builtin",
 };
 
+function parseColorThemeInfo(value: unknown): ColorThemeInfo | null {
+  if (!isRecord(value)) return null;
+  if (typeof value.id !== "string") return null;
+  if (value.source !== "builtin" && value.source !== "external") return null;
+  return { id: value.id, source: value.source };
+}
+
 export async function listColorThemes(): Promise<ColorThemeInfo[]> {
   if (!isTauri()) {
     return [BUILTIN_THEME];
   }
 
-  return invoke<ColorThemeInfo[]>("list_color_themes_command");
+  const result = await invoke<unknown>("list_color_themes_command");
+  if (!Array.isArray(result)) return [BUILTIN_THEME];
+  const themes = result
+    .map((item) => parseColorThemeInfo(item))
+    .filter((item): item is ColorThemeInfo => item !== null);
+  return themes.length > 0 ? themes : [BUILTIN_THEME];
 }
 
 export async function readColorThemeCss(themeId: string): Promise<string> {
@@ -25,10 +38,17 @@ export async function readColorThemeCss(themeId: string): Promise<string> {
     throw new Error("external color themes require the Tauri app");
   }
 
-  return invoke<string>("read_color_theme_css_command", { themeId });
+  const result = await invoke<unknown>("read_color_theme_css_command", {
+    themeId,
+  });
+  if (typeof result !== "string") {
+    throw new Error("Invalid color theme CSS response");
+  }
+  return result;
 }
 
 export async function getThemesDir(): Promise<string | null> {
   if (!isTauri()) return null;
-  return invoke<string>("get_themes_dir");
+  const result = await invoke<unknown>("get_themes_dir");
+  return typeof result === "string" ? result : null;
 }

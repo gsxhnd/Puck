@@ -5,6 +5,13 @@ import tailwindcss from "@tailwindcss/vite";
 
 // @ts-expect-error process is a nodejs global
 const host = process.env.TAURI_DEV_HOST;
+// @ts-expect-error process is a nodejs global
+const platform = process.env.TAURI_ENV_PLATFORM;
+
+function getBuildTarget(): string {
+  if (platform === "macos" || platform === "darwin") return "safari13";
+  return "chrome105";
+}
 
 // https://vite.dev/config/
 export default defineConfig(async () => ({
@@ -18,6 +25,11 @@ export default defineConfig(async () => ({
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
+  },
+  build: {
+    target: getBuildTarget(),
+    sourcemap: false,
+    chunkSizeWarningLimit: 2000,
   },
   // 2. tauri expects a fixed port, fail if that port is not available
   server: {

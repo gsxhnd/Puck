@@ -200,6 +200,9 @@ export const useSessionStore = create<SessionStore>()((set, get) => ({
       }
 
       const [removed] = orderedIds.splice(oldIndex, 1);
+      if (!removed) {
+        return state;
+      }
       orderedIds.splice(newIndex, 0, removed);
 
       const terminalById = new Map(

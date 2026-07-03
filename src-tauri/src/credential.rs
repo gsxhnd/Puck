@@ -35,7 +35,7 @@ pub fn delete_credential(connection_id: String, field: String) -> Result<(), Str
 #[tauri::command]
 pub fn delete_connection_credentials(connection_id: String) -> Result<(), String> {
     for field in ["password", "passphrase"] {
-        let _ = delete_credential(connection_id.clone(), field.to_string());
+        delete_credential(connection_id.clone(), field.to_string())?;
     }
     Ok(())
 }

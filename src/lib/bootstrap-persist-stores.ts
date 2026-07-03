@@ -10,6 +10,7 @@ import { useAppSettingsStore } from "@/stores/app-settings-store";
 import { useConnectionStore } from "@/stores/connection-store";
 import { useSessionPrivilegesStore } from "@/stores/session-privileges-store";
 import { useHostsLayoutStore } from "@/stores/hosts-layout-store";
+import { useShellLayoutStore } from "@/stores/shell-layout-store";
 import { useSidebarLayoutStore } from "@/stores/sidebar-layout-store";
 import { toast } from "sonner";
 
@@ -36,6 +37,7 @@ export async function bootstrapPersistStores(): Promise<void> {
     useSidebarLayoutStore.persist.rehydrate(),
     useHostsLayoutStore.persist.rehydrate(),
     useSessionPrivilegesStore.persist.rehydrate(),
+    useShellLayoutStore.persist.rehydrate(),
   ]);
 
   const { language, themeMode, colorTheme } = useAppSettingsStore.getState();

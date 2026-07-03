@@ -4,5 +4,13 @@
   "auth_failed": "Authentication failed",
   "network_error": "Network error",
   "config_error": "Configuration error",
-  "protocol_error": "Protocol error"
+  "protocol_error": "Protocol error",
+  "session_not_found": "Session not found",
+  "sftp_not_found": "SFTP connection not found",
+  "credential_error": "Credential error",
+  "file_error": "File operation failed",
+  "git_error": "Git operation failed",
+  "config_write_error": "Failed to write configuration",
+  "remote_command_failed": "Remote command failed",
+  "transfer_failed": "File transfer failed"
 }

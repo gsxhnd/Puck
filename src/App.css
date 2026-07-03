@@ -256,3 +256,8 @@ html[data-window-chrome="macos-tauri"] [data-app-shell] {
     @apply font-sans;
   }
 }
+
+.file-list-row {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 36px;
+}

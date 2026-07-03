@@ -1,5 +1,6 @@
-import { emit, listen, type UnlistenFn } from "@tauri-apps/api/event";
+import { emit } from "@tauri-apps/api/event";
 import { isTauri } from "@/lib/platform";
+import { listenWithCleanup } from "@/lib/tauri-listener";
 
 export const CONNECTION_OPEN_EVENT = "connection:open-profile";
 
@@ -53,17 +54,13 @@ export function subscribeConnectionOpenRequests(
   });
 
   if (isTauri()) {
-    let unlisten: UnlistenFn | undefined;
-    void listen<ConnectionOpenPayload>(CONNECTION_OPEN_EVENT, (event) => {
-      if (event.payload?.profileId) {
-        onOpen(event.payload.profileId);
-      }
-    }).then((dispose) => {
-      unlisten = dispose;
-    });
-    cleanups.push(() => {
-      unlisten?.();
-    });
+    cleanups.push(
+      listenWithCleanup<ConnectionOpenPayload>(CONNECTION_OPEN_EVENT, (event) => {
+        if (event.payload?.profileId) {
+          onOpen(event.payload.profileId);
+        }
+      }),
+    );
   }
 
   return () => {

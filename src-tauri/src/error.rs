@@ -112,8 +112,8 @@ impl From<russh::Error> for PuckError {
     }
 }
 
-impl From<russh_keys::Error> for PuckError {
-    fn from(value: russh_keys::Error) -> Self {
+impl From<russh::keys::Error> for PuckError {
+    fn from(value: russh::keys::Error) -> Self {
         Self::auth_failed(value.to_string())
     }
 }

@@ -2,6 +2,8 @@ use std::collections::HashMap;
 use std::io::Write;
 use std::sync::{Mutex, OnceLock};
 
+use crate::sync_mutex::lock_or_recover;
+
 use portable_pty::{Child, MasterPty};
 use serde::Serialize;
 use tauri::{AppHandle, Emitter};
@@ -30,7 +32,9 @@ pub struct SessionStatusEvent {
 }
 
 pub fn emit_session_status(app: &AppHandle, event: SessionStatusEvent) {
-    let _ = app.emit("session:status", event);
+    if let Err(error) = app.emit("session:status", event) {
+        tracing::warn!(?error, "failed to emit session:status");
+    }
 }
 
 pub fn emit_connection_error(app: &AppHandle, session_id: String, error: PuckError) {
@@ -181,10 +185,7 @@ impl SessionManager {
         backend: TerminalBackend,
         kind: SessionKind,
     ) -> PuckResult<()> {
-        let mut terminals = self
-            .terminals
-            .lock()
-            .map_err(|_| PuckError::Message("failed to lock sessions".into()))?;
+        let mut terminals = lock_or_recover(&self.terminals);
         if terminals.contains_key(&session_id) {
             return Err(PuckError::Message(format!(
                 "session already exists: {session_id}"
@@ -204,10 +205,7 @@ impl SessionManager {
     }
 
     pub fn write_terminal(&self, session_id: &str, data: &str) -> PuckResult<()> {
-        let mut terminals = self
-            .terminals
-            .lock()
-            .map_err(|_| PuckError::Message("failed to lock sessions".into()))?;
+        let mut terminals = lock_or_recover(&self.terminals);
         let entry = terminals
             .get_mut(session_id)
             .ok_or_else(|| PuckError::Message(format!("session not found: {session_id}")))?;
@@ -261,19 +259,19 @@ impl SessionManager {
     }
 
     pub fn close_terminal(&self, session_id: &str) -> bool {
-        let mut terminals = match self.terminals.lock() {
-            Ok(guard) => guard,
-            Err(_) => return false,
-        };
+        let mut terminals = lock_or_recover(&self.terminals);
         let Some(entry) = terminals.remove(session_id) else {
             return false;
         };
-        if let TerminalBackend::Ssh { command_tx, .. } = &entry.backend {
-            let _ = command_tx.send(SshCommand::Shutdown);
-        }
-        if let TerminalBackend::Local { mut child, .. } = entry.backend {
-            let _ = child.kill();
-            let _ = child.wait();
+        match entry.backend {
+            TerminalBackend::Ssh { command_tx, io_task } => {
+                let _ = command_tx.send(SshCommand::Shutdown);
+                io_task.abort();
+            }
+            TerminalBackend::Local { mut child, .. } => {
+                let _ = child.kill();
+                let _ = child.wait();
+            }
         }
         true
     }
@@ -328,10 +326,12 @@ impl SessionManager {
     }
 
     pub fn close_sftp(&self, session_id: &str) -> Option<SftpSessionEntry> {
-        let mut sessions = self.sftp_sessions.lock().ok()?;
+        let mut sessions = lock_or_recover(&self.sftp_sessions);
         let entry = sessions.remove(session_id)?;
         let _ = entry.command_tx.send(SftpCommand::Shutdown);
         let _ = entry.transfer_tx.send(SftpTransferCommand::Shutdown);
+        entry.io_task.abort();
+        entry.transfer_io_task.abort();
         Some(entry)
     }
 }

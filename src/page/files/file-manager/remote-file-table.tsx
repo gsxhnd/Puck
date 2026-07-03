@@ -69,7 +69,7 @@ export function RemoteFileTable({
               <tr
                 key={entry.path}
                 className={cn(
-                  "cursor-pointer hover:bg-muted/40",
+                  "file-list-row cursor-pointer hover:bg-muted/40",
                   selectedPath === entry.path && "bg-muted/60",
                 )}
                 onClick={() => onOpenEntry(entry)}

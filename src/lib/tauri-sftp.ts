@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+import { isRecord } from "@/lib/ipc-parse";
 import type { ConnectionProfile } from "@/types/connection";
 
 export type RemoteFileEntry = {
@@ -39,6 +40,67 @@ export type TransferErrorEvent = {
   message: string;
 };
 
+function parseRemoteFileEntry(value: unknown): RemoteFileEntry | null {
+  if (!isRecord(value)) return null;
+  if (
+    typeof value.name !== "string" ||
+    typeof value.path !== "string" ||
+    typeof value.isDir !== "boolean" ||
+    typeof value.size !== "number"
+  ) {
+    return null;
+  }
+  return {
+    name: value.name,
+    path: value.path,
+    isDir: value.isDir,
+    size: value.size,
+    modified: typeof value.modified === "number" ? value.modified : undefined,
+    permissions:
+      typeof value.permissions === "string" ? value.permissions : undefined,
+  };
+}
+
+function parseRemoteFileEntries(value: unknown): RemoteFileEntry[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item) => parseRemoteFileEntry(item))
+    .filter((item): item is RemoteFileEntry => item !== null);
+}
+
+function parseTransferProgressEvent(value: unknown): TransferProgressEvent | null {
+  if (!isRecord(value)) return null;
+  if (
+    typeof value.transferId !== "string" ||
+    typeof value.bytesTransferred !== "number"
+  ) {
+    return null;
+  }
+  return {
+    transferId: value.transferId,
+    bytesTransferred: value.bytesTransferred,
+    bytesTotal:
+      typeof value.bytesTotal === "number" ? value.bytesTotal : undefined,
+  };
+}
+
+function parseTransferDoneEvent(value: unknown): TransferDoneEvent | null {
+  if (!isRecord(value)) return null;
+  if (typeof value.transferId !== "string") return null;
+  return { transferId: value.transferId };
+}
+
+function parseTransferErrorEvent(value: unknown): TransferErrorEvent | null {
+  if (!isRecord(value)) return null;
+  if (
+    typeof value.transferId !== "string" ||
+    typeof value.message !== "string"
+  ) {
+    return null;
+  }
+  return { transferId: value.transferId, message: value.message };
+}
+
 export function profileToFileRequest(
   sessionId: string,
   profile: ConnectionProfile,
@@ -63,11 +125,12 @@ export function openFileConnection(
   return invoke("open_file_connection", { request });
 }
 
-export function listRemoteDir(
+export async function listRemoteDir(
   sessionId: string,
   path?: string,
 ): Promise<RemoteFileEntry[]> {
-  return invoke("list_remote_dir", { sessionId, path });
+  const result = await invoke<unknown>("list_remote_dir", { sessionId, path });
+  return parseRemoteFileEntries(result);
 }
 
 export function mkdirRemote(sessionId: string, path: string): Promise<void> {
@@ -96,11 +159,18 @@ export function startTransfer(args: {
   return invoke("start_transfer", args);
 }
 
-export function readRemoteFile(
+export async function readRemoteFile(
   sessionId: string,
   path: string,
 ): Promise<string> {
-  return invoke<string>("read_remote_file_command", { sessionId, path });
+  const result = await invoke<unknown>("read_remote_file_command", {
+    sessionId,
+    path,
+  });
+  if (typeof result !== "string") {
+    throw new Error("Invalid read remote file response");
+  }
+  return result;
 }
 
 export function writeRemoteFile(
@@ -114,23 +184,26 @@ export function writeRemoteFile(
 export function onTransferProgress(
   handler: (event: TransferProgressEvent) => void,
 ): Promise<UnlistenFn> {
-  return listen<TransferProgressEvent>("transfer:progress", (event) => {
-    handler(event.payload);
+  return listen<unknown>("transfer:progress", (event) => {
+    const parsed = parseTransferProgressEvent(event.payload);
+    if (parsed) handler(parsed);
   });
 }
 
 export function onTransferDone(
   handler: (event: TransferDoneEvent) => void,
 ): Promise<UnlistenFn> {
-  return listen<TransferDoneEvent>("transfer:done", (event) => {
-    handler(event.payload);
+  return listen<unknown>("transfer:done", (event) => {
+    const parsed = parseTransferDoneEvent(event.payload);
+    if (parsed) handler(parsed);
   });
 }
 
 export function onTransferError(
   handler: (event: TransferErrorEvent) => void,
 ): Promise<UnlistenFn> {
-  return listen<TransferErrorEvent>("transfer:error", (event) => {
-    handler(event.payload);
+  return listen<unknown>("transfer:error", (event) => {
+    const parsed = parseTransferErrorEvent(event.payload);
+    if (parsed) handler(parsed);
   });
 }

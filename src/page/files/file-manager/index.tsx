@@ -32,6 +32,7 @@ import { parsePuckError } from "@/lib/puck-error";
 import type { HostKeyPrompt } from "@/lib/puck-error";
 import { HostKeyDialog } from "@/components/ssh/host-key-dialog";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { FileManagerToolbar } from "@/page/files/file-manager/file-toolbar";
@@ -82,6 +83,7 @@ export function FileManager({
   const [renameValue, setRenameValue] = useState("");
   const [renaming, setRenaming] = useState(false);
   const [hostKeyPrompt, setHostKeyPrompt] = useState<HostKeyPrompt | null>(null);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
   const supported = profile?.protocol === "sftp" || profile?.protocol === "ssh";
   const breadcrumbs = useMemo(() => buildBreadcrumbs(cwd), [cwd]);
@@ -281,9 +283,8 @@ export function FileManager({
     void refresh();
   };
 
-  const handleDelete = async () => {
+  const confirmDelete = async () => {
     if (!selectedPath) return;
-    if (!window.confirm(t("files:prompts.deleteConfirm"))) return;
     await deleteRemote(sessionId, selectedPath);
     setSelectedPath(null);
     void refresh();
@@ -347,7 +348,7 @@ export function FileManager({
             setRenameValue(selectedPath.split("/").pop() ?? "");
           }
         }}
-        onDelete={() => void handleDelete()}
+        onDelete={() => setDeleteConfirmOpen(true)}
       />
 
       {error ? (
@@ -392,6 +393,14 @@ export function FileManager({
           setHostKeyPrompt(null);
           updateSessionStatus(sessionId, "failed");
         }}
+      />
+      <ConfirmDialog
+        open={deleteConfirmOpen}
+        description={t("files:prompts.deleteConfirm")}
+        confirmLabel={t("common:actions.delete")}
+        destructive
+        onConfirm={() => void confirmDelete()}
+        onOpenChange={setDeleteConfirmOpen}
       />
     </div>
   );

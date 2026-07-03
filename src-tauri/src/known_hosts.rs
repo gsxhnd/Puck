@@ -5,6 +5,7 @@
 //! 以及在首次连接遇到未知主机时生成供前端确认的提示信息。
 
 use crate::atomic_file::{atomic_write, backup_corrupt_file};
+use crate::sync_mutex::lock_or_recover;
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -94,14 +95,14 @@ impl KnownHostsStore {
     }
 
     pub fn list(&self) -> Vec<KnownHostRecord> {
-        self.records.lock().unwrap().clone()
+        lock_or_recover(&self.records).clone()
     }
 
     /// Returns whether the given host/port already trusts this public key.
     pub fn is_trusted(&self, host: &str, port: u16, public_key: &PublicKey) -> bool {
         let key_text = public_key_to_openssh(public_key);
         let fingerprint = fingerprint_for_key(public_key);
-        self.records.lock().unwrap().iter().any(|record| {
+        lock_or_recover(&self.records).iter().any(|record| {
             record.host == host
                 && record.port == port
                 && (record.public_key == key_text || record.fingerprint == fingerprint)
@@ -123,14 +124,14 @@ impl KnownHostsStore {
             fingerprint: fingerprint_for_key(public_key),
         };
 
-        let mut records = self.records.lock().unwrap();
+        let mut records = lock_or_recover(&self.records);
         merge_known_host(&mut records, record.clone());
         save_known_hosts_file(&self.path, &records)?;
         Ok(record)
     }
 
     pub fn remove(&self, host: &str, port: u16) -> PuckResult<bool> {
-        let mut records = self.records.lock().unwrap();
+        let mut records = lock_or_recover(&self.records);
         let before = records.len();
         records.retain(|record| !(record.host == host && record.port == port));
         let removed = records.len() != before;
@@ -175,7 +176,10 @@ pub fn delete_known_host(
 ) -> Result<bool, String> {
     state
         .remove(&host, port)
-        .map_err(|error| serde_json::to_string(&error.to_payload()).unwrap())
+        .map_err(|error| {
+            let payload = error.to_payload();
+            serde_json::to_string(&payload).unwrap_or(payload.message)
+        })
 }
 
 #[tauri::command]
@@ -188,5 +192,8 @@ pub fn trust_ssh_host_key(
     let parsed = PublicKey::from_openssh(&public_key).map_err(|error| error.to_string())?;
     state
         .trust_key(host, port, &parsed)
-        .map_err(|error| serde_json::to_string(&error.to_payload()).unwrap())
+        .map_err(|error| {
+            let payload = error.to_payload();
+            serde_json::to_string(&payload).unwrap_or(payload.message)
+        })
 }

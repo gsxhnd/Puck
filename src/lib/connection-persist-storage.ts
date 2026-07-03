@@ -30,6 +30,40 @@ async function loadFromDisk(): Promise<void> {
   cachedValue = await invoke<string | null>("load_connections");
 }
 
+async function saveToDisk(value: string): Promise<void> {
+  if (!isTauri()) {
+    try {
+      localStorage.setItem(BROWSER_STORAGE_KEY, value);
+    } catch {
+      // Ignore quota or private browsing errors.
+    }
+    return;
+  }
+
+  try {
+    await invoke("save_connections", { value });
+  } catch (error) {
+    console.warn("Failed to save connections:", error);
+  }
+}
+
+async function removeFromDisk(): Promise<void> {
+  if (!isTauri()) {
+    try {
+      localStorage.removeItem(BROWSER_STORAGE_KEY);
+    } catch {
+      // Ignore storage errors.
+    }
+    return;
+  }
+
+  try {
+    await invoke("remove_connections");
+  } catch (error) {
+    console.warn("Failed to remove connections:", error);
+  }
+}
+
 /** Preload connections.json before Zustand hydration. */
 export function initConnectionPersistStorage(): Promise<void> {
   if (!initPromise) {
@@ -51,27 +85,11 @@ const connectionStorage: StateStorage = {
   getItem: () => readConnectionPersistValue(),
   setItem: (_name, value) => {
     cachedValue = value;
-    if (isTauri()) {
-      void invoke("save_connections", { value });
-      return;
-    }
-    try {
-      localStorage.setItem(BROWSER_STORAGE_KEY, value);
-    } catch {
-      // Ignore quota or private browsing errors.
-    }
+    void saveToDisk(value);
   },
   removeItem: () => {
     cachedValue = null;
-    if (isTauri()) {
-      void invoke("remove_connections");
-      return;
-    }
-    try {
-      localStorage.removeItem(BROWSER_STORAGE_KEY);
-    } catch {
-      // Ignore storage errors.
-    }
+    void removeFromDisk();
   },
 };
 

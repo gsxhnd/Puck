@@ -144,16 +144,24 @@ export function CommandPalette() {
   let itemIndex = -1;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 px-4 pt-[12vh]">
+    <div
+      className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 px-4 pt-[12vh]"
+      role="presentation"
+    >
       <button
         type="button"
         aria-label={t("terminal:titleMenu.closeSearch")}
         className="absolute inset-0"
         onClick={closePalette}
       />
-      <div className="relative z-10 flex w-full max-w-[520px] flex-col overflow-hidden rounded-[12px] border border-[#2e2e2e] bg-[#1a1a1a] text-[#e8e8e8] shadow-[0_16px_70px_rgba(0,0,0,0.55)]">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={t("common:nav.commandPalette")}
+        className="relative z-10 flex w-full max-w-[520px] flex-col overflow-hidden rounded-xl border border-border bg-popover text-popover-foreground shadow-lg"
+      >
         <div className="px-3 pt-3 pb-2">
-          <div className="flex min-h-[36px] items-center gap-2 rounded-[8px] bg-[#222222] px-3 py-1.5">
+          <div className="flex min-h-9 items-center gap-2 rounded-lg bg-muted/60 px-3 py-1.5">
             {activePrefix ? (
               <PaletteScopeChip prefixId={activePrefix} onClear={clearScope} />
             ) : null}
@@ -196,7 +204,7 @@ export function CommandPalette() {
                 }
               }}
               placeholder={placeholder}
-              className="h-6 min-w-0 flex-1 bg-transparent text-[13px] text-[#e8e8e8] outline-none placeholder:text-[#666666]"
+              className="h-6 min-w-0 flex-1 bg-transparent text-[13px] text-foreground outline-none placeholder:text-muted-foreground"
             />
           </div>
         </div>
@@ -206,7 +214,7 @@ export function CommandPalette() {
           className="max-h-[min(58vh,380px)] overflow-y-auto px-2 pb-2"
         >
           {flatCommands.length === 0 ? (
-            <p className="px-3 py-8 text-center text-[13px] text-[#666666]">
+            <p className="px-3 py-8 text-center text-[13px] text-muted-foreground">
               {t("common:empty.noSearchResults")}
             </p>
           ) : (
@@ -219,11 +227,11 @@ export function CommandPalette() {
               return (
                 <section key={section} className="pb-0.5">
                   <div className="flex items-center justify-between px-2 pt-2 pb-1">
-                    <p className="text-[11px] font-medium text-[#666666]">
+                    <p className="text-[11px] font-medium text-muted-foreground">
                       {t(`commandPalette:sections.${section}`)}
                     </p>
                     {section === "workingDirectory" && path ? (
-                      <div className="flex max-w-[55%] items-center gap-1 text-[10px] text-[#666666]">
+                      <div className="flex max-w-[55%] items-center gap-1 text-[10px] text-muted-foreground">
                         <FolderIcon className="size-3 shrink-0" strokeWidth={1.75} />
                         <span className="truncate font-mono">{path}</span>
                       </div>
