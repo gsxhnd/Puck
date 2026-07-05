@@ -1,4 +1,11 @@
 :root[data-color-theme="rose"] {
+  --ui-font-family: "Inter Variable", sans-serif;
+  --ui-radius: 1rem;
+  --ui-window-radius: 18px;
+  --shell-primary-mix: 94%;
+  --shell-secondary-mix: 90%;
+  --terminal-padding-x: 10px;
+  --terminal-padding-y: 8px;
   --background: oklch(1 0 0);
   --foreground: oklch(0.141 0.005 285.823);
   --card: oklch(1 0 0);

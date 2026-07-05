@@ -28,9 +28,43 @@
   },
   "appearance": {
     "colorTheme": "Color theme",
-    "colorThemeDescription": "Choose the overall palette for the UI and terminal; add custom themes in the themes folder under your Puck config directory",
+    "colorThemeDescription": "Choose the overall palette for the UI and terminal; theme files can also define corner radius, panel layering, and other chrome. Add custom themes in the themes folder under your Puck config directory",
     "themeMode": "Appearance",
     "themeModeDescription": "Use light, dark, or system mode with the selected palette",
+    "uiFontFamily": "UI font",
+    "uiFontFamilyDescription": "Font for sidebars, buttons, and dialogs (does not affect the terminal); follows the color theme unless customized",
+    "borderRadius": "Corner radius",
+    "borderRadiusDescription": "Roundness of buttons, cards, inputs, and other controls; follows the color theme unless customized",
+    "borderRadiusOptions": {
+      "0.375": "Compact",
+      "0.5": "Snug",
+      "0.625": "Default",
+      "0.75": "Rounded",
+      "1": "Pill"
+    },
+    "windowRadius": "Window corners",
+    "windowRadiusDescription": "Outer corner radius on macOS transparent windows; set to 0 to disable; follows the color theme unless customized",
+    "windowRadiusOptions": {
+      "0": "None",
+      "6": "6 px",
+      "10": "10 px (default)",
+      "14": "14 px",
+      "18": "18 px"
+    },
+    "shellLayering": "Panel layering",
+    "shellLayeringDescription": "Background contrast between side panels and the main workspace; follows the color theme unless customized",
+    "shellLayeringOptions": {
+      "subtle": "Subtle",
+      "default": "Default",
+      "pronounced": "Pronounced"
+    },
+    "terminalPadding": "Terminal inset",
+    "terminalPaddingDescription": "Padding between terminal content and its border (vertical × horizontal, in px); follows the color theme unless customized",
+    "terminalPaddingX": "Horizontal inset",
+    "terminalPaddingY": "Vertical inset",
+    "resetUiAppearance": "UI chrome",
+    "resetUiAppearanceDescription": "Some UI chrome values are customized and will not change when you switch color themes",
+    "resetUiAppearanceAction": "Follow color theme",
     "fontFamily": "Terminal Font",
     "fontSize": "Terminal Font Size"
   },

@@ -1,5 +1,12 @@
 :root,
 :root[data-color-theme="default"] {
+  --ui-font-family: "Inter Variable", sans-serif;
+  --ui-radius: 0.625rem;
+  --ui-window-radius: 10px;
+  --shell-primary-mix: 96%;
+  --shell-secondary-mix: 92%;
+  --terminal-padding-x: 10px;
+  --terminal-padding-y: 8px;
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);

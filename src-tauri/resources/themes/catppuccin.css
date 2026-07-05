@@ -1,4 +1,11 @@
 :root[data-color-theme="catppuccin"] {
+  --ui-font-family: "Inter Variable", sans-serif;
+  --ui-radius: 0.75rem;
+  --ui-window-radius: 14px;
+  --shell-primary-mix: 92%;
+  --shell-secondary-mix: 88%;
+  --terminal-padding-x: 12px;
+  --terminal-padding-y: 10px;
   --background: #eff1f5;
   --foreground: #4c4f69;
   --card: #ffffff;

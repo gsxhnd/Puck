@@ -33,11 +33,22 @@ import {
 } from "@/types/session-privileges";
 import i18n from "@/i18n";
 import { applyUiTheme } from "@/lib/apply-ui-theme";
+import { applyUiAppearanceOverrides } from "@/lib/apply-ui-appearance";
+import {
+  uiAppearanceToOverrides,
+  type UiAppearanceOverrides,
+} from "@/lib/ui-appearance-css";
+import {
+  normalizeUiAppearanceOverrides,
+  type UiAppearance,
+} from "@/types/ui-appearance";
 
 type AppSettingsState = AppSettings & {
   setLanguage: (language: AppLanguage) => void;
   setColorTheme: (colorTheme: ColorThemeId) => void;
   setThemeMode: (themeMode: ThemeMode) => void;
+  setUiAppearance: (patch: Partial<UiAppearance>) => void;
+  clearUiAppearanceOverrides: () => void;
   setFontFamily: (fontFamily: string) => void;
   setFontSize: (fontSize: number) => void;
   setCursorBlink: (cursorBlink: boolean) => void;
@@ -65,6 +76,8 @@ type AppSettingsState = AppSettings & {
 
 type PersistedAppSettings = Partial<AppSettings> & {
   uiTheme?: ThemeMode;
+  /** @deprecated Migrated to uiAppearanceOverrides in v6. */
+  uiAppearance?: Partial<UiAppearance>;
 };
 
 function normalizeTerminalFontFamily(fontFamily?: string): string {
@@ -174,7 +187,22 @@ function migratePersistedSettings(
     systemResourcesMetrics: normalizeSystemResourceMetrics(
       persisted.systemResourcesMetrics,
     ),
+    uiAppearanceOverrides: migrateUiAppearanceOverrides(persisted),
   };
+}
+
+function migrateUiAppearanceOverrides(
+  persisted: PersistedAppSettings,
+): UiAppearanceOverrides {
+  if (persisted.uiAppearanceOverrides) {
+    return normalizeUiAppearanceOverrides(persisted.uiAppearanceOverrides);
+  }
+  if (persisted.uiAppearance) {
+    return normalizeUiAppearanceOverrides(
+      uiAppearanceToOverrides(persisted.uiAppearance),
+    );
+  }
+  return {};
 }
 
 export const useAppSettingsStore = create<AppSettingsState>()(
@@ -194,6 +222,21 @@ export const useAppSettingsStore = create<AppSettingsState>()(
         set({ themeMode });
         const { colorTheme } = useAppSettingsStore.getState();
         void applyUiTheme(themeMode, colorTheme);
+      },
+      setUiAppearance: (patch) => {
+        set((state) => ({
+          uiAppearanceOverrides: normalizeUiAppearanceOverrides({
+            ...state.uiAppearanceOverrides,
+            ...patch,
+          }),
+        }));
+        applyUiAppearanceOverrides(
+          useAppSettingsStore.getState().uiAppearanceOverrides,
+        );
+      },
+      clearUiAppearanceOverrides: () => {
+        set({ uiAppearanceOverrides: {} });
+        applyUiAppearanceOverrides({});
       },
       setFontFamily: (fontFamily) => set({ fontFamily }),
       setFontSize: (fontSize) => set({ fontSize }),
@@ -239,6 +282,7 @@ export const useAppSettingsStore = create<AppSettingsState>()(
         })),
       reset: () => {
         set({ ...DEFAULT_APP_SETTINGS });
+        applyUiAppearanceOverrides({});
         void applyUiTheme(
           DEFAULT_APP_SETTINGS.themeMode,
           DEFAULT_APP_SETTINGS.colorTheme,
@@ -249,13 +293,14 @@ export const useAppSettingsStore = create<AppSettingsState>()(
       name: PUCK_CONFIG_KEYS.appSettings,
       storage: puckPersistStorage,
       skipHydration: true,
-      version: 4,
+      version: 6,
       migrate: (persistedState) => ({
         state: migratePersistedSettings(unwrapPersistedSettings(persistedState)),
-        version: 4,
+        version: 6,
       }),
       onRehydrateStorage: () => (state) => {
         if (!state) return;
+        applyUiAppearanceOverrides(state.uiAppearanceOverrides);
         void applyUiTheme(state.themeMode, state.colorTheme);
         if (state.language) {
           void i18n.changeLanguage(state.language);

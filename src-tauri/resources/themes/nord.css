@@ -1,4 +1,11 @@
 :root[data-color-theme="nord"] {
+  --ui-font-family: "Inter Variable", sans-serif;
+  --ui-radius: 0.5rem;
+  --ui-window-radius: 6px;
+  --shell-primary-mix: 98%;
+  --shell-secondary-mix: 94%;
+  --terminal-padding-x: 8px;
+  --terminal-padding-y: 6px;
   --background: #eceff4;
   --foreground: #2e3440;
   --card: #e5e9f0;

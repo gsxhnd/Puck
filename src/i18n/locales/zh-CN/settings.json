@@ -28,9 +28,43 @@
   },
   "appearance": {
     "colorTheme": "配色方案",
-    "colorThemeDescription": "选择界面与终端的整体配色风格；可在配置目录的 themes 文件夹中添加自定义主题",
+    "colorThemeDescription": "选择界面与终端的整体配色风格；主题文件可同时定义圆角、侧栏层次等界面样式。可在配置目录的 themes 文件夹中添加自定义主题",
     "themeMode": "外观模式",
     "themeModeDescription": "在所选配色下使用浅色、深色或跟随系统",
+    "uiFontFamily": "界面字体",
+    "uiFontFamilyDescription": "侧栏、按钮、对话框等界面元素的字体（不影响终端）；未自定义时跟随配色主题",
+    "borderRadius": "界面圆角",
+    "borderRadiusDescription": "按钮、卡片、输入框等控件的圆角大小；未自定义时跟随配色主题",
+    "borderRadiusOptions": {
+      "0.375": "紧凑",
+      "0.5": "适中",
+      "0.625": "默认",
+      "0.75": "圆润",
+      "1": "胶囊"
+    },
+    "windowRadius": "窗口圆角",
+    "windowRadiusDescription": "macOS 透明窗口外框圆角；设为 0 可关闭；未自定义时跟随配色主题",
+    "windowRadiusOptions": {
+      "0": "无",
+      "6": "6 px",
+      "10": "10 px（默认）",
+      "14": "14 px",
+      "18": "18 px"
+    },
+    "shellLayering": "面板层次",
+    "shellLayeringDescription": "主侧栏与副侧栏相对主面板的背景对比度；未自定义时跟随配色主题",
+    "shellLayeringOptions": {
+      "subtle": "柔和",
+      "default": "默认",
+      "pronounced": "明显"
+    },
+    "terminalPadding": "终端内边距",
+    "terminalPaddingDescription": "终端内容与边框之间的留白（垂直 × 水平，单位 px）；未自定义时跟随配色主题",
+    "terminalPaddingX": "水平内边距",
+    "terminalPaddingY": "垂直内边距",
+    "resetUiAppearance": "界面样式",
+    "resetUiAppearanceDescription": "已自定义界面样式，切换配色主题时这些项不会自动变化",
+    "resetUiAppearanceAction": "恢复跟随配色主题",
     "fontFamily": "终端字体",
     "fontSize": "终端字号"
   },

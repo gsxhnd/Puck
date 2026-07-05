@@ -1,5 +1,6 @@
 import i18n from "@/i18n";
 import { applyUiTheme } from "@/lib/apply-ui-theme";
+import { applyUiAppearanceOverrides } from "@/lib/apply-ui-appearance";
 import { initColorThemeRegistry } from "@/lib/color-theme-registry";
 import { initConnectionPersistStorage } from "@/lib/connection-persist-storage";
 import {
@@ -40,8 +41,10 @@ export async function bootstrapPersistStores(): Promise<void> {
     useShellLayoutStore.persist.rehydrate(),
   ]);
 
-  const { language, themeMode, colorTheme } = useAppSettingsStore.getState();
+  const { language, themeMode, colorTheme, uiAppearanceOverrides } =
+    useAppSettingsStore.getState();
   await applyUiTheme(themeMode, colorTheme);
+  applyUiAppearanceOverrides(uiAppearanceOverrides);
   if (language && i18n.language !== language) {
     await i18n.changeLanguage(language);
   }
