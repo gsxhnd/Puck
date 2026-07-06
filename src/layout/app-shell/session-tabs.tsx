@@ -2,14 +2,23 @@ import { useTranslation } from "react-i18next";
 import { XIcon } from "lucide-react";
 import { useSessionStore } from "@/stores/session-store";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { useTerminalSplitStore } from "@/stores/terminal-split-store";
+import {
+  closeSplitTab,
+  filterTabVisibleSessions,
+  isSessionInSplitLayout,
+  isSplitTabActive,
+} from "@/lib/terminal-split-sessions";
+
 import { cn } from "@/lib/utils";
 
 export function SessionTabStrip() {
   const { t } = useTranslation(["common", "terminal"]);
   const sessions = useSessionStore((state) => state.sessions);
+  const splitLayout = useTerminalSplitStore((state) => state.layout);
+  const tabSessions = filterTabVisibleSessions(sessions, splitLayout);
   const activeSessionId = useSessionStore((state) => state.activeSessionId);
   const setActiveSession = useSessionStore((state) => state.setActiveSession);
-  const closeSession = useSessionStore((state) => state.closeSession);
 
   const resolveTitle = (session: (typeof sessions)[number]) => {
     if (
@@ -25,13 +34,17 @@ export function SessionTabStrip() {
   return (
     <ScrollArea className="min-w-0 flex-1 whitespace-nowrap">
       <div className="flex items-center gap-1 px-1">
-        {sessions.length === 0 ? (
+        {tabSessions.length === 0 ? (
           <span className="px-2 text-xs text-muted-foreground">
             {t("common:empty.noSessions")}
           </span>
         ) : (
-          sessions.map((session) => {
-            const active = session.id === activeSessionId;
+          tabSessions.map((session) => {
+            const active = isSplitTabActive(
+              session.id,
+              activeSessionId,
+              splitLayout,
+            );
             return (
               <div
                 key={session.id}
@@ -53,7 +66,17 @@ export function SessionTabStrip() {
                   type="button"
                   className="mr-0.5 inline-flex size-5 items-center justify-center rounded-sm opacity-0 transition-opacity group-hover:opacity-100 hover:bg-background/80"
                   aria-label={t("common:actions.close")}
-                  onClick={() => closeSession(session.id)}
+                  onClick={() => {
+                    if (
+                      splitLayout &&
+                      (session.id === splitLayout.tabSessionId ||
+                        isSessionInSplitLayout(session.id, splitLayout))
+                    ) {
+                      closeSplitTab(splitLayout.tabSessionId);
+                      return;
+                    }
+                    useSessionStore.getState().closeSession(session.id);
+                  }}
                 >
                   <XIcon className="size-3.5" />
                 </button>

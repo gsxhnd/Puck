@@ -179,10 +179,10 @@ export function SidebarPanelToolbar({
   );
 
   return (
-    <>
+    <div className="flex shrink-0 items-center gap-0.5">
       {sortMenu}
       {addButton}
       {terminalPickerButton}
-    </>
+    </div>
   );
 }

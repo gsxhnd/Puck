@@ -5,6 +5,12 @@ import { SshTerminalPane } from "@/page/terminal/ssh-terminal-pane";
 import { FileManager } from "@/page/files/file-manager";
 import { TerminalSearchBar } from "@/page/terminal/terminal-search-bar";
 import {
+  collectPaneSessionIds,
+  layoutContainsSession,
+  splitNodePanelId,
+  type SplitNode,
+} from "@/types/terminal-split";
+import {
   ResizableHandle,
   ResizablePanel,
   ResizablePanelGroup,
@@ -68,6 +74,65 @@ function SessionPane({
   );
 }
 
+function SplitTree({
+  node,
+  activeSessionId,
+  onFocusPane,
+}: {
+  node: SplitNode;
+  activeSessionId: string | null;
+  onFocusPane: (sessionId: string) => void;
+}) {
+  if (node.type === "pane") {
+    return (
+      <div
+        className="relative h-full min-h-0 overflow-hidden"
+        onPointerDown={() => onFocusPane(node.sessionId)}
+      >
+        <SessionPane
+          sessionId={node.sessionId}
+          visible
+          focused={node.sessionId === activeSessionId}
+          layout="pane"
+        />
+      </div>
+    );
+  }
+
+  return (
+    <ResizablePanelGroup
+      orientation={node.orientation}
+      className="h-full"
+    >
+      <ResizablePanel
+        id={splitNodePanelId(node.first)}
+        defaultSize={50}
+        minSize={15}
+        className="min-h-0"
+      >
+        <SplitTree
+          node={node.first}
+          activeSessionId={activeSessionId}
+          onFocusPane={onFocusPane}
+        />
+      </ResizablePanel>
+      <ResizableHandle />
+      <ResizablePanel
+        id={splitNodePanelId(node.second)}
+        defaultSize={50}
+        minSize={15}
+        className="min-h-0"
+      >
+        <SplitTree
+          node={node.second}
+          activeSessionId={activeSessionId}
+          onFocusPane={onFocusPane}
+        />
+      </ResizablePanel>
+    </ResizablePanelGroup>
+  );
+}
+
 export function TerminalWorkspace({ activeSessionId }: TerminalWorkspaceProps) {
   const sessions = useSessionStore((state) => state.sessions);
   const setActiveSession = useSessionStore((state) => state.setActiveSession);
@@ -77,67 +142,26 @@ export function TerminalWorkspace({ activeSessionId }: TerminalWorkspaceProps) {
     sessions.find((session) => session.id === activeSessionId) ?? null;
   const showSearch = activeSession?.kind === "terminal";
 
+  const splitPaneIds =
+    splitLayout != null ? collectPaneSessionIds(splitLayout.root) : [];
+
   if (
     splitLayout &&
     activeSession?.kind === "terminal" &&
-    splitLayout.paneSessionIds.every((id) =>
-      sessions.some((session) => session.id === id),
-    )
+    layoutContainsSession(splitLayout, activeSession.id) &&
+    splitPaneIds.every((id) => sessions.some((session) => session.id === id))
   ) {
     return (
       <div className="relative h-full min-h-0 flex-1 overflow-hidden">
         {showSearch ? <TerminalSearchBar /> : null}
-        <ResizablePanelGroup
-          orientation={splitLayout.orientation}
-          className="h-full"
-        >
-          <ResizablePanel
-            id={splitLayout.paneSessionIds[0]}
-            defaultSize={50}
-            minSize={15}
-            className="min-h-0"
-          >
-            <div
-              className="relative h-full min-h-0 overflow-hidden"
-              onPointerDown={() =>
-                setActiveSession(splitLayout.paneSessionIds[0])
-              }
-            >
-              <SessionPane
-                sessionId={splitLayout.paneSessionIds[0]}
-                visible
-                focused={splitLayout.paneSessionIds[0] === activeSessionId}
-                layout="pane"
-              />
-            </div>
-          </ResizablePanel>
-          <ResizableHandle />
-          <ResizablePanel
-            id={splitLayout.paneSessionIds[1]}
-            defaultSize={50}
-            minSize={15}
-            className="min-h-0"
-          >
-            <div
-              className="relative h-full min-h-0 overflow-hidden"
-              onPointerDown={() =>
-                setActiveSession(splitLayout.paneSessionIds[1])
-              }
-            >
-              <SessionPane
-                sessionId={splitLayout.paneSessionIds[1]}
-                visible
-                focused={splitLayout.paneSessionIds[1] === activeSessionId}
-                layout="pane"
-              />
-            </div>
-          </ResizablePanel>
-        </ResizablePanelGroup>
+        <SplitTree
+          node={splitLayout.root}
+          activeSessionId={activeSessionId}
+          onFocusPane={setActiveSession}
+        />
 
         {sessions
-          .filter(
-            (session) => !splitLayout.paneSessionIds.includes(session.id),
-          )
+          .filter((session) => !splitPaneIds.includes(session.id))
           .map((session) => (
             <SessionPane
               key={session.id}

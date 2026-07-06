@@ -3,6 +3,7 @@ import { useCommandPaletteStore } from "@/stores/command-palette-store";
 import { useSessionStore } from "@/stores/session-store";
 import { useShellUiStore } from "@/stores/shell-ui-store";
 import { useTerminalSearchStore } from "@/stores/terminal-search-store";
+import { closeActiveSessionTab } from "@/lib/terminal-split-sessions";
 
 /** Handle a native macOS menu bar action emitted from the Rust backend. */
 export function handleMenuAction(action: string) {
@@ -24,10 +25,8 @@ export function handleMenuAction(action: string) {
       void openConnectionsWindow();
       break;
     case "close_tab": {
-      const { activeSessionId, closeSession } = useSessionStore.getState();
-      if (activeSessionId) {
-        closeSession(activeSessionId);
-      }
+      const { activeSessionId } = useSessionStore.getState();
+      closeActiveSessionTab(activeSessionId);
       break;
     }
     case "command_palette":

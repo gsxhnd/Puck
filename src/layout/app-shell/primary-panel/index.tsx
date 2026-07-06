@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { DragDropProvider } from "@dnd-kit/react";
 import type { DragEndEvent } from "@dnd-kit/dom";
@@ -10,6 +10,7 @@ import { useHostsLayoutStore } from "@/stores/hosts-layout-store";
 import { useShellUiStore } from "@/stores/shell-ui-store";
 import { PrimaryPanelHeader } from "@/layout/app-shell/primary-panel/primary-panel-header";
 import { PrimaryPanelTabsList } from "@/layout/app-shell/primary-panel/primary-panel-tabs";
+import { useToolstripIconOnlyTabs } from "@/layout/app-shell/primary-panel/use-toolstrip-icon-only-tabs";
 import { SessionGroup } from "@/layout/app-shell/primary-panel/session-group";
 import { NameInputDialog } from "@/layout/app-shell/primary-panel/name-input-dialog";
 import { RemoteHostsPanel } from "@/layout/app-shell/primary-panel/remote-hosts-panel";
@@ -25,6 +26,8 @@ import {
 import type { HostSort } from "@/lib/hosts-groups";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
+import { useTerminalSplitStore } from "@/stores/terminal-split-store";
+import { filterTabVisibleSessions } from "@/lib/terminal-split-sessions";
 import { formatSidebarLabel } from "@/lib/session-display";
 
 /**
@@ -94,13 +97,20 @@ export function PrimaryPanel({
   const openConnectPalette = useCommandPaletteStore(
     (state) => state.openConnectPalette,
   );
+  const toolstripRef = useRef<HTMLDivElement>(null);
+  const iconOnlyTabs = useToolstripIconOnlyTabs(toolstripRef);
+
+  const splitLayout = useTerminalSplitStore((state) => state.layout);
 
   const sidebarSessions = useMemo(
     () =>
-      sessions.filter(
-        (session) => session.kind === "terminal" || session.kind === "files",
+      filterTabVisibleSessions(
+        sessions.filter(
+          (session) => session.kind === "terminal" || session.kind === "files",
+        ),
+        splitLayout,
       ),
-    [sessions],
+    [sessions, splitLayout],
   );
 
   const displayGroups = useMemo(
@@ -247,9 +257,14 @@ export function PrimaryPanel({
           }
           className="flex min-h-0 flex-1 flex-col"
         >
-          <div className="flex shrink-0 items-center justify-between px-2 py-1">
-            <PrimaryPanelTabsList />
-            <div className="flex items-center justify-end gap-0.5">
+          <div
+            ref={toolstripRef}
+            className="flex shrink-0 items-center gap-1 px-2 py-1"
+          >
+            <div className="min-w-0 flex-1 overflow-hidden">
+              <PrimaryPanelTabsList iconOnly={iconOnlyTabs} />
+            </div>
+            <div className="flex shrink-0 items-center gap-0.5">
               <SidebarPanelToolbar
                 tab={primaryPanelTab}
                 sort={sort}

@@ -1,13 +1,16 @@
 /**
- * Terminal pane split layout (grid of session IDs).
+ * Terminal pane split layout (nested tree of session IDs).
  *
- * 终端分屏布局 store：记录当前分屏树结构（方向与窗格顺序），提供按方向拆分
- * 会话、清除分屏以及与活动会话列表同步的能力。
+ * 终端分屏布局 store：记录嵌套分屏树结构，支持在任意窗格上继续拆分，
+ * 以及与活动会话列表同步、裁剪已关闭窗格。
  */
 import { create } from "zustand";
 import {
-  splitOrientation,
-  splitPaneOrder,
+  branchNode,
+  collectPaneSessionIds,
+  layoutContainsSession,
+  pruneSplitTree,
+  splitPaneInTree,
   type TerminalSplitDirection,
   type TerminalSplitLayout,
 } from "@/types/terminal-split";
@@ -34,6 +37,15 @@ export const useTerminalSplitStore = create<TerminalSplitStore>()((set, get) => 
       return;
     }
 
+    const currentLayout = get().layout;
+    const inCurrentSplit =
+      currentLayout != null &&
+      layoutContainsSession(currentLayout, sourceSessionId);
+
+    const tabSessionId = inCurrentSplit
+      ? currentLayout.tabSessionId
+      : sourceSessionId;
+
     const newSession = useSessionStore.getState().addSession({
       kind: source.kind,
       title: source.title,
@@ -49,16 +61,19 @@ export const useTerminalSplitStore = create<TerminalSplitStore>()((set, get) => 
       status: source.protocol === "ssh" ? "creating" : undefined,
     });
 
-    const paneSessionIds = splitPaneOrder(
-      sourceSessionId,
-      newSession.id,
-      direction,
-    );
+    const root = inCurrentSplit
+      ? splitPaneInTree(
+          currentLayout.root,
+          sourceSessionId,
+          direction,
+          newSession.id,
+        )
+      : branchNode(direction, sourceSessionId, newSession.id);
 
     set({
       layout: {
-        orientation: splitOrientation(direction),
-        paneSessionIds,
+        tabSessionId,
+        root,
       },
     });
 
@@ -76,18 +91,28 @@ export const useTerminalSplitStore = create<TerminalSplitStore>()((set, get) => 
     }
 
     const activeIds = new Set(sessionIds);
-    const remaining = layout.paneSessionIds.filter((id) => activeIds.has(id));
+    const pruned = pruneSplitTree(layout.root, activeIds);
 
-    if (remaining.length < 2) {
+    if (!pruned) {
       set({ layout: null });
       return;
     }
 
-    if (remaining.length !== layout.paneSessionIds.length) {
+    const paneIds = collectPaneSessionIds(pruned);
+    if (paneIds.length < 2) {
+      set({ layout: null });
+      return;
+    }
+
+    const tabSessionId = activeIds.has(layout.tabSessionId)
+      ? layout.tabSessionId
+      : paneIds[0]!;
+
+    if (pruned !== layout.root || tabSessionId !== layout.tabSessionId) {
       set({
         layout: {
-          ...layout,
-          paneSessionIds: [remaining[0], remaining[1]] as [string, string],
+          tabSessionId,
+          root: pruned,
         },
       });
     }

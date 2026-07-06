@@ -28,6 +28,13 @@ import {
   ContextMenuSubTrigger,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
+import { useTerminalSplitStore } from "@/stores/terminal-split-store";
+import {
+  closeSplitTab,
+  filterTabVisibleSessions,
+  isSessionInSplitLayout,
+  isSplitTabActive,
+} from "@/lib/terminal-split-sessions";
 import { cn } from "@/lib/utils";
 
 export function SortableSessionTabItem({
@@ -44,6 +51,7 @@ export function SortableSessionTabItem({
   const activeSessionId = useSessionStore((state) => state.activeSessionId);
   const setActiveSession = useSessionStore((state) => state.setActiveSession);
   const showSessionPanel = useShellUiStore((state) => state.showSessionPanel);
+  const splitLayout = useTerminalSplitStore((state) => state.layout);
   const closeSession = useSessionStore((state) => state.closeSession);
   const addSession = useSessionStore((state) => state.addSession);
   const customGroups = useSidebarLayoutStore((state) => state.customGroups);
@@ -57,39 +65,63 @@ export function SortableSessionTabItem({
     transition: { idle: true },
   });
 
-  const sidebarSessions = sessions.filter(
-    (item) => item.kind === "terminal" || item.kind === "files",
+  const sidebarSessions = filterTabVisibleSessions(
+    sessions.filter(
+      (item) => item.kind === "terminal" || item.kind === "files",
+    ),
+    splitLayout,
   );
 
-  const isActive = session.id === activeSessionId;
+  const isActive = isSplitTabActive(session.id, activeSessionId, splitLayout);
   const label = formatSidebarLabel(session);
   const shellBadge = getShellBadge(session);
   const isConnecting =
     session.status === "creating" || session.status === "reconnecting";
   const showReconnect = canReconnectSession(session);
   const sameKindSessions = sessions.filter((item) => item.kind === session.kind);
-  const otherSessionCount = sameKindSessions.filter(
+  const tabVisibleSessions = filterTabVisibleSessions(
+    sameKindSessions,
+    splitLayout,
+  );
+  const otherSessionCount = tabVisibleSessions.filter(
     (item) => item.id !== session.id,
   ).length;
 
   const handleClose = () => {
+    if (
+      splitLayout &&
+      (session.id === splitLayout.tabSessionId ||
+        isSessionInSplitLayout(session.id, splitLayout))
+    ) {
+      closeSplitTab(splitLayout.tabSessionId);
+      return;
+    }
     closeSession(session.id);
   };
 
   const handleCloseOthers = () => {
     setActiveSession(session.id);
-    const otherIds = sameKindSessions
-      .filter((item) => item.id !== session.id)
-      .map((item) => item.id);
-    for (const id of otherIds) {
-      closeSession(id);
+    const otherTabs = tabVisibleSessions.filter(
+      (item) => item.id !== session.id,
+    );
+    for (const item of otherTabs) {
+      const layout = useTerminalSplitStore.getState().layout;
+      if (layout?.tabSessionId === item.id) {
+        closeSplitTab(item.id);
+      } else if (!isSessionInSplitLayout(item.id, layout)) {
+        closeSession(item.id);
+      }
     }
   };
 
   const handleCloseAll = () => {
-    const ids = sameKindSessions.map((item) => item.id);
-    for (const id of ids) {
-      closeSession(id);
+    for (const item of tabVisibleSessions) {
+      const layout = useTerminalSplitStore.getState().layout;
+      if (layout?.tabSessionId === item.id) {
+        closeSplitTab(item.id);
+      } else if (!isSessionInSplitLayout(item.id, layout)) {
+        closeSession(item.id);
+      }
     }
   };
 
@@ -222,7 +254,7 @@ export function SortableSessionTabItem({
         </ContextMenuItem>
         <ContextMenuItem
           onClick={handleCloseAll}
-          disabled={sameKindSessions.length === 0}
+          disabled={tabVisibleSessions.length === 0}
         >
           {t("connections:contextMenu.closeAll")}
         </ContextMenuItem>
