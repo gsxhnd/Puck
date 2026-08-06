@@ -16,6 +16,7 @@
   "filesRemoteNoProfile": "Connection profile not found for this SSH session",
   "filesRemoteCancelled": "Connection cancelled",
   "filesRemoteFollowCwd": "Follows terminal working directory",
+  "filesFollowCwd": "Synced with terminal working directory",
   "gitLocalOnly": "Git status is only available for local terminals",
   "notAGitRepo": "Not a git repository",
   "gitStaged": "Staged Changes",

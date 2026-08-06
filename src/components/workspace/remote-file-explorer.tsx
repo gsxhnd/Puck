@@ -4,10 +4,9 @@ import {
   ChevronRightIcon,
   EyeIcon,
   EyeOffIcon,
-  FileIcon,
-  FolderIcon,
   RefreshCwIcon,
 } from "lucide-react";
+import { FileTree, type FileTreeEntry } from "@/components/workspace/file-tree";
 import { listRemoteDir, type RemoteFileEntry } from "@/lib/tauri-sftp";
 import { useConnectionStore } from "@/stores/connection-store";
 import { useSessionStore } from "@/stores/session-store";
@@ -17,12 +16,12 @@ import {
   ensureSftpExplorerSession,
   explorerSftpSessionId,
 } from "@/lib/sftp-explorer-session";
-import { shortenPath } from "@/lib/session-display";
 import { openEditorWindow } from "@/lib/open-editor-window";
+import { shortenPath } from "@/lib/session-display";
+import { cdTerminalSession } from "@/lib/terminal-cd";
 import {
   breadcrumbPath,
   buildBreadcrumbs,
-  formatBytes,
   sortRemoteEntries,
 } from "@/page/files/file-manager/utils";
 import { Button } from "@/components/ui/button";
@@ -46,6 +45,20 @@ function filterRemoteEntries(
   });
 }
 
+function toTreeEntries(entries: RemoteFileEntry[]): FileTreeEntry[] {
+  return entries.map((entry) => ({
+    name: entry.name,
+    path: entry.path,
+    isDir: entry.isDir,
+    size: entry.size,
+  }));
+}
+
+/**
+ * Remote SFTP file explorer bound to the active SSH terminal cwd.
+ *
+ * 远程文件树：跟随 SSH 终端 cwd，双击目录进入并同步 `cd`，点击箭头展开子目录。
+ */
 export function RemoteFileExplorerPanel({
   activeSession,
 }: {
@@ -65,21 +78,17 @@ export function RemoteFileExplorerPanel({
   const terminalCwd = getRemoteExplorerCwd(liveSession, profile);
 
   const [cwd, setCwd] = useState(terminalCwd);
-  const [entries, setEntries] = useState<RemoteFileEntry[]>([]);
+  const [entries, setEntries] = useState<FileTreeEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [connecting, setConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showHidden, setShowHidden] = useState(false);
 
   useEffect(() => {
-    setCwd(terminalCwd);
+    setCwd((current) => (current === terminalCwd ? current : terminalCwd));
   }, [terminalCwd, activeSession.id]);
 
   const breadcrumbs = useMemo(() => buildBreadcrumbs(cwd), [cwd]);
-  const visibleEntries = useMemo(
-    () => filterRemoteEntries(entries, showHidden),
-    [entries, showHidden],
-  );
 
   const refresh = useCallback(async () => {
     if (!profile) {
@@ -92,9 +101,10 @@ export function RemoteFileExplorerPanel({
     setConnecting(true);
     try {
       await ensureSftpExplorerSession(activeSession.id, profile);
-
       const list = await listRemoteDir(sftpSessionId, cwd);
-      setEntries(sortRemoteEntries(list));
+      setEntries(
+        toTreeEntries(filterRemoteEntries(sortRemoteEntries(list), showHidden)),
+      );
     } catch (err) {
       const message = parsePuckError(err).message;
       if (message === "cancelled") {
@@ -107,7 +117,7 @@ export function RemoteFileExplorerPanel({
       setConnecting(false);
       setLoading(false);
     }
-  }, [activeSession.id, cwd, profile, sftpSessionId, t]);
+  }, [activeSession.id, cwd, profile, showHidden, sftpSessionId, t]);
 
   useEffect(() => {
     if (sessionStatus !== "connected" && sessionStatus !== "creating") {
@@ -116,9 +126,33 @@ export function RemoteFileExplorerPanel({
     void refresh();
   }, [cwd, activeSession.id, profile?.id, sessionStatus, refresh]);
 
-  const navigateTo = (path: string) => {
-    setCwd(path);
-  };
+  const navigateTo = useCallback(
+    (path: string) => {
+      setCwd(path);
+      void cdTerminalSession(activeSession.id, path).catch((err) => {
+        setError(parsePuckError(err).message);
+      });
+    },
+    [activeSession.id],
+  );
+
+  const loadChildren = useCallback(
+    async (path: string) => {
+      if (!profile) {
+        throw new Error(t("filesRemoteNoProfile"));
+      }
+      try {
+        await ensureSftpExplorerSession(activeSession.id, profile);
+        const list = await listRemoteDir(sftpSessionId, path);
+        return toTreeEntries(
+          filterRemoteEntries(sortRemoteEntries(list), showHidden),
+        );
+      } catch (err) {
+        throw new Error(parsePuckError(err).message);
+      }
+    },
+    [activeSession.id, profile, showHidden, sftpSessionId, t],
+  );
 
   if (!profile) {
     return (
@@ -141,7 +175,9 @@ export function RemoteFileExplorerPanel({
                 <button
                   type="button"
                   className="rounded px-1 py-0.5 text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
-                  onClick={() => navigateTo(breadcrumbPath(breadcrumbs, index))}
+                  onClick={() =>
+                    navigateTo(breadcrumbPath(breadcrumbs, index))
+                  }
                 >
                   {segment === "/" ? "/" : segment}
                 </button>
@@ -186,75 +222,33 @@ export function RemoteFileExplorerPanel({
       ) : null}
 
       <ScrollArea className="min-h-0 flex-1">
-        <div className="py-1">
-          {cwd !== "/" ? (
-            <button
-              type="button"
-              className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
-              onClick={() => {
-                const parent = cwd.replace(/\/[^/]+$/, "") || "/";
-                navigateTo(parent);
-              }}
-            >
-              <FolderIcon className="size-3.5 shrink-0 opacity-70" />
-              <span>..</span>
-            </button>
-          ) : null}
-
-          {visibleEntries.map((entry) => (
-            <button
-              key={entry.path}
-              type="button"
-              className={cn(
-                "file-list-row flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm transition-colors hover:bg-muted/50",
-                entry.name.startsWith(".") && "text-muted-foreground",
-              )}
-              onClick={() => {
-                if (entry.isDir) {
-                  navigateTo(entry.path);
-                }
-              }}
-              onDoubleClick={() => {
-                if (entry.isDir || !profile) return;
-                void (async () => {
-                  try {
-                    await ensureSftpExplorerSession(activeSession.id, profile);
-                    await openEditorWindow({
-                      path: entry.path,
-                      source: "remote",
-                      sessionId: sftpSessionId,
-                    });
-                  } catch (err) {
-                    setError(parsePuckError(err).message);
-                  }
-                })();
-              }}
-            >
-              {entry.isDir ? (
-                <FolderIcon className="size-3.5 shrink-0 text-muted-foreground" />
-              ) : (
-                <FileIcon className="size-3.5 shrink-0 text-muted-foreground" />
-              )}
-              <span className="min-w-0 flex-1 truncate">{entry.name}</span>
-              {!entry.isDir ? (
-                <span className="shrink-0 text-xs text-muted-foreground">
-                  {formatBytes(entry.size)}
-                </span>
-              ) : null}
-            </button>
-          ))}
-
-          {!loading && !connecting && visibleEntries.length === 0 ? (
-            <div className="px-3 py-6 text-center text-xs text-muted-foreground">
-              {t("emptyDirectory")}
-            </div>
-          ) : null}
-        </div>
+        <FileTree
+          entries={entries}
+          loading={loading || connecting}
+          emptyLabel={t("emptyDirectory")}
+          cacheKey={`${activeSession.id}:${cwd}:${showHidden}`}
+          loadChildren={loadChildren}
+          onEnterDirectory={navigateTo}
+          onOpenFile={(path) => {
+            void (async () => {
+              try {
+                await ensureSftpExplorerSession(activeSession.id, profile);
+                await openEditorWindow({
+                  path,
+                  source: "remote",
+                  sessionId: sftpSessionId,
+                });
+              } catch (err) {
+                setError(parsePuckError(err).message);
+              }
+            })();
+          }}
+        />
       </ScrollArea>
 
       <div className="border-t border-border/60 px-3 py-1.5 text-xs text-muted-foreground">
         <div className="truncate">{shortenPath(cwd)}</div>
-        <div className="text-[10px] opacity-70">{t("filesRemoteFollowCwd")}</div>
+        <div className="text-[10px] opacity-70">{t("filesFollowCwd")}</div>
       </div>
     </div>
   );
