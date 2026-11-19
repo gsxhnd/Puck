@@ -2,7 +2,8 @@ import { useTranslation } from "react-i18next";
 import type { AuthMethod, ConnectionProtocol } from "@/types/connection";
 import { DEFAULT_PORTS } from "@/types/connection";
 import {
-  isImplementedRemoteProtocol,
+  isRemoteDesktopProtocol,
+  isUnimplementedFileProtocol,
   protocolOptionLabel,
   REMOTE_PROTOCOL_SELECT_OPTIONS,
 } from "@/lib/connection-protocol";
@@ -37,13 +38,22 @@ export function ConnectionProfileFields({
 }) {
   const { t } = useTranslation(["connections", "common"]);
 
+  // Remote desktop profiles authenticate with username+password (RDP) or a
+  // shared password (VNC); key-based auth is SSH-only.
+  // 远程桌面配置使用用户名+密码（RDP）或共享密码（VNC）；密钥认证仅限 SSH。
+  const isDesktop = isRemoteDesktopProtocol(form.protocol);
+  const showUsername = !isDesktop || form.protocol === "rdp";
+
   const handleProtocolChange = (protocol: Exclude<ConnectionProtocol, "local">) => {
-    if (!isImplementedRemoteProtocol(protocol)) {
+    if (isUnimplementedFileProtocol(protocol)) {
       return;
     }
 
     onChange("protocol", protocol);
     onChange("port", String(DEFAULT_PORTS[protocol]));
+    if (isRemoteDesktopProtocol(protocol)) {
+      onChange("authMethod", "password");
+    }
   };
 
   return (
@@ -105,33 +115,37 @@ export function ConnectionProfileFields({
         </label>
       </div>
 
-      <label className="grid gap-1.5 text-sm">
-        <span className="text-muted-foreground">
-          {t("connections:fields.username")}
-        </span>
-        <Input
-          aria-invalid={Boolean(errors?.username)}
-          value={form.username}
-          onChange={(event) => onChange("username", event.target.value)}
-        />
-        <FieldError message={errors?.username} />
-      </label>
+      {showUsername ? (
+        <label className="grid gap-1.5 text-sm">
+          <span className="text-muted-foreground">
+            {t("connections:fields.username")}
+          </span>
+          <Input
+            aria-invalid={Boolean(errors?.username)}
+            value={form.username}
+            onChange={(event) => onChange("username", event.target.value)}
+          />
+          <FieldError message={errors?.username} />
+        </label>
+      ) : null}
 
-      <label className="grid gap-1.5 text-sm">
-        <span className="text-muted-foreground">
-          {t("connections:fields.authMethod")}
-        </span>
-        <select
-          className="h-9 rounded-md border bg-background px-3 text-sm"
-          value={form.authMethod}
-          onChange={(event) =>
-            onChange("authMethod", event.target.value as AuthMethod)
-          }
-        >
-          <option value="password">{t("connections:auth.password")}</option>
-          <option value="privateKey">{t("connections:auth.privateKey")}</option>
-        </select>
-      </label>
+      {!isDesktop ? (
+        <label className="grid gap-1.5 text-sm">
+          <span className="text-muted-foreground">
+            {t("connections:fields.authMethod")}
+          </span>
+          <select
+            className="h-9 rounded-md border bg-background px-3 text-sm"
+            value={form.authMethod}
+            onChange={(event) =>
+              onChange("authMethod", event.target.value as AuthMethod)
+            }
+          >
+            <option value="password">{t("connections:auth.password")}</option>
+            <option value="privateKey">{t("connections:auth.privateKey")}</option>
+          </select>
+        </label>
+      ) : null}
 
       {(form.authMethod === "password" || form.authMethod === "privateKey") ? (
         <label className="flex items-center gap-2 text-sm">

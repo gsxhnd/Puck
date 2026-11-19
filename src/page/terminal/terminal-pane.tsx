@@ -159,11 +159,20 @@ export function TerminalPane({
       const { cols, rows } = fitTerminal();
 
       try {
+        // Read the initial working directory once at PTY creation time (not
+        // via a subscription) so later OSC7 cwd updates never recreate the
+        // terminal.
+        // 仅在 PTY 创建时一次性读取初始工作目录（不经订阅），后续 OSC7 的
+        // cwd 更新不会触发终端重建。
+        const initialCwd = useSessionStore
+          .getState()
+          .sessions.find((item) => item.id === sessionId)?.cwd;
         const result = await openLocalTerminal({
           sessionId,
           shellId,
           cols: Math.max(cols, 2),
           rows: Math.max(rows, 2),
+          cwd: initialCwd,
         });
         openedRef.current = true;
         updateSessionStatus(sessionId, "connected");

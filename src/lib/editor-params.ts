@@ -1,27 +1,10 @@
+/**
+ * File identity helpers shared by editor surfaces.
+ *
+ * 编辑器各处共用的文件身份辅助函数：来源类型、文件名截取与 Monaco 语言推断。
+ * （独立编辑器窗口已迁移为工作台编辑标签，`window=editor` 参数解析随之移除。）
+ */
 export type EditorFileSource = "local" | "remote";
-
-export type EditorParams = {
-  path: string;
-  source: EditorFileSource;
-  sessionId?: string;
-};
-
-export function getEditorParams(): EditorParams | null {
-  const params = new URLSearchParams(window.location.search);
-  if (params.get("window") !== "editor") return null;
-
-  const path = params.get("path");
-  const source = params.get("source");
-  if (!path || (source !== "local" && source !== "remote")) {
-    return null;
-  }
-
-  return {
-    path,
-    source,
-    sessionId: params.get("sessionId") ?? undefined,
-  };
-}
 
 export function fileNameFromPath(path: string): string {
   const normalized = path.replace(/\\/g, "/");

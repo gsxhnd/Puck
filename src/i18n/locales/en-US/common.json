@@ -40,7 +40,9 @@
     "ssh": "SSH",
     "sftp": "SFTP",
     "ftp": "FTP",
-    "ftps": "FTPS"
+    "ftps": "FTPS",
+    "rdp": "RDP",
+    "vnc": "VNC"
   },
   "empty": {
     "noConnections": "No connection profiles yet",

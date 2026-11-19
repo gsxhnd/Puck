@@ -5,15 +5,18 @@ import {
   EyeIcon,
   EyeOffIcon,
   RefreshCwIcon,
+  SquareTerminalIcon,
 } from "lucide-react";
 import { FileTree, type FileTreeEntry } from "@/components/workspace/file-tree";
 import { listLocalDir } from "@/lib/tauri-workspace";
 import { getWorkspacePath } from "@/lib/use-active-local-session";
 import { parsePuckError } from "@/lib/puck-error";
 import { joinLocalPath, splitLocalPath } from "@/lib/local-path";
-import { openEditorWindow } from "@/lib/open-editor-window";
+import { openFileInWorkbench } from "@/lib/open-in-workbench";
 import { shortenPath } from "@/lib/session-display";
 import { cdTerminalSession } from "@/lib/terminal-cd";
+import { useWorkspaceWatch } from "@/hooks/use-workspace-watch";
+import { useSessionStore } from "@/stores/session-store";
 import type { Session } from "@/types/connection";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -58,22 +61,41 @@ export function LocalFileExplorerPanel({
 
   const breadcrumbs = useMemo(() => splitLocalPath(cwd), [cwd]);
 
-  const refresh = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const list = await listLocalDir(cwd, showHidden);
-      setEntries(toTreeEntries(list));
-    } catch (err) {
-      setError(parsePuckError(err).message);
-    } finally {
-      setLoading(false);
-    }
-  }, [cwd, showHidden]);
+  const refresh = useCallback(
+    async (silent = false) => {
+      if (!silent) setLoading(true);
+      setError(null);
+      try {
+        const list = await listLocalDir(cwd, showHidden);
+        setEntries(toTreeEntries(list));
+      } catch (err) {
+        setError(parsePuckError(err).message);
+      } finally {
+        if (!silent) setLoading(false);
+      }
+    },
+    [cwd, showHidden],
+  );
 
   useEffect(() => {
     void refresh();
   }, [refresh]);
+
+  // Keep the listing in sync with on-disk changes (file saves, git
+  // operations) without flickering the loading state.
+  // 磁盘变化（保存/ git 操作）时静默刷新列表，避免 loading 闪烁。
+  useWorkspaceWatch(cwd, () => {
+    void refresh(true);
+  });
+
+  const openTerminalHere = useCallback(() => {
+    useSessionStore.getState().addSession({
+      kind: "terminal",
+      title: "__local__",
+      protocol: "local",
+      cwd,
+    });
+  }, [cwd]);
 
   const navigateTo = useCallback(
     (path: string) => {
@@ -151,6 +173,23 @@ export function LocalFileExplorerPanel({
             {showHidden ? t("hideHiddenFiles") : t("showHiddenFiles")}
           </TooltipContent>
         </Tooltip>
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label={t("openTerminalHere")}
+                onClick={openTerminalHere}
+              >
+                <SquareTerminalIcon />
+              </Button>
+            }
+          />
+          <TooltipContent side="bottom">
+            {t("openTerminalHere")}
+          </TooltipContent>
+        </Tooltip>
         <Button
           variant="ghost"
           size="icon-sm"
@@ -175,7 +214,7 @@ export function LocalFileExplorerPanel({
           loadChildren={loadChildren}
           onEnterDirectory={navigateTo}
           onOpenFile={(path) => {
-            void openEditorWindow({ path, source: "local" });
+            openFileInWorkbench({ path, source: "local" });
           }}
         />
       </ScrollArea>

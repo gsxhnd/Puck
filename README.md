@@ -9,8 +9,11 @@ Puck 是一个基于 Tauri v2、React 和 Rust 的桌面终端与文件传输工
 - 本地终端：Rust PTY、xterm.js 渲染、多 shell 检测、resize、复制粘贴、链接识别、搜索、终端主题和字体设置。
 - SSH 终端：保存连接配置、密码和私钥认证、系统钥匙串、首次 host key 确认、断线状态展示和手动重连。
 - SFTP 文件管理：远程目录浏览、上传、下载、新建目录、删除、重命名、传输队列和进度事件。
-- App Shell：左侧 Sessions / Hosts 主侧栏，中间终端与文件工作区，右侧 Info / Files / Git / Outline / Transfers 详情面板。
-- 工作区辅助：本地文件浏览、远程文件浏览、Git 状态、命令大纲、终端搜索、两窗格分屏、当前目录复制和打开。
+- 工作台编辑器：主窗口多标签编辑（本地/SFTP 文件）、Monaco 独立内核（无语言服务/LSP）、只读双栏 Diff、命令面板集成（打开/保存/关闭）、保存失败保持 dirty、远程文档 SFTP 会话引用计数保活。
+- Git 集成：状态（porcelain-v2）、双栏 Diff、stage/unstage/discard、commit、提交历史、分支切换、fetch/pull/push（仅快进 pull、失败自动降级到终端输入凭据）、ahead/behind 展示。
+- 工作区联动：文件 watcher（notify，防抖、忽略构建目录）驱动 Git 面板与文件树静默刷新；新终端继承当前工作目录；文件树「在此处打开终端」。
+- App Shell：左侧 Sessions / Hosts 主侧栏，中间工作区（编辑器 / Diff / 远程桌面占位标签）与终端，右侧 Info / Files / Git / Outline / Transfers 详情面板。
+- 远程桌面骨架（RDP/VNC）：协议连接配置、工作台标签与状态机、服务端证书信任存储与确认对话框；图形协议后端暂缓（见 REFACTOR_PLAN.md ADR）。
 - 命令面板：支持前缀范围、快速连接、本地 shell、视图切换、搜索、当前目录操作和外部应用打开。
 - 设置与连接管理：独立 Settings / Connections 辅助窗口，支持跨窗口配置同步。
 - 多语言与主题：当前支持 `zh-CN`、`en-US`，支持 Light / Dark / System 和多套应用配色。
@@ -92,4 +95,5 @@ cargo check
 - 传输队列支持进度、成功、失败和重试，但还不支持取消、暂停和恢复。
 - 快捷键已有固定实现和只读设置页说明，但还不支持用户自定义。
 - `open_path_in_app` 目前仅支持 macOS，其他平台会返回“不支持”错误。
-- 前端存在 `hosts_layout` 持久化 key，但 Rust 配置区段尚未纳入该 key；因此主机分组布局暂不应被视为跨重启可靠持久化能力。
+- RDP/VNC 图形远程为骨架状态：连接配置、工作台标签与服务端证书信任链路已就绪，图形协议后端因 IronRDP 与 russh 的依赖版本冲突暂缓（详见 REFACTOR_PLAN.md ADR）。
+- 独立编辑器窗口已移除，文件编辑统一通过主窗口工作台标签进行。

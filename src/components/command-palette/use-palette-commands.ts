@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   CopyIcon,
+  FilePlusIcon,
   FolderOpenIcon,
   FolderSearchIcon,
   GitBranchIcon,
@@ -12,19 +13,28 @@ import {
   PlugZapIcon,
   PlusIcon,
   RotateCwIcon,
+  SaveIcon,
   SearchIcon,
   ServerIcon,
   SettingsIcon,
   SquareTerminalIcon,
   UploadIcon,
+  XIcon,
   ZapIcon,
 } from "lucide-react";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
+import { open as openFileDialog } from "@tauri-apps/plugin-dialog";
 import { openPathInApp } from "@/lib/open-in-app";
+import { openFileInWorkbench } from "@/lib/open-in-workbench";
+import {
+  closeActiveTab,
+  saveActiveEditorTab,
+} from "@/lib/workbench-editor-actions";
 import { reloadAppWindow } from "@/lib/reload-app-window";
 import { openSettingsWindow } from "@/lib/open-settings-window";
 import { openProfileSession } from "@/lib/open-profile-session";
 import { getSessionPathDisplay } from "@/lib/session-display";
+import { activeWorkspaceCwd } from "@/lib/use-active-local-session";
 import { isTauri } from "@/lib/platform";
 import { listShells } from "@/lib/tauri-terminal";
 import { useCommandPaletteStore } from "@/stores/command-palette-store";
@@ -32,6 +42,7 @@ import { useConnectionStore } from "@/stores/connection-store";
 import { useSessionStore } from "@/stores/session-store";
 import { useShellUiStore } from "@/stores/shell-ui-store";
 import { useTerminalSearchStore } from "@/stores/terminal-search-store";
+import { useWorkbenchStore } from "@/stores/workbench-store";
 import type { ConnectionProfile } from "@/types/connection";
 import type { ShellInfo } from "@/types/shell";
 import type { SecondPanelView } from "@/types/shell-ui";
@@ -53,6 +64,7 @@ function openLocalDefaultTerminal() {
     kind: "terminal",
     title: "__local__",
     protocol: "local",
+    cwd: activeWorkspaceCwd(),
   });
 }
 
@@ -116,6 +128,9 @@ export function usePaletteCommands(query: string): {
   const setPrimaryPanelTab = useShellUiStore((state) => state.setPrimaryPanelTab);
   const openHostEditor = useShellUiStore((state) => state.openHostEditor);
   const openSearch = useTerminalSearchStore((state) => state.openSearch);
+  const hasActiveEditorTab = useWorkbenchStore(
+    (state) => state.activeTabId !== null,
+  );
 
   const [shells, setShells] = useState<ShellInfo[]>([]);
 
@@ -420,8 +435,44 @@ export function usePaletteCommands(query: string): {
         keywords: ["connection", "host", "remote", "新建连接", "action"],
         run: () => openHostEditor(null),
       },
+      {
+        id: "action-open-file",
+        section: "actions",
+        label: t("commandPalette:commands.openFile"),
+        icon: FilePlusIcon,
+        disabled: !isTauri(),
+        keywords: ["open", "file", "editor", "打开", "文件", "action"],
+        run: async () => {
+          const result = await openFileDialog({
+            multiple: false,
+            directory: false,
+          });
+          if (typeof result === "string") {
+            openFileInWorkbench({ path: result, source: "local" });
+          }
+        },
+      },
+      {
+        id: "action-save-editor-tab",
+        section: "actions",
+        label: t("commandPalette:commands.saveEditorTab"),
+        icon: SaveIcon,
+        shortcut: "⌘S",
+        disabled: !hasActiveEditorTab,
+        keywords: ["save", "editor", "tab", "保存", "action"],
+        run: () => void saveActiveEditorTab(),
+      },
+      {
+        id: "action-close-editor-tab",
+        section: "actions",
+        label: t("commandPalette:commands.closeEditorTab"),
+        icon: XIcon,
+        disabled: !hasActiveEditorTab,
+        keywords: ["close", "editor", "tab", "关闭", "action"],
+        run: () => closeActiveTab(),
+      },
     ];
-  }, [openHostEditor, t]);
+  }, [closeActiveTab, hasActiveEditorTab, openHostEditor, saveActiveEditorTab, t]);
 
   const commandsByPrefix = useMemo(
     () =>

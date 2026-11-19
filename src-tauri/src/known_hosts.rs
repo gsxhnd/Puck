@@ -14,7 +14,7 @@ use std::sync::{Arc, Mutex};
 use russh::keys::{HashAlg, PublicKey};
 
 use crate::config::{config_dir, KnownHostRecord};
-use crate::error::{host_key_prompt, HostKeyPrompt, PuckResult};
+use crate::error::PuckResult;
 
 const KNOWN_HOSTS_FILE_NAME: &str = "known_hosts.json";
 
@@ -139,10 +139,6 @@ impl KnownHostsStore {
             save_known_hosts_file(&self.path, &records)?;
         }
         Ok(removed)
-    }
-
-    pub fn prompt_for_key(host: &str, port: u16, public_key: &PublicKey) -> HostKeyPrompt {
-        host_key_prompt(host, port, public_key)
     }
 }
 

@@ -1,6 +1,12 @@
+/**
+ * IPC wrappers for local workspace filesystem access.
+ *
+ * 本地工作区文件系统的 IPC 封装：目录列表、文件读写（底层带原子写保护）。
+ * Git 相关命令统一收口在 `src/lib/tauri-git.ts`。
+ */
 import { invoke } from "@tauri-apps/api/core";
 import { isRecord } from "@/lib/ipc-parse";
-import type { GitStatusResult, LocalFileEntry } from "@/types/workspace";
+import type { LocalFileEntry } from "@/types/workspace";
 
 function parseLocalFileEntry(value: unknown): LocalFileEntry | null {
   if (!isRecord(value)) return null;
@@ -28,63 +34,12 @@ function parseLocalFileEntries(value: unknown): LocalFileEntry[] {
     .filter((item): item is LocalFileEntry => item !== null);
 }
 
-function parseGitFileStatus(value: unknown) {
-  if (!isRecord(value)) return null;
-  if (
-    typeof value.path !== "string" ||
-    typeof value.indexStatus !== "string" ||
-    typeof value.worktreeStatus !== "string"
-  ) {
-    return null;
-  }
-  return {
-    path: value.path,
-    indexStatus: value.indexStatus,
-    worktreeStatus: value.worktreeStatus,
-  };
-}
-
-function parseGitStatusResult(value: unknown): GitStatusResult {
-  if (!isRecord(value) || typeof value.isRepo !== "boolean") {
-    throw new Error("Invalid git status response");
-  }
-
-  const staged = Array.isArray(value.staged)
-    ? value.staged
-        .map((item) => parseGitFileStatus(item))
-        .filter((item): item is NonNullable<typeof item> => item !== null)
-    : [];
-
-  const unstaged = Array.isArray(value.unstaged)
-    ? value.unstaged
-        .map((item) => parseGitFileStatus(item))
-        .filter((item): item is NonNullable<typeof item> => item !== null)
-    : [];
-
-  const untracked = Array.isArray(value.untracked)
-    ? value.untracked.filter((item): item is string => typeof item === "string")
-    : [];
-
-  return {
-    isRepo: value.isRepo,
-    branch: typeof value.branch === "string" ? value.branch : undefined,
-    staged,
-    unstaged,
-    untracked,
-  };
-}
-
 export async function listLocalDir(
   path: string,
   showHidden = false,
 ): Promise<LocalFileEntry[]> {
   const result = await invoke<unknown>("list_local_dir", { path, showHidden });
   return parseLocalFileEntries(result);
-}
-
-export async function gitStatus(path: string): Promise<GitStatusResult> {
-  const result = await invoke<unknown>("git_status", { path });
-  return parseGitStatusResult(result);
 }
 
 export async function readLocalFile(path: string): Promise<string> {

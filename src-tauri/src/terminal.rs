@@ -2,7 +2,7 @@ use std::io::Read;
 
 use portable_pty::{native_pty_system, CommandBuilder, PtySize};
 use serde::Serialize;
-use tauri::{AppHandle, Emitter, State};
+use tauri::{AppHandle, Emitter};
 
 use crate::error::puck_err;
 use crate::session::{SessionKind, SessionManager, TerminalBackend};
@@ -78,6 +78,7 @@ pub fn open_local_terminal(
     shell_id: Option<String>,
     cols: u16,
     rows: u16,
+    cwd: Option<String>,
 ) -> Result<OpenLocalTerminalResult, String> {
     let shell = find_shell(shell_id.as_deref());
     let pty_system = native_pty_system();
@@ -96,6 +97,18 @@ pub fn open_local_terminal(
     }
     command.env("TERM", "xterm-256color");
     command.env("COLORTERM", "truecolor");
+
+    // Start the shell in the requested working directory when it resolves;
+    // an invalid path silently falls back to the shell default (home).
+    // 请求的工作目录可解析时以该目录启动 shell；无效路径静默回退到默认
+    //（home）目录，不阻断终端创建。
+    if let Some(cwd) = cwd.as_deref() {
+        if let Ok(resolved) = crate::workspace::resolve_path(cwd) {
+            if resolved.is_dir() {
+                command.cwd(resolved);
+            }
+        }
+    }
 
     let child = pair
         .slave

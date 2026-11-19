@@ -8,6 +8,8 @@ import { NewTerminalMenu } from "@/page/terminal/new-terminal-menu";
 import { RemoteHostsMainPanel } from "@/page/connections/remote-hosts-main-panel";
 import { TerminalPathBar } from "@/page/terminal/terminal-path-bar";
 import { TerminalWorkspace } from "@/page/terminal/terminal-workspace";
+import { WorkbenchTabArea } from "@/components/workbench/workbench-tab-area";
+import { useWorkbenchStore } from "@/stores/workbench-store";
 import { useShellUiStore } from "@/stores/shell-ui-store";
 import { useTerminalSearchStore } from "@/stores/terminal-search-store";
 import { useTerminalSplitStore } from "@/stores/terminal-split-store";
@@ -110,6 +112,7 @@ export function MainPanel({
   const openSearch = useTerminalSearchStore((state) => state.openSearch);
   const splitSession = useTerminalSplitStore((state) => state.splitSession);
   const syncSplit = useTerminalSplitStore((state) => state.syncWithSessions);
+  const tabCount = useWorkbenchStore((state) => state.tabs.length);
   const isHostsTab = primaryPanelTab === "hosts";
 
   useEffect(() => {
@@ -185,11 +188,20 @@ export function MainPanel({
           )}
           aria-hidden={isHostsTab}
         >
-          {activeSession ? (
-            <TerminalWorkspace activeSessionId={activeSessionId} />
-          ) : (
-            <EmptyMainPanel />
-          )}
+          <WorkbenchTabArea />
+          <div
+            className={cn(
+              "flex min-h-0 flex-col",
+              tabCount > 0 ? "flex-1" : "h-full",
+              tabCount > 0 && "border-t border-border/60",
+            )}
+          >
+            {activeSession ? (
+              <TerminalWorkspace activeSessionId={activeSessionId} />
+            ) : (
+              <EmptyMainPanel />
+            )}
+          </div>
         </div>
       </div>
     </div>

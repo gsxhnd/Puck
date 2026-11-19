@@ -11,11 +11,12 @@ mod themes;
 mod connections_window;
 mod credential;
 mod desktop_menu;
-mod editor_window;
 mod error;
+mod git;
 mod known_hosts;
 #[cfg(target_os = "macos")]
 mod macos_menu;
+mod remote_desktop;
 mod runtime;
 mod session;
 mod settings_window;
@@ -28,6 +29,7 @@ mod terminal;
 mod transfer;
 mod utf8_stream;
 mod workspace;
+mod watch;
 
 use std::sync::Arc;
 
@@ -174,11 +176,29 @@ pub fn run() {
             apply_macos_window_chrome,
             settings_window::open_settings_window,
             connections_window::open_connections_window,
-            editor_window::open_editor_window,
+
             workspace::list_local_dir,
             workspace::read_local_file,
             workspace::write_local_file,
-            workspace::git_status,
+            git::git_status,
+            git::git_blob_content,
+            git::git_stage,
+            git::git_unstage,
+            git::git_discard,
+            git::git_commit,
+            git::git_log,
+            git::git_branches,
+            git::git_checkout,
+            git::git_fetch,
+            git::git_pull,
+            git::git_push,
+            watch::start_workspace_watch,
+            watch::stop_workspace_watch,
+            remote_desktop::start_remote_desktop,
+            remote_desktop::stop_remote_desktop,
+            remote_desktop::list_remote_desktop_sessions,
+            remote_desktop::trust_rdp_host,
+            remote_desktop::is_rdp_host_trusted,
             workspace::open_path_in_app,
             system_monitor::get_system_stats,
             system_monitor::get_remote_system_stats,

@@ -6,7 +6,7 @@
 import type { TFunction } from "i18next";
 import type { AuthMethod, ConnectionProfile, ConnectionProtocol } from "@/types/connection";
 import { DEFAULT_PORTS } from "@/types/connection";
-import { isImplementedRemoteProtocol } from "@/lib/connection-protocol";
+import { isRemoteDesktopProtocol, isUnimplementedFileProtocol } from "@/lib/connection-protocol";
 import {
   deleteCredential,
   saveCredential,
@@ -38,14 +38,15 @@ export type ConnectionProfileValidationErrors = Partial<
 >;
 
 export function profileToForm(profile: ConnectionProfile): ConnectionProfileFormState {
+  const protocol =
+    profile.protocol === "local"
+      ? "ssh"
+      : (profile.protocol as Exclude<ConnectionProtocol, "local">);
   return {
     name: profile.name,
-    protocol:
-      profile.protocol === "local"
-        ? "ssh"
-        : (profile.protocol as Exclude<ConnectionProtocol, "local">),
+    protocol,
     host: profile.host ?? "",
-    port: String(profile.port ?? DEFAULT_PORTS.ssh),
+    port: String(profile.port ?? DEFAULT_PORTS[protocol]),
     username: profile.username ?? "",
     authMethod: profile.authMethod ?? "password",
     askPasswordEachTime: profile.askPasswordEachTime ?? false,
@@ -86,7 +87,7 @@ export function validateConnectionProfileForm(
 ): ConnectionProfileValidationErrors {
   const errors: ConnectionProfileValidationErrors = {};
 
-  if (!isImplementedRemoteProtocol(form.protocol)) {
+  if (isUnimplementedFileProtocol(form.protocol)) {
     errors.protocol = t("connections:validation.protocolNotSupported");
   }
 
@@ -94,7 +95,9 @@ export function validateConnectionProfileForm(
     errors.host = t("connections:validation.hostRequired");
   }
 
-  if (!form.username.trim()) {
+  // VNC authenticates with a shared password only; no username is required.
+  // VNC 仅使用共享密码认证，不要求用户名。
+  if (!isRemoteDesktopProtocol(form.protocol) && !form.username.trim()) {
     errors.username = t("connections:validation.usernameRequired");
   }
 

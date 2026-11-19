@@ -50,6 +50,9 @@ pub fn read_credential(connection_id: &str, field: &str) -> Result<Option<String
     }
 }
 
+// Reserved for the RDP/VNC handshake (phase 6/7, graphics backend pending).
+// 预留给 RDP/VNC 握手使用（阶段 6/7，图形后端待接入）。
+#[allow(dead_code)]
 pub fn require_credential(connection_id: &str, field: &str) -> Result<String, String> {
     read_credential(connection_id, field)?
         .ok_or_else(|| format!("missing credential: {field}"))

@@ -46,6 +46,9 @@
     "newConnection": "New Connection",
     "reloadWindow": "Reload Window",
     "showSessionsTab": "Show Sessions Tab",
-    "showHostsTab": "Show Remote Hosts Tab"
+    "showHostsTab": "Show Remote Hosts Tab",
+    "openFile": "Open File…",
+    "saveEditorTab": "Save Editor Tab",
+    "closeEditorTab": "Close Editor Tab"
   }
 }

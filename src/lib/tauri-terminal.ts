@@ -90,6 +90,8 @@ export async function openLocalTerminal(args: {
   shellId?: string;
   cols: number;
   rows: number;
+  /** Working directory (~-prefixed paths allowed); invalid paths fall back to home. 工作目录（允许 ~ 前缀）；无效路径回退 home。 */
+  cwd?: string;
 }): Promise<OpenLocalTerminalResult> {
   const result = await invoke<unknown>("open_local_terminal", args);
   return parseOpenLocalTerminalResult(result);

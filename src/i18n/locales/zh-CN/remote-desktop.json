@@ -1,0 +1,14 @@
+{
+  "connecting": "正在建立连接…",
+  "connected": "已连接",
+  "failed": "连接失败",
+  "backendPending": "图形远程后端正在开发中：连接链路与状态机已就绪，IronRDP / VNC 协议实现将在后续版本接入。",
+  "hostLabel": "主机",
+  "closeSession": "关闭远程桌面",
+  "certTitle": "不受信任的服务端证书",
+  "certDescription": "远程主机的证书尚未被信任。请核对以下指纹后决定是否信任并继续连接。",
+  "certFingerprint": "证书指纹 (SHA-256)",
+  "certReject": "拒绝",
+  "certTrustAndConnect": "信任并连接",
+  "certRejected": "已拒绝该服务端证书，连接已中止。"
+}

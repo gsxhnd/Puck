@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronDownIcon, PlusIcon } from "lucide-react";
 import { listShells } from "@/lib/tauri-terminal";
+import { activeWorkspaceCwd } from "@/lib/use-active-local-session";
 import { useSessionStore } from "@/stores/session-store";
 import type { ShellInfo } from "@/types/shell";
 import { Button } from "@/components/ui/button";
@@ -42,6 +43,7 @@ export function NewTerminalMenu({
       kind: "terminal",
       title: "__local__",
       protocol: "local",
+      cwd: activeWorkspaceCwd(),
     });
   };
 
@@ -51,6 +53,7 @@ export function NewTerminalMenu({
       title: shell.name,
       protocol: "local",
       shellId: shell.id,
+      cwd: activeWorkspaceCwd(),
     });
   };
 

@@ -1,8 +1,10 @@
 {
   "title": "Editor",
-  "shellLoading": "Loading editor…",
   "loading": "Loading file…",
   "save": "Save",
   "saved": "File saved",
-  "missingParams": "No file selected"
+  "missingParams": "No file selected",
+  "closeTab": "Close tab",
+  "confirmCloseDirty": "This file has unsaved changes. Close anyway?",
+  "diffUnavailable": "Unable to load diff content"
 }

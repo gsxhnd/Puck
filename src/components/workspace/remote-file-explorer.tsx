@@ -16,7 +16,7 @@ import {
   ensureSftpExplorerSession,
   explorerSftpSessionId,
 } from "@/lib/sftp-explorer-session";
-import { openEditorWindow } from "@/lib/open-editor-window";
+import { openFileInWorkbench } from "@/lib/open-in-workbench";
 import { shortenPath } from "@/lib/session-display";
 import { cdTerminalSession } from "@/lib/terminal-cd";
 import {
@@ -233,10 +233,11 @@ export function RemoteFileExplorerPanel({
             void (async () => {
               try {
                 await ensureSftpExplorerSession(activeSession.id, profile);
-                await openEditorWindow({
+                openFileInWorkbench({
                   path,
                   source: "remote",
                   sessionId: sftpSessionId,
+                  profile,
                 });
               } catch (err) {
                 setError(parsePuckError(err).message);

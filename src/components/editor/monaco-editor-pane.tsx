@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import type { editor as MonacoEditor } from "monaco-editor";
 import { ensureMonacoEnvironment } from "@/lib/monaco-setup";
+import { loadMonaco } from "@/lib/monaco";
 
 type MonacoEditorPaneProps = {
   value: string;
@@ -31,7 +32,7 @@ export function MonacoEditorPane({
 
     void (async () => {
       ensureMonacoEnvironment();
-      const monaco = await import("monaco-editor");
+      const monaco = await loadMonaco();
       if (disposed || !containerRef.current) return;
 
       editor = monaco.editor.create(containerRef.current, {
@@ -75,13 +76,13 @@ export function MonacoEditorPane({
     if (!editor) return;
     const model = editor.getModel();
     if (!model) return;
-    void import("monaco-editor").then((monaco) => {
+    void loadMonaco().then((monaco) => {
       monaco.editor.setModelLanguage(model, language);
     });
   }, [language]);
 
   useEffect(() => {
-    void import("monaco-editor").then((monaco) => {
+    void loadMonaco().then((monaco) => {
       monaco.editor.setTheme(theme);
     });
   }, [theme]);

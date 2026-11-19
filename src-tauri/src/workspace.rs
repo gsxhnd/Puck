@@ -15,25 +15,11 @@ pub struct LocalFileEntry {
     pub modified: Option<u64>,
 }
 
-#[derive(Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct GitFileStatus {
-    pub path: String,
-    pub index_status: String,
-    pub worktree_status: String,
-}
-
-#[derive(Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct GitStatusResult {
-    pub is_repo: bool,
-    pub branch: Option<String>,
-    pub staged: Vec<GitFileStatus>,
-    pub unstaged: Vec<GitFileStatus>,
-    pub untracked: Vec<String>,
-}
-
-fn resolve_path(path: &str) -> PuckResult<PathBuf> {
+/// Expands `~` prefixes and resolves a user-provided path.
+///
+/// 展开 `~` 前缀并把用户提供的路径解析为绝对路径；空路径返回错误。
+/// 供 workspace 与 git 模块共用。
+pub(crate) fn resolve_path(path: &str) -> PuckResult<PathBuf> {
     let trimmed = path.trim();
     if trimmed.is_empty() {
         return Err(PuckError::config("Path is required"));
@@ -93,95 +79,6 @@ fn list_local_dir_inner(path: &str, show_hidden: bool) -> PuckResult<Vec<LocalFi
     Ok(entries)
 }
 
-fn run_git(args: &[&str], cwd: &Path) -> PuckResult<String> {
-    let output = Command::new("git")
-        .args(args)
-        .current_dir(cwd)
-        .output()
-        .map_err(|error| PuckError::config(format!("Failed to run git: {error}")))?;
-
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
-        return Err(PuckError::config(if stderr.is_empty() {
-            "Git command failed".into()
-        } else {
-            stderr
-        }));
-    }
-
-    Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
-}
-
-fn git_status_inner(path: &str) -> PuckResult<GitStatusResult> {
-    let resolved = resolve_path(path)?;
-    let cwd = if resolved.is_dir() {
-        resolved
-    } else {
-        resolved
-            .parent()
-            .map(Path::to_path_buf)
-            .ok_or_else(|| PuckError::config("Invalid path"))?
-    };
-
-    let is_repo = match run_git(&["rev-parse", "--is-inside-work-tree"], &cwd) {
-        Ok(value) => value == "true",
-        Err(_) => false,
-    };
-
-    if !is_repo {
-        return Ok(GitStatusResult {
-            is_repo: false,
-            branch: None,
-            staged: Vec::new(),
-            unstaged: Vec::new(),
-            untracked: Vec::new(),
-        });
-    }
-
-    let branch = run_git(&["branch", "--show-current"], &cwd).ok();
-    let porcelain = run_git(&["status", "--porcelain"], &cwd)?;
-
-    let mut staged = Vec::new();
-    let mut unstaged = Vec::new();
-    let mut untracked = Vec::new();
-
-    for line in porcelain.lines() {
-        if line.len() < 4 {
-            continue;
-        }
-
-        let index_status = line.chars().next().unwrap_or(' ').to_string();
-        let worktree_status = line.chars().nth(1).unwrap_or(' ').to_string();
-        let file_path = parse_porcelain_path(&line[3..]);
-
-        if index_status == "?" && worktree_status == "?" {
-            untracked.push(file_path);
-            continue;
-        }
-
-        let status = GitFileStatus {
-            path: file_path,
-            index_status: index_status.clone(),
-            worktree_status: worktree_status.clone(),
-        };
-
-        if index_status != " " {
-            staged.push(status.clone());
-        }
-        if worktree_status != " " {
-            unstaged.push(status);
-        }
-    }
-
-    Ok(GitStatusResult {
-        is_repo: true,
-        branch,
-        staged,
-        unstaged,
-        untracked,
-    })
-}
-
 fn to_invoke_error(error: PuckError) -> String {
     let payload = error.to_payload();
     serde_json::to_string(&payload).unwrap_or(payload.message)
@@ -190,11 +87,6 @@ fn to_invoke_error(error: PuckError) -> String {
 #[tauri::command]
 pub fn list_local_dir(path: String, show_hidden: Option<bool>) -> Result<Vec<LocalFileEntry>, String> {
     list_local_dir_inner(&path, show_hidden.unwrap_or(false)).map_err(to_invoke_error)
-}
-
-#[tauri::command]
-pub fn git_status(path: String) -> Result<GitStatusResult, String> {
-    git_status_inner(&path).map_err(to_invoke_error)
 }
 
 #[tauri::command]
@@ -236,21 +128,6 @@ pub fn read_local_file(path: String) -> Result<String, String> {
 #[tauri::command]
 pub fn write_local_file(path: String, content: String) -> Result<(), String> {
     write_local_file_inner(&path, &content).map_err(to_invoke_error)
-}
-
-fn parse_porcelain_path(raw: &str) -> String {
-    let trimmed = raw.trim();
-    if trimmed.starts_with('"') && trimmed.ends_with('"') && trimmed.len() >= 2 {
-        return trimmed[1..trimmed.len() - 1]
-            .replace("\\\"", "\"")
-            .replace("\\\\", "\\");
-    }
-
-    if let Some((_, renamed_to)) = trimmed.split_once(" -> ") {
-        return parse_porcelain_path(renamed_to);
-    }
-
-    trimmed.to_string()
 }
 
 fn open_path_in_app_inner(path: &str, app: &str) -> PuckResult<()> {

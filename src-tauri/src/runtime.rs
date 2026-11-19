@@ -8,7 +8,3 @@ pub fn runtime() -> &'static Runtime {
         Runtime::new().expect("failed to create tokio runtime")
     })
 }
-
-pub fn block_on<F: std::future::Future>(future: F) -> F::Output {
-    runtime().block_on(future)
-}

@@ -28,3 +28,17 @@ export function useActiveLocalSession() {
     workspacePath: getWorkspacePath(activeSession),
   };
 }
+
+/**
+ * Default cwd for newly created local terminals: the active local terminal's
+ * working directory, or undefined (home) when unavailable.
+ *
+ * 新建本地终端的默认 cwd：取当前活动本地终端的工作目录；不可用时返回
+ * undefined（后端回退 home 目录）。
+ */
+export function activeWorkspaceCwd(): string | undefined {
+  const { sessions, activeSessionId } = useSessionStore.getState();
+  const active =
+    sessions.find((session) => session.id === activeSessionId) ?? null;
+  return isLocalTerminalSession(active) ? getWorkspacePath(active) : undefined;
+}

@@ -69,7 +69,6 @@ pub fn emit_connection_error(app: &AppHandle, session_id: String, error: PuckErr
 pub enum SessionKind {
     Local,
     Ssh { profile: StoredSshProfile },
-    Sftp { profile: StoredSshProfile, cwd: String },
 }
 
 pub enum SshCommand {
@@ -101,7 +100,6 @@ pub struct SessionManager {
 }
 
 pub struct SftpSessionEntry {
-    pub profile: StoredSshProfile,
     pub cwd: String,
     pub command_tx: tokio::sync::mpsc::UnboundedSender<SftpCommand>,
     pub transfer_tx: tokio::sync::mpsc::UnboundedSender<SftpTransferCommand>,

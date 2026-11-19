@@ -5,12 +5,12 @@ use serde::Deserialize;
 use tauri::{AppHandle, Emitter, State};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
-use crate::error::{puck_err, PuckError, PuckResult};
+use crate::error::{PuckError, PuckResult};
 use crate::known_hosts::KnownHostsStore;
 use crate::runtime::runtime;
 use crate::session::{
     emit_connection_error, emit_session_status, RemoteFileEntry, SessionManager,
-    SessionStatusEvent, SftpCommand, SftpSessionEntry, SftpTransferCommand, StoredSshProfile,
+    SessionStatusEvent, SftpCommand, SftpSessionEntry, SftpTransferCommand,
 };
 use crate::ssh::{connect_authenticated, SshConnectRequest};
 use crate::transfer::{emit_transfer_done, emit_transfer_error, emit_transfer_progress};
@@ -49,7 +49,7 @@ fn to_ssh_request(request: &OpenFileConnectionRequest) -> SshConnectRequest {
 async fn open_sftp_channel(
     session_handle: &russh::client::Handle<crate::ssh::SshClientHandler>,
 ) -> PuckResult<SftpSession> {
-    let mut channel = session_handle
+    let channel = session_handle
         .channel_open_session()
         .await
         .map_err(PuckError::from)?;
@@ -192,14 +192,6 @@ async fn open_sftp_inner(
     SessionManager::global().insert_sftp(
         request.session_id.clone(),
         SftpSessionEntry {
-            profile: StoredSshProfile {
-                connection_id: request.connection_id,
-                host: request.host,
-                port: request.port,
-                username: request.username,
-                auth_method: request.auth_method,
-                private_key_path: request.private_key_path,
-            },
             cwd,
             command_tx: command_tx.clone(),
             transfer_tx: transfer_tx.clone(),

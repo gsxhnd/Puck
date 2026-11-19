@@ -2,7 +2,11 @@ import { toast } from "sonner";
 import i18n from "@/i18n";
 import type { ConnectionProfile } from "@/types/connection";
 import type { Session } from "@/types/connection";
-import { isImplementedRemoteProtocol } from "@/lib/connection-protocol";
+import {
+  isImplementedRemoteProtocol,
+  isRemoteDesktopProtocol,
+} from "@/lib/connection-protocol";
+import { openRemoteDesktopSession } from "@/lib/remote-desktop-session";
 import { buildProfileSessionRequest } from "@/lib/open-connection-profile";
 import { prepareProfileConnection } from "@/lib/resolve-connection-credential";
 import { requestSessionReconnect } from "@/lib/reconnect-session";
@@ -13,6 +17,13 @@ import { useShellUiStore } from "@/stores/shell-ui-store";
 export async function openProfileSession(
   profile: ConnectionProfile,
 ): Promise<Session | null> {
+  // Remote desktop profiles live in the workbench, not the session tabs.
+  // 远程桌面配置进入工作台标签，而不是会话标签栏。
+  if (isRemoteDesktopProtocol(profile.protocol)) {
+    openRemoteDesktopSession(profile);
+    return null;
+  }
+
   if (
     profile.protocol !== "local" &&
     !isImplementedRemoteProtocol(profile.protocol)

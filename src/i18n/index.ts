@@ -9,6 +9,7 @@ import zhCNFiles from "./locales/zh-CN/files.json";
 import zhCNSettings from "./locales/zh-CN/settings.json";
 import zhCNCommandPalette from "./locales/zh-CN/command-palette.json";
 import zhCNEditor from "./locales/zh-CN/editor.json";
+import zhCNRemoteDesktop from "./locales/zh-CN/remote-desktop.json";
 import zhCNErrors from "./locales/zh-CN/errors.json";
 
 import enUSInfo from "./locales/en-US/info.json";
@@ -19,6 +20,7 @@ import enUSFiles from "./locales/en-US/files.json";
 import enUSSettings from "./locales/en-US/settings.json";
 import enUSCommandPalette from "./locales/en-US/command-palette.json";
 import enUSEditor from "./locales/en-US/editor.json";
+import enUSRemoteDesktop from "./locales/en-US/remote-desktop.json";
 import enUSErrors from "./locales/en-US/errors.json";
 
 const resources = {
@@ -32,6 +34,7 @@ const resources = {
     errors: zhCNErrors,
     commandPalette: zhCNCommandPalette,
     editor: zhCNEditor,
+    remoteDesktop: zhCNRemoteDesktop,
   },
   "en-US": {
     info: enUSInfo,
@@ -43,6 +46,7 @@ const resources = {
     errors: enUSErrors,
     commandPalette: enUSCommandPalette,
     editor: enUSEditor,
+    remoteDesktop: enUSRemoteDesktop,
   },
 } as const;
 
@@ -51,7 +55,7 @@ void i18n.use(initReactI18next).init({
   lng: "zh-CN",
   fallbackLng: "en-US",
   defaultNS: "common",
-  ns: ["common", "connections", "terminal", "files", "settings", "errors", "info", "commandPalette", "editor"],
+  ns: ["common", "connections", "terminal", "files", "settings", "errors", "info", "commandPalette", "editor", "remoteDesktop"],
   interpolation: {
     escapeValue: false,
   },

@@ -1,8 +1,10 @@
 {
   "title": "编辑器",
-  "shellLoading": "正在加载编辑器…",
   "loading": "正在加载文件…",
   "save": "保存",
   "saved": "文件已保存",
-  "missingParams": "未选择文件"
+  "missingParams": "未选择文件",
+  "closeTab": "关闭标签页",
+  "confirmCloseDirty": "文件有未保存的修改，确定要关闭吗？",
+  "diffUnavailable": "无法加载差异内容"
 }
