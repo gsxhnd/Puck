@@ -173,7 +173,7 @@ pub fn delete_known_host(
     state
         .remove(&host, port)
         .map_err(|error| {
-            let payload = error.to_payload();
+            let payload = error.into_payload();
             serde_json::to_string(&payload).unwrap_or(payload.message)
         })
 }
@@ -189,7 +189,7 @@ pub fn trust_ssh_host_key(
     state
         .trust_key(host, port, &parsed)
         .map_err(|error| {
-            let payload = error.to_payload();
+            let payload = error.into_payload();
             serde_json::to_string(&payload).unwrap_or(payload.message)
         })
 }

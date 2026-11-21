@@ -6,7 +6,6 @@
 import type { TFunction } from "i18next";
 import type { AuthMethod, ConnectionProfile, ConnectionProtocol } from "@/types/connection";
 import { DEFAULT_PORTS } from "@/types/connection";
-import { isRemoteDesktopProtocol, isUnimplementedFileProtocol } from "@/lib/connection-protocol";
 import {
   deleteCredential,
   saveCredential,
@@ -87,17 +86,11 @@ export function validateConnectionProfileForm(
 ): ConnectionProfileValidationErrors {
   const errors: ConnectionProfileValidationErrors = {};
 
-  if (isUnimplementedFileProtocol(form.protocol)) {
-    errors.protocol = t("connections:validation.protocolNotSupported");
-  }
-
   if (!form.host.trim()) {
     errors.host = t("connections:validation.hostRequired");
   }
 
-  // VNC authenticates with a shared password only; no username is required.
-  // VNC 仅使用共享密码认证，不要求用户名。
-  if (!isRemoteDesktopProtocol(form.protocol) && !form.username.trim()) {
+  if (!form.username.trim()) {
     errors.username = t("connections:validation.usernameRequired");
   }
 

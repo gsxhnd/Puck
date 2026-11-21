@@ -4,14 +4,7 @@
  * 连接与会话的核心领域类型：连接配置（协议、主机、认证方式等）、运行时
  * 会话（终端/文件标签）、连接状态枚举，以及创建配置/会话的工厂函数。
  */
-export type ConnectionProtocol =
-  | "local"
-  | "ssh"
-  | "sftp"
-  | "ftp"
-  | "ftps"
-  | "rdp"
-  | "vnc";
+export type ConnectionProtocol = "local" | "ssh" | "sftp";
 
 export type AuthMethod = "none" | "password" | "privateKey" | "agent";
 
@@ -43,7 +36,7 @@ export type SessionStatus =
   | "failed"
   | "closing";
 
-export type SessionKind = "terminal" | "files";
+export type SessionKind = "terminal";
 
 export type SessionTitleMode = "name" | "prefix";
 
@@ -60,6 +53,8 @@ export type Session = {
   titleMode?: SessionTitleMode;
   titlePrefix?: string;
   cwd?: string;
+  /** Owning local/remote workspace; legacy sessions may not have one. */
+  workspaceId?: string;
   status: SessionStatus;
   createdAt: string;
 };
@@ -70,10 +65,6 @@ export const DEFAULT_PORTS: Record<
 > = {
   ssh: 22,
   sftp: 22,
-  ftp: 21,
-  ftps: 21,
-  rdp: 3389,
-  vnc: 5900,
 };
 
 export function createConnectionProfile(

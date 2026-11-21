@@ -1,18 +1,17 @@
 /**
  * Workbench tab area inside the main window.
  *
- * 主窗口工作台的标签区域：顶部标签条（编辑器 + Diff）+ 当前激活标签内容。
- * 编辑器标签通过 useSyncExternalStore 订阅 EditorDocumentManager 快照；Diff
- * 标签从 diff-content 注册表读取对比文本。没有打开的标签时不渲染任何内容，
- * 主面板保持原有终端布局。保存与关闭行为使用共享 actions
- * （workbench-editor-actions），与命令面板保持一致。
+ * 主窗口工作台的标签区域：顶部标签条（编辑器 / Diff / Git Graph）+ 当前激活
+ * 标签内容。编辑器标签通过 useSyncExternalStore 订阅 EditorDocumentManager
+ * 快照；Diff 标签从 diff-content 注册表读取对比文本。保存与关闭行为使用共享
+ * actions（workbench-editor-actions），与命令面板保持一致。
  */
 import { useCallback, useEffect, useMemo, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
-import { MonitorIcon, SaveIcon, XIcon } from "lucide-react";
+import { SaveIcon, XIcon } from "lucide-react";
 import { MonacoDiffPane } from "@/components/editor/monaco-diff-pane";
 import { MonacoEditorPane } from "@/components/editor/monaco-editor-pane";
-import { RemoteDesktopCertDialog } from "@/components/workbench/remote-desktop-cert-dialog";
+import { GitGraph } from "@/components/workspace/git-graph";
 import { Button } from "@/components/ui/button";
 import { getDiffContent } from "@/editor/diff-content";
 import { getEditorDocumentManager } from "@/editor/editor-document-manager";
@@ -24,7 +23,8 @@ import {
 import { getEffectiveTheme } from "@/lib/theme-utils";
 import { cn } from "@/lib/utils";
 import { useAppSettingsStore } from "@/stores/app-settings-store";
-import { useWorkbenchStore } from "@/stores/workbench-store";
+import { useWorkbenchStore, workbenchTabsForWorkspace } from "@/stores/workbench-store";
+import { useWorkspaceStore } from "@/stores/workspace-store";
 
 const documentManager = getEditorDocumentManager();
 
@@ -52,15 +52,29 @@ function useEditorDocumentSnapshot(
 }
 
 export function WorkbenchTabArea() {
-  const { t } = useTranslation(["editor", "remoteDesktop"]);
+  const { t } = useTranslation("editor");
   const tabs = useWorkbenchStore((state) => state.tabs);
   const activeTabId = useWorkbenchStore((state) => state.activeTabId);
   const setActiveTab = useWorkbenchStore((state) => state.setActiveTab);
   const themeMode = useAppSettingsStore((state) => state.themeMode);
+  const workspace = useWorkspaceStore((state) => state.activeWorkspace);
+  const workspaceId = workspace?.id;
   const monacoTheme =
     getEffectiveTheme(themeMode) === "dark" ? "vs-dark" : "vs";
 
-  const activeTab = tabs.find((item) => item.id === activeTabId) ?? null;
+  const visibleTabs = useMemo(
+    () => workbenchTabsForWorkspace(tabs, workspaceId),
+    [tabs, workspaceId],
+  );
+  const activeTab = visibleTabs.find((item) => item.id === activeTabId) ?? null;
+
+  // Workspace switches must never leave a hidden tab active. Switching back
+  // restores the first visible tab until the user selects another one.
+  // 切换 Workspace 时不能保留隐藏标签为激活态；切回后先激活首个可见标签。
+  useEffect(() => {
+    if (visibleTabs.some((tab) => tab.id === activeTabId)) return;
+    setActiveTab(visibleTabs[0]?.id ?? null);
+  }, [activeTabId, setActiveTab, visibleTabs]);
   const activeSnapshot = useEditorDocumentSnapshot(
     activeTab?.kind === "editor" ? activeTab.id : null,
   );
@@ -78,7 +92,7 @@ export function WorkbenchTabArea() {
   // 仍能送达 shell。
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (!activeTabId) return;
+      if (!activeTab) return;
       if (!(event.metaKey || event.ctrlKey)) return;
       if (event.key.toLowerCase() !== "s") return;
 
@@ -91,15 +105,15 @@ export function WorkbenchTabArea() {
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [activeTabId, saveActive]);
+  }, [activeTab, saveActive]);
 
-  if (tabs.length === 0) return null;
+  if (visibleTabs.length === 0) return null;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col border-b border-border/60">
       <div className="flex items-center gap-1 border-b border-border/60 bg-shell-main px-1.5 py-1">
         <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
-          {tabs.map((tab) => {
+          {visibleTabs.map((tab) => {
             const dirty =
               tab.kind === "editor"
                 ? (documentManager.get(tab.id)?.dirty ?? false)
@@ -118,7 +132,7 @@ export function WorkbenchTabArea() {
                 <button
                   type="button"
                   className="min-w-0 truncate"
-                  title={tab.kind === "remoteDesktop" ? tab.host : tab.path}
+                  title={tab.path}
                   onClick={() => setActiveTab(tab.id)}
                 >
                   {tab.title}
@@ -195,45 +209,14 @@ export function WorkbenchTabArea() {
             </div>
           )
         ) : null}
-        {activeTab?.kind === "remoteDesktop" ? (
-          // Remote desktop placeholder: connection state machine and error
-          // surface; the graphics canvas arrives with the protocol backend.
-          // 远程桌面占位视图：连接状态机与错误展示；图形画布随协议后端接入。
-          <div className="flex h-full flex-col items-center justify-center gap-3 p-8 text-center">
-            <MonitorIcon className="size-8 text-muted-foreground" />
-            {activeTab.status === "connecting" ? (
-              <p className="text-sm text-muted-foreground">
-                {t("remoteDesktop:connecting")}
-              </p>
-            ) : null}
-            {activeTab.status === "connected" ? (
-              <p className="text-sm text-muted-foreground">
-                {t("remoteDesktop:connected")}
-              </p>
-            ) : null}
-            {activeTab.status === "failed" ? (
-              <>
-                <p className="text-sm text-destructive">
-                  {t("remoteDesktop:failed")}
-                </p>
-                {activeTab.errorMessage ? (
-                  <p className="max-w-lg break-words text-xs text-muted-foreground">
-                    {activeTab.errorMessage}
-                  </p>
-                ) : null}
-                <p className="max-w-lg text-xs text-muted-foreground">
-                  {t("remoteDesktop:backendPending")}
-                </p>
-              </>
-            ) : null}
-            <p className="text-xs text-muted-foreground">
-              {t("remoteDesktop:hostLabel")}: {activeTab.host} ·{" "}
-              {activeTab.protocol.toUpperCase()}
-            </p>
-          </div>
+        {activeTab?.kind === "gitGraph" ? (
+          <GitGraph
+            path={activeTab.path}
+            source={activeTab.source}
+            connectionId={activeTab.connectionId}
+          />
         ) : null}
       </div>
-      <RemoteDesktopCertDialog />
     </div>
   );
 }

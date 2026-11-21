@@ -1,5 +1,4 @@
 import { invoke } from "@tauri-apps/api/core";
-import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { isRecord } from "@/lib/ipc-parse";
 import type { ConnectionProfile } from "@/types/connection";
 
@@ -23,21 +22,6 @@ export type OpenFileConnectionRequest = {
   password?: string;
   passphrase?: string;
   defaultDirectory?: string;
-};
-
-export type TransferProgressEvent = {
-  transferId: string;
-  bytesTransferred: number;
-  bytesTotal?: number;
-};
-
-export type TransferDoneEvent = {
-  transferId: string;
-};
-
-export type TransferErrorEvent = {
-  transferId: string;
-  message: string;
 };
 
 function parseRemoteFileEntry(value: unknown): RemoteFileEntry | null {
@@ -68,45 +52,11 @@ function parseRemoteFileEntries(value: unknown): RemoteFileEntry[] {
     .filter((item): item is RemoteFileEntry => item !== null);
 }
 
-function parseTransferProgressEvent(value: unknown): TransferProgressEvent | null {
-  if (!isRecord(value)) return null;
-  if (
-    typeof value.transferId !== "string" ||
-    typeof value.bytesTransferred !== "number"
-  ) {
-    return null;
-  }
-  return {
-    transferId: value.transferId,
-    bytesTransferred: value.bytesTransferred,
-    bytesTotal:
-      typeof value.bytesTotal === "number" ? value.bytesTotal : undefined,
-  };
-}
-
-function parseTransferDoneEvent(value: unknown): TransferDoneEvent | null {
-  if (!isRecord(value)) return null;
-  if (typeof value.transferId !== "string") return null;
-  return { transferId: value.transferId };
-}
-
-function parseTransferErrorEvent(value: unknown): TransferErrorEvent | null {
-  if (!isRecord(value)) return null;
-  if (
-    typeof value.transferId !== "string" ||
-    typeof value.message !== "string"
-  ) {
-    return null;
-  }
-  return { transferId: value.transferId, message: value.message };
-}
-
 export function profileToFileRequest(
   sessionId: string,
   profile: ConnectionProfile,
 ): OpenFileConnectionRequest {
-  const defaultPort =
-    profile.protocol === "ftp" || profile.protocol === "ftps" ? 21 : 22;
+  const defaultPort = 22;
   return {
     sessionId,
     connectionId: profile.id,
@@ -149,16 +99,6 @@ export function renameRemote(
   return invoke("rename_remote", { sessionId, oldPath, newPath });
 }
 
-export function startTransfer(args: {
-  sessionId: string;
-  transferId: string;
-  direction: "upload" | "download";
-  localPath: string;
-  remotePath: string;
-}): Promise<void> {
-  return invoke("start_transfer", args);
-}
-
 export async function readRemoteFile(
   sessionId: string,
   path: string,
@@ -179,31 +119,4 @@ export function writeRemoteFile(
   content: string,
 ): Promise<void> {
   return invoke("write_remote_file_command", { sessionId, path, content });
-}
-
-export function onTransferProgress(
-  handler: (event: TransferProgressEvent) => void,
-): Promise<UnlistenFn> {
-  return listen<unknown>("transfer:progress", (event) => {
-    const parsed = parseTransferProgressEvent(event.payload);
-    if (parsed) handler(parsed);
-  });
-}
-
-export function onTransferDone(
-  handler: (event: TransferDoneEvent) => void,
-): Promise<UnlistenFn> {
-  return listen<unknown>("transfer:done", (event) => {
-    const parsed = parseTransferDoneEvent(event.payload);
-    if (parsed) handler(parsed);
-  });
-}
-
-export function onTransferError(
-  handler: (event: TransferErrorEvent) => void,
-): Promise<UnlistenFn> {
-  return listen<unknown>("transfer:error", (event) => {
-    const parsed = parseTransferErrorEvent(event.payload);
-    if (parsed) handler(parsed);
-  });
 }

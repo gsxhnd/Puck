@@ -1,182 +1,99 @@
 /**
- * Top-level three-pane application shell.
+ * Lightweight local/remote code workbench shell.
  *
- * 应用主窗口的整体布局外壳：用可拖拽分隔的三栏组织主侧栏、主面板与次面板，
- * 协调面板的折叠/展开与持久化宽度，注册全局快捷键（命令面板、切换面板、打开
- * 设置等），并在运行时与已保存设置之间同步面板可见性。
+ * 轻量级代码工作台外壳：左侧 Workspace 导航，中央编辑器与终端，底部状态栏。
+ * 保留命令面板、凭据确认和全局快捷键，不再使用 Sessions 三栏布局。
  */
 import { useEffect, useMemo, useRef } from "react";
 import type { PanelImperativeHandle } from "react-resizable-panels";
-import { PrimaryPanel } from "@/layout/app-shell/primary-panel";
 import { MainPanel } from "@/layout/app-shell/main-panel";
-import { SecondPanel } from "@/layout/app-shell/second-panel";
-import { usePrimaryPanelOverlayWidth } from "@/layout/app-shell/use-primary-panel-overlay-width";
+import { WorkspaceSidebar } from "@/components/workspace/workspace-sidebar";
+import { RemoteWorkspaceConnection } from "@/components/workspace/remote-workspace-connection";
 import { CommandPalette } from "@/components/command-palette";
 import { CredentialPromptDialog } from "@/components/connections/credential-prompt-dialog";
 import { openSettingsWindow } from "@/lib/open-settings-window";
 import { getPlatform } from "@/lib/platform";
+import { createWorkspaceTerminal } from "@/lib/workspace-actions";
 import { useAppSettingsStore } from "@/stores/app-settings-store";
 import { useCommandPaletteStore } from "@/stores/command-palette-store";
 import { useSessionStore } from "@/stores/session-store";
 import { useSessionPrivilegesStore } from "@/stores/session-privileges-store";
 import { useShellLayoutStore } from "@/stores/shell-layout-store";
-import { useShellUiStore } from "@/stores/shell-ui-store";
+import { useWorkspaceStore } from "@/stores/workspace-store";
 import {
   ResizableHandle,
   ResizablePanel,
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
 
-/** Panel width constraints (px), aligned with shadcn default 16rem ≈ 256px */
-const SHELL_PANEL_SIZES = {
-  primary: { default: 256, min: 200, max: 360 },
-  second: { default: 300, min: 240, max: 450 },
-  main: { min: 480 },
-} as const;
+const SIDEBAR_SIZE = { default: 264, min: 210, max: 420 } as const;
 
 export function AppShell() {
-  const primaryPanelOpen = useShellUiStore((state) => state.primaryPanelOpen);
-  const secondPanelOpen = useShellUiStore((state) => state.secondPanelOpen);
-  const setPrimaryPanelOpen = useShellUiStore((state) => state.setPrimaryPanelOpen);
-  const setSecondPanelOpen = useShellUiStore((state) => state.setSecondPanelOpen);
-  const togglePrimaryPanel = useShellUiStore((state) => state.togglePrimaryPanel);
-  const toggleSecondPanel = useShellUiStore((state) => state.toggleSecondPanel);
+  const sidebarOpen = useWorkspaceStore((state) => state.sidebarOpen);
+  const toggleSidebar = useWorkspaceStore((state) => state.toggleSidebar);
+  const sidebarRef = useRef<PanelImperativeHandle>(null);
   const setLayout = useShellLayoutStore((state) => state.setLayout);
   const defaultLayout = useMemo(
     () => useShellLayoutStore.getState().getDefaultLayout(),
     [],
   );
   const openPalette = useCommandPaletteStore((state) => state.openPalette);
-  const primaryPanelRef = useRef<PanelImperativeHandle>(null);
-  const secondPanelRef = useRef<PanelImperativeHandle>(null);
-  const shellRef = useRef<HTMLDivElement>(null);
-
-  usePrimaryPanelOverlayWidth(shellRef, primaryPanelOpen);
-  const openLocalOnStart = useAppSettingsStore(
+  const openTerminalOnStart = useAppSettingsStore(
     (state) => state.openLocalTerminalOnStart,
   );
-  const savedPrimaryPanelOpen = useAppSettingsStore(
-    (state) => state.primaryPanelOpen,
-  );
-  const savedSecondPanelOpen = useAppSettingsStore(
-    (state) => state.secondPanelOpen,
-  );
-  const setSavedPrimaryPanelOpen = useAppSettingsStore(
-    (state) => state.setPrimaryPanelOpen,
-  );
-  const setSavedSecondPanelOpen = useAppSettingsStore(
-    (state) => state.setSecondPanelOpen,
-  );
-  const addSession = useSessionStore((state) => state.addSession);
   const sessions = useSessionStore((state) => state.sessions);
-  const prunePrivileges = useSessionPrivilegesStore(
-    (state) => state.pruneSessions,
-  );
-  const hasBootstrappedRef = useRef(false);
-  const hasHydratedPanelsRef = useRef(false);
-
-  useEffect(() => {
-    if (hasHydratedPanelsRef.current) return;
-    hasHydratedPanelsRef.current = true;
-    setPrimaryPanelOpen(savedPrimaryPanelOpen);
-    setSecondPanelOpen(savedSecondPanelOpen);
-  }, [
-    savedPrimaryPanelOpen,
-    savedSecondPanelOpen,
-    setPrimaryPanelOpen,
-    setSecondPanelOpen,
-  ]);
-
-  useEffect(() => {
-    if (!hasHydratedPanelsRef.current) return;
-    setSavedPrimaryPanelOpen(primaryPanelOpen);
-  }, [primaryPanelOpen, setSavedPrimaryPanelOpen]);
-
-  useEffect(() => {
-    if (!hasHydratedPanelsRef.current) return;
-    setSavedSecondPanelOpen(secondPanelOpen);
-  }, [secondPanelOpen, setSavedSecondPanelOpen]);
-
-  useEffect(() => {
-    if (hasBootstrappedRef.current) return;
-    hasBootstrappedRef.current = true;
-    if (!openLocalOnStart) return;
-    addSession({
-      kind: "terminal",
-      title: "__local__",
-      protocol: "local",
-    });
-  }, [addSession, openLocalOnStart]);
+  const prunePrivileges = useSessionPrivilegesStore((state) => state.pruneSessions);
+  const startupTerminalRef = useRef(false);
 
   useEffect(() => {
     prunePrivileges(sessions.map((session) => session.id));
   }, [prunePrivileges, sessions]);
 
   useEffect(() => {
+    if (!openTerminalOnStart || startupTerminalRef.current) return;
+    startupTerminalRef.current = true;
+    const workspaceState = useWorkspaceStore.getState();
+    if (!workspaceState.activeWorkspace) {
+      workspaceState.openLocalWorkspace("~");
+    }
+    void createWorkspaceTerminal();
+  }, [openTerminalOnStart]);
+
+  useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (!(event.metaKey || event.ctrlKey)) {
-        return;
-      }
-
+      if (!(event.metaKey || event.ctrlKey)) return;
       const key = event.key.toLowerCase();
-
       if (key === ",") {
         event.preventDefault();
         void openSettingsWindow();
-        return;
-      }
-
-      if (key === "p" && event.shiftKey) {
+      } else if (key === "p" && event.shiftKey) {
         event.preventDefault();
         openPalette();
-        return;
-      }
-
-      if (key === "l" && event.shiftKey) {
+      } else if (key === "l" && event.shiftKey) {
         event.preventDefault();
-        togglePrimaryPanel();
-        return;
-      }
-
-      if (key === "r" && event.shiftKey) {
-        event.preventDefault();
-        toggleSecondPanel();
+        toggleSidebar();
       }
     };
-
     const onOpenPalette = () => openPalette();
-
     window.addEventListener("keydown", onKeyDown);
     window.addEventListener("puck:command-palette", onOpenPalette);
     return () => {
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("puck:command-palette", onOpenPalette);
     };
-  }, [openPalette, togglePrimaryPanel, toggleSecondPanel]);
+  }, [openPalette, toggleSidebar]);
 
   useEffect(() => {
-    if (primaryPanelOpen) {
-      primaryPanelRef.current?.expand();
-    } else {
-      primaryPanelRef.current?.collapse();
-    }
-  }, [primaryPanelOpen]);
-
-  useEffect(() => {
-    if (secondPanelOpen) {
-      secondPanelRef.current?.expand();
-    } else {
-      secondPanelRef.current?.collapse();
-    }
-  }, [secondPanelOpen]);
+    if (sidebarOpen) sidebarRef.current?.expand();
+    else sidebarRef.current?.collapse();
+  }, [sidebarOpen]);
 
   return (
     <div
-      ref={shellRef}
       data-app-shell
       data-shell="main"
       data-platform={getPlatform()}
-      data-primary-panel-open={primaryPanelOpen ? "true" : "false"}
+      data-primary-panel-open={sidebarOpen ? "true" : "false"}
       className="h-svh overflow-hidden"
     >
       <ResizablePanelGroup
@@ -184,65 +101,26 @@ export function AppShell() {
         orientation="horizontal"
         className="h-full"
         defaultLayout={defaultLayout}
-        onLayoutChanged={(layout) => {
-          setLayout(layout);
-
-          const primarySize = layout.primary ?? layout.left ?? 0;
-          const secondSize = layout.second ?? layout.right ?? 0;
-
-          if (primarySize === 0 && primaryPanelOpen) {
-            setPrimaryPanelOpen(false);
-          } else if (primarySize > 0 && !primaryPanelOpen) {
-            setPrimaryPanelOpen(true);
-          }
-
-          if (secondSize === 0 && secondPanelOpen) {
-            setSecondPanelOpen(false);
-          } else if (secondSize > 0 && !secondPanelOpen) {
-            setSecondPanelOpen(true);
-          }
-        }}
+        onLayoutChanged={setLayout}
       >
         <ResizablePanel
           id="primary"
-          panelRef={primaryPanelRef}
-          defaultSize={SHELL_PANEL_SIZES.primary.default}
-          minSize={SHELL_PANEL_SIZES.primary.min}
-          maxSize={SHELL_PANEL_SIZES.primary.max}
-          collapsible
-          collapsedSize={0}
-          className="relative z-[2] min-w-0 overflow-hidden"
-        >
-          <PrimaryPanel
-            collapsed={!primaryPanelOpen}
-            onToggleCollapsed={togglePrimaryPanel}
-          />
-        </ResizablePanel>
-        {primaryPanelOpen ? <ResizableHandle /> : null}
-        <ResizablePanel id="main" minSize={SHELL_PANEL_SIZES.main.min} className="relative z-[1] min-w-0">
-          <MainPanel
-            primaryPanelOpen={primaryPanelOpen}
-            secondPanelOpen={secondPanelOpen}
-            onToggleSecondPanel={toggleSecondPanel}
-          />
-        </ResizablePanel>
-        {secondPanelOpen ? <ResizableHandle /> : null}
-        <ResizablePanel
-          id="second"
-          panelRef={secondPanelRef}
-          defaultSize={SHELL_PANEL_SIZES.second.default}
-          minSize={SHELL_PANEL_SIZES.second.min}
-          maxSize={SHELL_PANEL_SIZES.second.max}
+          panelRef={sidebarRef}
+          defaultSize={SIDEBAR_SIZE.default}
+          minSize={SIDEBAR_SIZE.min}
+          maxSize={SIDEBAR_SIZE.max}
           collapsible
           collapsedSize={0}
           className="min-w-0 overflow-hidden"
         >
-          <SecondPanel
-            secondPanelOpen={secondPanelOpen}
-            onToggleSecondPanel={toggleSecondPanel}
-          />
+          <WorkspaceSidebar />
+        </ResizablePanel>
+        {sidebarOpen ? <ResizableHandle /> : null}
+        <ResizablePanel id="main" minSize={480} className="min-w-0">
+          <MainPanel />
         </ResizablePanel>
       </ResizablePanelGroup>
+      <RemoteWorkspaceConnection />
       <CommandPalette />
       <CredentialPromptDialog />
     </div>

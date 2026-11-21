@@ -6,6 +6,8 @@ import {
   FolderIcon,
   FolderOpenIcon,
   LoaderCircleIcon,
+  PencilIcon,
+  Trash2Icon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -28,6 +30,10 @@ type FileTreeNodeProps = {
   loadChildren: (path: string) => Promise<FileTreeEntry[]>;
   onEnterDirectory: (path: string) => void;
   onOpenFile: (path: string) => void;
+  onRename?: (entry: FileTreeEntry) => void;
+  onDelete?: (entry: FileTreeEntry) => void;
+  renameLabel: string;
+  deleteLabel: string;
   cacheKey: string;
 };
 
@@ -37,6 +43,10 @@ function FileTreeNode({
   loadChildren,
   onEnterDirectory,
   onOpenFile,
+  onRename,
+  onDelete,
+  renameLabel,
+  deleteLabel,
   cacheKey,
 }: FileTreeNodeProps) {
   const [expanded, setExpanded] = useState(false);
@@ -136,6 +146,40 @@ function FileTreeNode({
             {formatBytes(entry.size)}
           </span>
         ) : null}
+        <span className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+          {onRename ? (
+            <button
+              type="button"
+              aria-label={renameLabel}
+              title={renameLabel}
+              className="rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+              onClick={(event) => {
+                event.stopPropagation();
+                event.preventDefault();
+                onRename(entry);
+              }}
+              onDoubleClick={(event) => event.stopPropagation()}
+            >
+              <PencilIcon className="size-3" />
+            </button>
+          ) : null}
+          {onDelete ? (
+            <button
+              type="button"
+              aria-label={deleteLabel}
+              title={deleteLabel}
+              className="rounded p-0.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+              onClick={(event) => {
+                event.stopPropagation();
+                event.preventDefault();
+                onDelete(entry);
+              }}
+              onDoubleClick={(event) => event.stopPropagation()}
+            >
+              <Trash2Icon className="size-3" />
+            </button>
+          ) : null}
+        </span>
       </div>
 
       {error ? (
@@ -156,6 +200,10 @@ function FileTreeNode({
               loadChildren={loadChildren}
               onEnterDirectory={onEnterDirectory}
               onOpenFile={onOpenFile}
+              onRename={onRename}
+              onDelete={onDelete}
+              renameLabel={renameLabel}
+              deleteLabel={deleteLabel}
               cacheKey={cacheKey}
             />
           ))
@@ -173,6 +221,10 @@ type FileTreeProps = {
   loadChildren: (path: string) => Promise<FileTreeEntry[]>;
   onEnterDirectory: (path: string) => void;
   onOpenFile: (path: string) => void;
+  onRename?: (entry: FileTreeEntry) => void;
+  onDelete?: (entry: FileTreeEntry) => void;
+  renameLabel: string;
+  deleteLabel: string;
 };
 
 /**
@@ -188,6 +240,10 @@ export function FileTree({
   loadChildren,
   onEnterDirectory,
   onOpenFile,
+  onRename,
+  onDelete,
+  renameLabel,
+  deleteLabel,
 }: FileTreeProps) {
   if (!loading && entries.length === 0) {
     return (
@@ -207,6 +263,10 @@ export function FileTree({
           loadChildren={loadChildren}
           onEnterDirectory={onEnterDirectory}
           onOpenFile={onOpenFile}
+          onRename={onRename}
+          onDelete={onDelete}
+          renameLabel={renameLabel}
+          deleteLabel={deleteLabel}
           cacheKey={cacheKey}
         />
       ))}

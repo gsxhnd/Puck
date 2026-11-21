@@ -4,14 +4,22 @@ import {
   ChevronRightIcon,
   EyeIcon,
   EyeOffIcon,
+  FilePlusIcon,
+  FolderPlusIcon,
   RefreshCwIcon,
   SquareTerminalIcon,
 } from "lucide-react";
 import { FileTree, type FileTreeEntry } from "@/components/workspace/file-tree";
-import { listLocalDir } from "@/lib/tauri-workspace";
+import {
+  deleteLocal,
+  listLocalDir,
+  mkdirLocal,
+  renameLocal,
+  writeLocalFile,
+} from "@/lib/tauri-workspace";
 import { getWorkspacePath } from "@/lib/use-active-local-session";
 import { parsePuckError } from "@/lib/puck-error";
-import { joinLocalPath, splitLocalPath } from "@/lib/local-path";
+import { joinLocalPath, parentLocalPath, splitLocalPath } from "@/lib/local-path";
 import { openFileInWorkbench } from "@/lib/open-in-workbench";
 import { shortenPath } from "@/lib/session-display";
 import { cdTerminalSession } from "@/lib/terminal-cd";
@@ -47,7 +55,7 @@ export function LocalFileExplorerPanel({
 }: {
   activeSession: Session;
 }) {
-  const { t } = useTranslation("info");
+  const { t } = useTranslation(["info", "common"]);
   const workspacePath = getWorkspacePath(activeSession);
   const [cwd, setCwd] = useState(workspacePath);
   const [entries, setEntries] = useState<FileTreeEntry[]>([]);
@@ -94,15 +102,21 @@ export function LocalFileExplorerPanel({
       title: "__local__",
       protocol: "local",
       cwd,
+      workspaceId: activeSession.workspaceId,
     });
   }, [cwd]);
 
   const navigateTo = useCallback(
     (path: string) => {
       setCwd(path);
-      void cdTerminalSession(activeSession.id, path).catch((err) => {
-        setError(parsePuckError(err).message);
-      });
+      const terminalExists = useSessionStore
+        .getState()
+        .sessions.some((session) => session.id === activeSession.id);
+      if (terminalExists) {
+        void cdTerminalSession(activeSession.id, path).catch((err) => {
+          setError(parsePuckError(err).message);
+        });
+      }
     },
     [activeSession.id],
   );
@@ -129,6 +143,61 @@ export function LocalFileExplorerPanel({
       }
     },
     [showHidden],
+  );
+
+  const createEntry = useCallback(
+    async (kind: "file" | "directory") => {
+      const label = kind === "file"
+        ? t("common:workspace.newFileName")
+        : t("common:workspace.newFolderName");
+      const name = window.prompt(label);
+      if (!name?.trim()) return;
+      const path = joinLocalPath(cwd, name.trim());
+      try {
+        if (kind === "file") {
+          await writeLocalFile(path, "");
+        } else {
+          await mkdirLocal(path);
+        }
+        await refresh();
+      } catch (err) {
+        setError(parsePuckError(err).message);
+      }
+    },
+    [cwd, refresh, t],
+  );
+
+  const renameEntry = useCallback(
+    async (entry: FileTreeEntry) => {
+      const name = window.prompt(
+        t("common:workspace.renamePrompt"),
+        entry.name,
+      );
+      if (!name?.trim() || name.trim() === entry.name) return;
+      const target = joinLocalPath(parentLocalPath(entry.path), name.trim());
+      try {
+        await renameLocal(entry.path, target);
+        await refresh();
+      } catch (err) {
+        setError(parsePuckError(err).message);
+      }
+    },
+    [refresh, t],
+  );
+
+  const deleteEntry = useCallback(
+    async (entry: FileTreeEntry) => {
+      if (!window.confirm(t("common:workspace.deleteConfirm", { name: entry.name }))) {
+        return;
+      }
+      try {
+        await deleteLocal(entry.path);
+        await refresh();
+      } catch (err) {
+        setError(parsePuckError(err).message);
+      }
+    },
+    [refresh, t],
   );
 
   return (
@@ -179,6 +248,36 @@ export function LocalFileExplorerPanel({
               <Button
                 variant="ghost"
                 size="icon-sm"
+                aria-label={t("common:workspace.newFile")}
+                onClick={() => void createEntry("file")}
+              >
+                <FilePlusIcon />
+              </Button>
+            }
+          />
+          <TooltipContent side="bottom">{t("common:workspace.newFile")}</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label={t("common:workspace.newFolder")}
+                onClick={() => void createEntry("directory")}
+              >
+                <FolderPlusIcon />
+              </Button>
+            }
+          />
+          <TooltipContent side="bottom">{t("common:workspace.newFolder")}</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                variant="ghost"
+                size="icon-sm"
                 aria-label={t("openTerminalHere")}
                 onClick={openTerminalHere}
               >
@@ -216,12 +315,15 @@ export function LocalFileExplorerPanel({
           onOpenFile={(path) => {
             openFileInWorkbench({ path, source: "local" });
           }}
+          onRename={(entry) => void renameEntry(entry)}
+          onDelete={(entry) => void deleteEntry(entry)}
+          renameLabel={t("common:workspace.rename")}
+          deleteLabel={t("common:workspace.delete")}
         />
       </ScrollArea>
 
       <div className="border-t border-border/60 px-3 py-1.5 text-xs text-muted-foreground">
         <div className="truncate">{shortenPath(cwd)}</div>
-        <div className="text-[10px] opacity-70">{t("filesFollowCwd")}</div>
       </div>
     </div>
   );

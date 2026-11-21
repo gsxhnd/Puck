@@ -30,7 +30,12 @@ type ShellLayoutStore = {
   getDefaultLayout: () => ShellLayout;
 };
 
-const DEFAULT_LAYOUT: ShellLayout = { primary: 20, main: 55, second: 25 };
+const DEFAULT_LAYOUT: ShellLayout = {
+  primary: 22,
+  main: 78,
+  editor: 68,
+  terminal: 32,
+};
 
 const shellLayoutStorage = createJSONStorage(() => ({
   getItem: (name) => {
@@ -58,7 +63,10 @@ export const useShellLayoutStore = create<ShellLayoutStore>()(
     (set, get) => ({
       layout: null,
 
-      setLayout: (layout) => set({ layout: migrateStoredLayout(layout) }),
+      setLayout: (layout) =>
+        set((state) => ({
+          layout: { ...state.layout, ...migrateStoredLayout(layout) },
+        })),
 
       getDefaultLayout: () => get().layout ?? DEFAULT_LAYOUT,
     }),

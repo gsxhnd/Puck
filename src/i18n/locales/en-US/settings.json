@@ -10,18 +10,13 @@
     "terminal": "Terminal",
     "connections": "Connections",
     "keyboard": "Keyboard",
-    "about": "About",
-    "systemResources": "System Resources"
+    "about": "About"
   },
   "general": {
     "language": "Language",
     "languageDescription": "Switch the application UI language",
-    "openLocalOnStart": "Open local terminal on start",
-    "openLocalOnStartDescription": "Automatically create a local terminal tab when the app launches",
-    "showPrimaryPanel": "Show primary panel on start",
-    "showPrimaryPanelDescription": "Keep the connections and sessions sidebar visible when the app opens",
-    "showSecondPanel": "Show second panel on start",
-    "showSecondPanelDescription": "Keep the info and transfer panel visible when the app opens",
+    "openLocalOnStart": "Open terminal on start",
+    "openLocalOnStartDescription": "Automatically create a terminal tab for the active workspace; without one, open the local home directory",
     "resetSettings": "Reset settings",
     "resetSettingsDescription": "Restore all preferences to their default values",
     "resetSettingsAction": "Reset to defaults"
@@ -85,23 +80,6 @@
       "keepAwakeWhenTaskRunning": "Keep awake while task runs"
     }
   },
-  "systemResources": {
-    "description": "Configure how often system stats are collected and which metrics appear in the info panel",
-    "localPollInterval": "Local poll interval",
-    "localPollIntervalDescription": "How often to refresh CPU, memory, and other stats on this machine",
-    "remotePollInterval": "Remote poll interval",
-    "remotePollIntervalDescription": "How often to refresh stats on a remote host over SSH",
-    "pollIntervalOption": "Every {{seconds}}s",
-    "metricsTitle": "Metrics",
-    "metricsDescription": "Choose which system metrics to show in the info panel",
-    "metrics": {
-      "cpu": "CPU usage",
-      "memory": "Memory",
-      "disk": "Disk",
-      "loadAverage": "Load average",
-      "swap": "Swap"
-    }
-  },
   "connections": {
     "credentials": "Credential Management",
     "credentialsDescription": "Passwords and key passphrases are stored in the system keychain",
@@ -123,15 +101,14 @@
   "keyboard": {
     "title": "Shortcuts",
     "description": "Keyboard shortcuts for the main workspace",
-    "newTerminal": "New local terminal",
+    "newTerminal": "New Terminal",
     "closeTab": "Close current tab",
     "commandPalette": "Open command palette",
     "openSettings": "Open settings",
-    "togglePrimaryPanel": "Toggle primary panel",
-    "toggleSecondPanel": "Toggle second panel",
+    "toggleSidebar": "Toggle Sidebar",
+    "toggleTerminal": "Show / Hide Terminal",
     "search": "Search in current tab",
     "searchAllTabs": "Search in all tabs",
-    "jumpToOutline": "Jump to command outline",
     "splitRight": "Split right",
     "splitLeft": "Split left",
     "splitDown": "Split down",
@@ -139,7 +116,7 @@
   },
   "about": {
     "version": "Version",
-    "description": "A cross-platform terminal and file transfer workspace built with Tauri",
+    "description": "A lightweight cross-platform local and remote code workbench built with Tauri",
     "manageConnections": "Open remote management"
   }
 }

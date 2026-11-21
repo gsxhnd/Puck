@@ -43,18 +43,18 @@ fn detect_unix_shells() -> Vec<ShellInfo> {
         ("fish", "/usr/local/bin/fish"),
     ];
 
-    if let Ok(default_shell) = std::env::var("SHELL") {
-        if std::path::Path::new(&default_shell).exists() {
-            let kind = shell_kind_from_path(&default_shell);
-            if seen.insert(default_shell.clone()) {
-                shells.push(ShellInfo {
-                    id: format!("{kind}:default"),
-                    name: format!("{} (default)", kind),
-                    path: default_shell.clone(),
-                    kind: kind.to_string(),
-                    args: Vec::new(),
-                });
-            }
+    if let Ok(default_shell) = std::env::var("SHELL")
+        && std::path::Path::new(&default_shell).exists()
+    {
+        let kind = shell_kind_from_path(&default_shell);
+        if seen.insert(default_shell.clone()) {
+            shells.push(ShellInfo {
+                id: format!("{kind}:default"),
+                name: format!("{} (default)", kind),
+                path: default_shell.clone(),
+                kind: kind.to_string(),
+                args: Vec::new(),
+            });
         }
     }
 
@@ -182,10 +182,10 @@ fn fallback_shell() -> ShellInfo {
 
 pub fn find_shell(shell_id: Option<&str>) -> ShellInfo {
     let shells = list_shells();
-    if let Some(id) = shell_id {
-        if let Some(shell) = shells.iter().find(|shell| shell.id == id) {
-            return shell.clone();
-        }
+    if let Some(id) = shell_id
+        && let Some(shell) = shells.iter().find(|shell| shell.id == id)
+    {
+        return shell.clone();
     }
     shells
         .into_iter()

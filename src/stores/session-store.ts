@@ -2,11 +2,10 @@
  * In-memory store for open session tabs (terminals and file panes).
  *
  * 当前打开的所有会话标签（终端、文件管理器等）的运行时 store。负责新增、
- * 聚焦、关闭、重命名会话以及更新连接状态与工作目录；关闭最后一个会话时会
- * 触发应用退出。不持久化——会话列表随应用重启清空。
+ * 聚焦、关闭、重命名会话以及更新连接状态与工作目录。会话生命周期与应用、
+ * Workspace 生命周期相互独立，不持久化——会话列表随应用重启清空。
  */
 import { create } from "zustand";
-import { exitApp } from "@/lib/exit-app";
 import { cleanupEphemeralProfileIfUnused } from "@/lib/ephemeral-connection";
 import {
   type ConnectionProtocol,
@@ -31,6 +30,7 @@ type SessionStore = {
     titleMode?: SessionTitleMode;
     titlePrefix?: string;
     cwd?: string;
+    workspaceId?: string;
     status?: SessionStatus;
   }) => Session;
   openOrFocusSession: (partial: {
@@ -45,6 +45,7 @@ type SessionStore = {
     titleMode?: SessionTitleMode;
     titlePrefix?: string;
     cwd?: string;
+    workspaceId?: string;
     status?: SessionStatus;
   }) => Session;
   closeSession: (id: string) => void;
@@ -87,6 +88,7 @@ function createSession(
     titleMode: partial.titleMode,
     titlePrefix: partial.titlePrefix,
     cwd: partial.cwd,
+    workspaceId: partial.workspaceId,
     status: partial.status ?? "connected",
     createdAt: new Date().toISOString(),
   };
@@ -119,7 +121,6 @@ export const useSessionStore = create<SessionStore>()((set, get) => ({
     return get().addSession(partial);
   },
   closeSession: (id) => {
-    let shouldExit = false;
     let closedProfileId: string | undefined;
     let remainingSessions: Session[] = [];
     set((state) => {
@@ -127,7 +128,6 @@ export const useSessionStore = create<SessionStore>()((set, get) => ({
       closedProfileId = closed?.profileId;
       const sessions = state.sessions.filter((session) => session.id !== id);
       remainingSessions = sessions;
-      shouldExit = sessions.length === 0;
       const activeSessionId =
         state.activeSessionId === id
           ? (sessions[sessions.length - 1]?.id ?? null)
@@ -136,9 +136,6 @@ export const useSessionStore = create<SessionStore>()((set, get) => ({
     });
     if (closedProfileId) {
       void cleanupEphemeralProfileIfUnused(closedProfileId, remainingSessions);
-    }
-    if (shouldExit) {
-      void exitApp();
     }
   },
   setActiveSession: (id) => {

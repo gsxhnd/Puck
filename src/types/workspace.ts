@@ -33,6 +33,11 @@ export type GitCommitEntry = {
   subject: string;
 };
 
+export type GitGraphCommit = GitCommitEntry & {
+  parents: string[];
+  refs: string[];
+};
+
 export type GitBranchEntry = {
   name: string;
   shortHash: string;

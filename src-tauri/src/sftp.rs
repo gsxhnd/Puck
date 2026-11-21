@@ -10,10 +10,12 @@ use crate::known_hosts::KnownHostsStore;
 use crate::runtime::runtime;
 use crate::session::{
     emit_connection_error, emit_session_status, RemoteFileEntry, SessionManager,
-    SessionStatusEvent, SftpCommand, SftpSessionEntry, SftpTransferCommand,
+    SessionStatusEvent, SftpCommand, SftpSessionEntry,
 };
-use crate::ssh::{connect_authenticated, SshConnectRequest};
-use crate::transfer::{emit_transfer_done, emit_transfer_error, emit_transfer_progress};
+use crate::ssh::{
+    acquire_shared_ssh, begin_ssh_open, release_shared_ssh, ssh_open_is_current,
+    SshConnectRequest,
+};
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -41,6 +43,7 @@ fn to_ssh_request(request: &OpenFileConnectionRequest) -> SshConnectRequest {
         private_key_path: request.private_key_path.clone(),
         password: request.password.clone(),
         passphrase: request.passphrase.clone(),
+        cwd: request.default_directory.clone(),
         cols: 80,
         rows: 24,
     }
@@ -75,21 +78,29 @@ async fn open_sftp_inner(
     app: AppHandle,
     known_hosts: Arc<KnownHostsStore>,
     request: OpenFileConnectionRequest,
+    generation: u64,
 ) -> PuckResult<()> {
     let ssh_request = to_ssh_request(&request);
-    let session_handle = Arc::new(connect_authenticated(known_hosts, &ssh_request).await?);
+    let lease_id = format!("sftp:{}:{generation}", request.session_id);
+    let session_handle = acquire_shared_ssh(known_hosts, &ssh_request, &lease_id).await?;
+    if !ssh_open_is_current(&request.session_id, generation) {
+        release_shared_ssh(&request.connection_id, &lease_id).await;
+        return Ok(());
+    }
 
-    let sftp = open_sftp_channel(session_handle.as_ref()).await?;
-    let transfer_sftp = match open_sftp_channel(session_handle.as_ref()).await {
+    let sftp = match open_sftp_channel(session_handle.as_ref()).await {
         Ok(session) => session,
         Err(error) => {
-            let _ = sftp.close().await;
-            let _ = session_handle
-                .disconnect(russh::Disconnect::ByApplication, "", "en")
-                .await;
+            release_shared_ssh(&request.connection_id, &lease_id).await;
             return Err(error);
         }
     };
+
+    if !ssh_open_is_current(&request.session_id, generation) {
+        let _ = sftp.close().await;
+        release_shared_ssh(&request.connection_id, &lease_id).await;
+        return Ok(());
+    }
 
     let cwd = request
         .default_directory
@@ -100,10 +111,9 @@ async fn open_sftp_inner(
     let session_id = request.session_id.clone();
     let app_handle = app.clone();
     let (command_tx, mut command_rx) = tokio::sync::mpsc::unbounded_channel::<SftpCommand>();
-    let (transfer_tx, mut transfer_rx) =
-        tokio::sync::mpsc::unbounded_channel::<SftpTransferCommand>();
 
-    let disconnect_handle = Arc::clone(&session_handle);
+    let connection_id = request.connection_id.clone();
+    let io_lease_id = lease_id.clone();
     let io_task = tokio::spawn(async move {
         while let Some(command) = command_rx.recv().await {
             match command {
@@ -148,9 +158,7 @@ async fn open_sftp_inner(
         }
 
         let _ = sftp.close().await;
-        let _ = disconnect_handle
-            .disconnect(russh::Disconnect::ByApplication, "", "en")
-            .await;
+        release_shared_ssh(&connection_id, &io_lease_id).await;
         let _ = app_handle.emit(
             "session:status",
             SessionStatusEvent {
@@ -163,42 +171,25 @@ async fn open_sftp_inner(
         );
     });
 
-    let transfer_io_task = tokio::spawn(async move {
-        while let Some(command) = transfer_rx.recv().await {
-            match command {
-                SftpTransferCommand::Upload {
-                    transfer_id,
-                    local_path,
-                    remote_path,
-                    app,
-                } => {
-                    run_upload(&transfer_sftp, app, transfer_id, local_path, remote_path).await;
-                }
-                SftpTransferCommand::Download {
-                    transfer_id,
-                    local_path,
-                    remote_path,
-                    app,
-                } => {
-                    run_download(&transfer_sftp, app, transfer_id, local_path, remote_path).await;
-                }
-                SftpTransferCommand::Shutdown => break,
-            }
-        }
-
-        let _ = transfer_sftp.close().await;
-    });
-
-    SessionManager::global().insert_sftp(
+    let insert_result = SessionManager::global().insert_sftp(
         request.session_id.clone(),
         SftpSessionEntry {
+            connection_id: request.connection_id.clone(),
+            lease_id: lease_id.clone(),
             cwd,
             command_tx: command_tx.clone(),
-            transfer_tx: transfer_tx.clone(),
             io_task,
-            transfer_io_task,
         },
-    )?;
+    );
+    if let Err(error) = insert_result {
+        release_shared_ssh(&request.connection_id, &lease_id).await;
+        return Err(error);
+    }
+    if !ssh_open_is_current(&request.session_id, generation) {
+        let _ = SessionManager::global().close_sftp(&request.session_id);
+        release_shared_ssh(&request.connection_id, &lease_id).await;
+        return Ok(());
+    }
 
     emit_session_status(
         &app,
@@ -287,97 +278,13 @@ async fn write_remote_file(sftp: &SftpSession, path: &str, content: &str) -> Res
     Ok(())
 }
 
-async fn run_upload(
-    sftp: &SftpSession,
-    app: AppHandle,
-    transfer_id: String,
-    local_path: String,
-    remote_path: String,
-) {
-    let result = async {
-        let mut local = tokio::fs::File::open(&local_path)
-            .await
-            .map_err(|error| error.to_string())?;
-        let total = local.metadata().await.map_err(|error| error.to_string())?.len();
-        let mut remote = sftp
-            .create(&remote_path)
-            .await
-            .map_err(|error| error.to_string())?;
-        let mut transferred = 0u64;
-        let mut buffer = vec![0u8; 64 * 1024];
-        loop {
-            let read = local.read(&mut buffer).await.map_err(|e| e.to_string())?;
-            if read == 0 {
-                break;
-            }
-            remote
-                .write_all(&buffer[..read])
-                .await
-                .map_err(|error| error.to_string())?;
-            transferred += read as u64;
-            emit_transfer_progress(&app, &transfer_id, transferred, Some(total));
-        }
-        remote.shutdown().await.map_err(|error| error.to_string())?;
-        Ok::<(), String>(())
-    }
-    .await;
-
-    match result {
-        Ok(()) => emit_transfer_done(&app, &transfer_id),
-        Err(message) => emit_transfer_error(&app, &transfer_id, message),
-    }
-}
-
-async fn run_download(
-    sftp: &SftpSession,
-    app: AppHandle,
-    transfer_id: String,
-    local_path: String,
-    remote_path: String,
-) {
-    let result = async {
-        let mut remote = sftp
-            .open(&remote_path)
-            .await
-            .map_err(|error| error.to_string())?;
-        let total = remote
-            .metadata()
-            .await
-            .ok()
-            .and_then(|meta| meta.size);
-        let mut local = tokio::fs::File::create(&local_path)
-            .await
-            .map_err(|error| error.to_string())?;
-        let mut transferred = 0u64;
-        let mut buffer = vec![0u8; 64 * 1024];
-        loop {
-            let read = remote.read(&mut buffer).await.map_err(|e| e.to_string())?;
-            if read == 0 {
-                break;
-            }
-            local
-                .write_all(&buffer[..read])
-                .await
-                .map_err(|error| error.to_string())?;
-            transferred += read as u64;
-            emit_transfer_progress(&app, &transfer_id, transferred, total);
-        }
-        Ok::<(), String>(())
-    }
-    .await;
-
-    match result {
-        Ok(()) => emit_transfer_done(&app, &transfer_id),
-        Err(message) => emit_transfer_error(&app, &transfer_id, message),
-    }
-}
-
 #[tauri::command]
 pub fn open_file_connection(
     app: AppHandle,
     known_hosts: State<'_, Arc<KnownHostsStore>>,
     request: OpenFileConnectionRequest,
 ) -> Result<(), String> {
+    let generation = begin_ssh_open(&request.session_id);
     emit_session_status(
         &app,
         SessionStatusEvent {
@@ -393,7 +300,7 @@ pub fn open_file_connection(
     let known_hosts = known_hosts.inner().clone();
     runtime().spawn(async move {
         if let Err(error) =
-            open_sftp_inner(app_handle.clone(), known_hosts, request.clone()).await
+            open_sftp_inner(app_handle.clone(), known_hosts, request.clone(), generation).await
         {
             emit_connection_error(&app_handle, request.session_id, error);
         }
@@ -469,38 +376,6 @@ pub async fn rename_remote(
         },
     )?;
     await_sftp_reply(reply_rx).await
-}
-
-#[tauri::command]
-pub fn start_transfer(
-    app: AppHandle,
-    session_id: String,
-    transfer_id: String,
-    direction: String,
-    local_path: String,
-    remote_path: String,
-) -> Result<(), String> {
-    let command_tx = SessionManager::global()
-        .sftp_transfer_tx(&session_id)
-        .ok_or_else(|| "sftp session not found".to_string())?;
-    let command = match direction.as_str() {
-        "upload" => SftpTransferCommand::Upload {
-            transfer_id,
-            local_path,
-            remote_path,
-            app,
-        },
-        "download" => SftpTransferCommand::Download {
-            transfer_id,
-            local_path,
-            remote_path,
-            app,
-        },
-        _ => return Err("invalid transfer direction".into()),
-    };
-    command_tx
-        .send(command)
-        .map_err(|_| "sftp channel closed".to_string())
 }
 
 #[tauri::command]

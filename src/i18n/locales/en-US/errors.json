@@ -11,6 +11,5 @@
   "file_error": "File operation failed",
   "git_error": "Git operation failed",
   "config_write_error": "Failed to write configuration",
-  "remote_command_failed": "Remote command failed",
-  "transfer_failed": "File transfer failed"
+  "remote_command_failed": "Remote command failed"
 }

@@ -1,64 +1,34 @@
 /**
- * Remote protocol availability helpers for connection forms and session open.
+ * Supported remote protocol helpers.
  *
- * 远程协议可用性判断。ssh/sftp 提供终端与文件能力；rdp/vnc 为远程桌面协议
- * （阶段 6/7，当前为骨架链路，图形后端未接入）；ftp/ftps 暂未实现，表单中
- * 禁用并在打开会话时拦截。
+ * 远程协议辅助判断。Puck 的轻量定位只保留 SSH 与 SFTP；不再提供 FTP/FTPS
+ * 占位或 RDP/VNC 图形远程协议。
  */
 import type { TFunction } from "i18next";
-import type { ConnectionProtocol } from "@/types/connection";
 
 export const IMPLEMENTED_REMOTE_PROTOCOLS = ["ssh", "sftp"] as const;
 
 export type ImplementedRemoteProtocol =
   (typeof IMPLEMENTED_REMOTE_PROTOCOLS)[number];
 
-export const REMOTE_DESKTOP_PROTOCOLS = ["rdp", "vnc"] as const;
-
-export type RemoteDesktopProtocol = (typeof REMOTE_DESKTOP_PROTOCOLS)[number];
-
-export const UNIMPLEMENTED_REMOTE_PROTOCOLS = ["ftp", "ftps"] as const;
-
-export type UnimplementedRemoteProtocol =
-  (typeof UNIMPLEMENTED_REMOTE_PROTOCOLS)[number];
-
-export type RemoteProtocol = Exclude<ConnectionProtocol, "local">;
+export type RemoteProtocol = ImplementedRemoteProtocol;
 
 export const REMOTE_PROTOCOL_SELECT_OPTIONS: Array<{
   protocol: RemoteProtocol;
-  disabled: boolean;
 }> = [
-  { protocol: "ssh", disabled: false },
-  { protocol: "sftp", disabled: false },
-  { protocol: "rdp", disabled: false },
-  { protocol: "vnc", disabled: false },
-  { protocol: "ftp", disabled: true },
-  { protocol: "ftps", disabled: true },
+  { protocol: "ssh" },
+  { protocol: "sftp" },
 ];
 
-export function isImplementedRemoteProtocol(
-  protocol: ConnectionProtocol,
-): protocol is ImplementedRemoteProtocol {
+export function isSupportedRemoteProtocol(
+  protocol: string,
+): protocol is RemoteProtocol {
   return protocol === "ssh" || protocol === "sftp";
-}
-
-export function isRemoteDesktopProtocol(
-  protocol: ConnectionProtocol,
-): protocol is RemoteDesktopProtocol {
-  return protocol === "rdp" || protocol === "vnc";
-}
-
-export function isUnimplementedFileProtocol(
-  protocol: ConnectionProtocol,
-): protocol is UnimplementedRemoteProtocol {
-  return protocol === "ftp" || protocol === "ftps";
 }
 
 export function protocolOptionLabel(
   t: TFunction,
   protocol: RemoteProtocol,
-  disabled: boolean,
 ): string {
-  const label = t(`common:protocol.${protocol}`);
-  return disabled ? `${label} (${t("connections:protocol.comingSoon")})` : label;
+  return t(`common:protocol.${protocol}`);
 }

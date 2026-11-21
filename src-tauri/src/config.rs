@@ -20,17 +20,15 @@ const CONFIG_FILE_NAME: &str = "config.toml";
 const CONFIG_VERSION: u32 = 1;
 
 pub const SECTION_APP_SETTINGS: &str = "app_settings";
-pub const SECTION_SIDEBAR_LAYOUT: &str = "sidebar_layout";
-pub const SECTION_HOSTS_LAYOUT: &str = "hosts_layout";
 pub const SECTION_SESSION_PRIVILEGES: &str = "session_privileges";
 pub const SECTION_SHELL_LAYOUT: &str = "shell_layout";
+pub const SECTION_WORKSPACES: &str = "workspaces";
 
-const UI_SECTIONS: [&str; 5] = [
+const UI_SECTIONS: [&str; 4] = [
     SECTION_APP_SETTINGS,
-    SECTION_SIDEBAR_LAYOUT,
-    SECTION_HOSTS_LAYOUT,
     SECTION_SESSION_PRIVILEGES,
     SECTION_SHELL_LAYOUT,
+    SECTION_WORKSPACES,
 ];
 
 /// A trusted SSH host key entry.
@@ -60,13 +58,11 @@ pub struct PuckConfigFile {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub app_settings: Option<Value>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub sidebar_layout: Option<Value>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub hosts_layout: Option<Value>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub session_privileges: Option<Value>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub shell_layout: Option<Value>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub workspaces: Option<Value>,
 }
 
 fn default_config_version() -> u32 {
@@ -175,10 +171,10 @@ impl PuckConfigStore {
         let config = lock_or_recover(&self.config);
         let mut sections = HashMap::new();
         for section in UI_SECTIONS {
-            if let Some(value) = section_value(&config, section) {
-                if let Ok(serialized) = serde_json::to_string(value) {
-                    sections.insert(section.to_string(), serialized);
-                }
+            if let Some(value) = section_value(&config, section)
+                && let Ok(serialized) = serde_json::to_string(value)
+            {
+                sections.insert(section.to_string(), serialized);
             }
         }
         sections
@@ -188,10 +184,9 @@ impl PuckConfigStore {
 fn section_value<'a>(config: &'a PuckConfigFile, section: &str) -> Option<&'a Value> {
     match section {
         SECTION_APP_SETTINGS => config.app_settings.as_ref(),
-        SECTION_SIDEBAR_LAYOUT => config.sidebar_layout.as_ref(),
-        SECTION_HOSTS_LAYOUT => config.hosts_layout.as_ref(),
         SECTION_SESSION_PRIVILEGES => config.session_privileges.as_ref(),
         SECTION_SHELL_LAYOUT => config.shell_layout.as_ref(),
+        SECTION_WORKSPACES => config.workspaces.as_ref(),
         _ => None,
     }
 }
@@ -203,10 +198,9 @@ fn set_section_value(
 ) -> Result<(), String> {
     match section {
         SECTION_APP_SETTINGS => config.app_settings = value,
-        SECTION_SIDEBAR_LAYOUT => config.sidebar_layout = value,
-        SECTION_HOSTS_LAYOUT => config.hosts_layout = value,
         SECTION_SESSION_PRIVILEGES => config.session_privileges = value,
         SECTION_SHELL_LAYOUT => config.shell_layout = value,
+        SECTION_WORKSPACES => config.workspaces = value,
         _ => {
             return Err(format!("unknown config section: {section}"));
         }

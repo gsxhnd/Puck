@@ -24,11 +24,9 @@ import { buildTabLabel, extractOsc7Cwd } from "@/lib/session-display";
 import { applyTerminalFont, applyTerminalTheme } from "@/lib/apply-terminal-appearance";
 import { buildTerminalOptions } from "@/lib/terminal-options";
 import { registerTerminal, unregisterTerminal } from "@/lib/terminal-registry";
-import { trackTerminalCommandInput } from "@/lib/track-terminal-command";
 import { bindTerminalBell } from "@/lib/terminal-bell";
 import { bindCopyOnSelect } from "@/lib/terminal-copy-on-select";
 import { useSessionPrivilegesStore } from "@/stores/session-privileges-store";
-import { useCommandOutlineStore } from "@/stores/command-outline-store";
 import { useTerminalTheme } from "@/hooks/use-terminal-theme";
 import { getTerminalThemeSnapshot } from "@/lib/terminal-theme-bridge";
 import { cn } from "@/lib/utils";
@@ -71,7 +69,6 @@ export function TerminalPane({
 
   const tRef = useRef(t);
   tRef.current = t;
-  const commandInputRef = useRef({ buffer: "" });
 
   useEffect(() => {
     const container = containerRef.current;
@@ -100,7 +97,6 @@ export function TerminalPane({
     registerTerminal(sessionId, terminal, searchAddon);
 
     const dataDisposable = terminal.onData((data) => {
-      trackTerminalCommandInput(sessionId, terminal, data, commandInputRef.current);
       void writeTerminal(sessionId, data);
     });
 
@@ -208,8 +204,6 @@ export function TerminalPane({
       fitAddonRef.current = null;
       openedRef.current = false;
       unregisterTerminal(sessionId);
-      commandInputRef.current.buffer = "";
-      useCommandOutlineStore.getState().removeSession(sessionId);
     };
   }, [sessionId, shellId, removeSession, updateSessionMeta, updateSessionStatus]);
 

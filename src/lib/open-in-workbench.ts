@@ -19,6 +19,7 @@ import {
 } from "@/lib/editor-params";
 import { parsePuckError } from "@/lib/puck-error";
 import { useWorkbenchStore } from "@/stores/workbench-store";
+import { useWorkspaceStore } from "@/stores/workspace-store";
 
 function isTabOpen(documentId: string): boolean {
   return useWorkbenchStore
@@ -28,6 +29,10 @@ function isTabOpen(documentId: string): boolean {
 
 function activateTab(documentId: string): void {
   useWorkbenchStore.getState().setActiveTab(documentId);
+}
+
+function activeWorkspaceId(): string | undefined {
+  return useWorkspaceStore.getState().activeWorkspace?.id;
 }
 
 /** Opens a local or SFTP file as an editor tab in the main window. / 在主窗口以编辑器标签打开本地或 SFTP 文件。 */
@@ -94,6 +99,7 @@ export function openFileInWorkbench(args: {
         id: documentId,
         title: fileNameFromPath(path),
         path,
+        workspaceId: activeWorkspaceId(),
       });
     })();
     return;
@@ -118,5 +124,6 @@ export function openFileInWorkbench(args: {
     id: documentId,
     title: fileNameFromPath(path),
     path,
+    workspaceId: activeWorkspaceId(),
   });
 }

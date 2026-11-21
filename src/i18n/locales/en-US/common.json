@@ -1,7 +1,7 @@
 {
   "app": {
-    "name": "Puck Terminal",
-    "tagline": "Terminal and file transfer workspace"
+    "name": "Puck",
+    "tagline": "Lightweight local and remote code workbench"
   },
   "actions": {
     "newTerminal": "New Terminal",
@@ -21,7 +21,6 @@
   "nav": {
     "connections": "Connections",
     "sessions": "Sessions",
-    "transferQueue": "Transfer Queue",
     "commandPalette": "Command Palette",
     "primaryPanel": "Primary Panel",
     "mainPanel": "Main Panel",
@@ -38,11 +37,7 @@
   "protocol": {
     "local": "Local",
     "ssh": "SSH",
-    "sftp": "SFTP",
-    "ftp": "FTP",
-    "ftps": "FTPS",
-    "rdp": "RDP",
-    "vnc": "VNC"
+    "sftp": "SFTP"
   },
   "empty": {
     "noConnections": "No connection profiles yet",
@@ -59,6 +54,58 @@
     "maximize": "Maximize",
     "restore": "Restore",
     "close": "Close"
+  },
+  "workspace": {
+    "open": "Open Workspace",
+    "openLocal": "Open Local Folder",
+    "openRemote": "Open SSH Workspace",
+    "manageConnections": "Manage SSH Connections",
+    "missingProfile": "The SSH profile for this workspace no longer exists",
+    "noRemoteProfiles": "No SSH profiles yet",
+    "recent": "Recent",
+    "explorer": "Files",
+    "newFile": "New File",
+    "newFolder": "New Folder",
+    "newFileName": "New file name",
+    "newFolderName": "New folder name",
+    "rename": "Rename",
+    "renamePrompt": "Rename to",
+    "delete": "Delete",
+    "deleteConfirm": "Delete \"{{name}}\"? This cannot be undone.",
+    "git": "Git",
+    "ports": "Ports",
+    "terminal": "Workspace Terminal",
+    "welcomeTitle": "Open a workspace",
+    "welcomeDescription": "Edit a local project, or use remote files, terminals and Git over SSH in one window.",
+    "editorEmptyTitle": "No editor is open",
+    "editorEmptyDescription": "Choose a file in the explorer, or open a terminal to start working.",
+    "toggleSidebar": "Toggle Sidebar",
+    "hideTerminal": "Hide Terminal",
+    "showTerminal": "Show Terminal",
+    "portsRemoteOnly": "Open an SSH workspace to configure local port forwarding.",
+    "portsLoading": "Preparing port forwarding…",
+    "portsDisconnected": "Port forwarding is available after the SSH connection is ready.",
+    "noForwards": "No port forwards yet. Map a remote service to a safe loopback address.",
+    "addPort": "Add Port Forward",
+    "portDescription": "Listen on local 127.0.0.1 only. The target is resolved from the SSH server's perspective.",
+    "localPort": "Local Port",
+    "localPortHint": "Use 0 to assign a free port automatically",
+    "remoteHost": "Remote Target Host",
+    "remotePort": "Remote Target Port",
+    "startPort": "Start Forwarding",
+    "startingPort": "Starting…",
+    "stopPort": "Stop Forwarding",
+    "copyAddress": "Copy Local Address",
+    "addressCopied": "Local address copied",
+    "portInvalid": "Enter a valid host and ports (local 0–65535, remote 1–65535)",
+    "graph": "Commit Graph",
+    "graphEmpty": "This repository has no commits",
+    "graphLoading": "Loading…",
+    "graphLoadMore": "Load More Commits",
+    "graphCommit": "Commit",
+    "graphAuthor": "Author",
+    "graphParents": "Parents",
+    "graphRemotePending": "Remote Git Graph will be available through the shared SSH connection."
   },
   "errorBoundary": {
     "title": "Something went wrong",

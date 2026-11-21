@@ -60,17 +60,17 @@ pub fn build_app_menu(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
             &PredefinedMenuItem::separator(app)?,
             &MenuItem::with_id(
                 app,
-                "toggle_primary_panel",
-                "Toggle Primary Panel",
+                "toggle_sidebar",
+                "Toggle Sidebar",
                 true,
-                Some("CmdOrCtrl+Shift+L"),
+                Some("CmdOrCtrl+B"),
             )?,
             &MenuItem::with_id(
                 app,
-                "toggle_second_panel",
-                "Toggle Secondary Panel",
+                "toggle_terminal",
+                "Toggle Terminal",
                 true,
-                Some("CmdOrCtrl+Shift+R"),
+                Some("CmdOrCtrl+J"),
             )?,
         ],
     )?;

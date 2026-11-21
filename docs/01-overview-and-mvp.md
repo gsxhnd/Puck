@@ -1,117 +1,143 @@
-# Puck Terminal 文档：产品总览与当前能力
+# Puck 文档：产品总览与当前能力
 
 ## 1. 产品定位
 
-Puck Terminal 是一个基于 Tauri 的桌面终端与文件传输工作台，面向需要同时处理本地 shell、远程 SSH、SFTP 文件操作和项目上下文信息的开发者与运维用户。
+Puck 是一个轻量级的本地 / 远程代码工作台。它面向需要在同一个窗口中浏览文件、编辑文本、运行终端、查看 Git 历史并维护 SSH 端口转发的开发者，但不试图成为 VS Code 或完整 IDE。
 
-当前阶段已经不是单纯的基础搭建。应用已经形成三栏工作台：左侧管理会话和主机，中间承载终端/文件工作区，右侧提供信息、文件、Git、命令大纲和传输队列等辅助视图。后续工作应优先围绕稳定性、跨平台一致性、错误可理解性和持久化边界收敛。
+核心取舍：
+
+- **编辑与终端同级**：两者都有一等标签、快捷键、布局调整和独立生命周期。
+- **Workspace 优先**：文件树、Git、新终端默认目录和端口转发都绑定当前 Workspace，而不是跟随某个终端的 `cd`。
+- **本地与远程体验一致**：远程文件、终端、Git 和转发在 UI 上与本地保持同一套操作。
+- **轻量边界**：不提供 LSP、调试器、任务系统、插件系统；Monaco 只使用 standalone 编辑器内核和 Monarch 基础高亮。
 
 ## 2. 当前核心能力
 
-### 本地终端
+### Workspace
 
-- 通过 Rust 后端创建本地 PTY。
-- 前端使用 xterm.js 渲染终端输入输出。
-- 支持默认 shell 和可选 shell 会话。
-- 支持 resize、复制粘贴、链接识别、终端搜索、复制选中内容、终端主题和字体设置。
-- 通过 OSC 7 更新当前工作目录，并用于标题、文件面板、Git 面板和当前目录操作。
+- 一个主窗口打开一个本地目录或一个 SSH 远端目录。
+- 左侧提供 Files / Git / Ports 三个视图。
+- Workspace、最近工作区、侧栏可见性、终端可见性和布局跨重启持久化。
+- 切换 Workspace 时，编辑器 / Diff / Graph 标签按 `workspaceId` 隔离；运行中的终端保留自身租约，不因隐藏而中断。
 
-### SSH 终端
+### 文件与编辑
 
-- 支持创建、编辑、复制、删除 SSH 连接配置。
-- 支持密码认证和私钥认证。
-- 支持保存凭据到系统钥匙串，也支持每次连接时临时输入密码或私钥口令。
-- 首次连接未知 host key 时弹出确认，并将信任记录写入 `known_hosts.json`。
-- 支持远程交互式 shell、输入输出、resize、断线状态展示和手动重连。
+- 本地与远程文件树均支持：
+  - 面包屑导航；
+  - 隐藏文件切换；
+  - 懒加载子目录；
+  - 新建文件、新建目录、重命名、删除；
+  - 双击文件进入 Monaco 编辑器。
+- Monaco：
+  - 多编辑器标签；
+  - dirty 标记与关闭前确认；
+  - `Cmd/Ctrl+S` 保存；
+  - 保存失败保留 dirty 状态；
+  - 双栏只读 Diff；
+  - 本地文件原子写入；
+  - 远程文件通过 SFTP 读写。
+- 编辑器区域没有标签时显示空状态；终端可以独立继续使用。
 
-### SFTP 文件管理
+### 终端
 
-- SSH / SFTP 连接可以打开远程文件管理器。
-- SSH 终端右侧 Files 面板也可以建立独立 SFTP explorer session，并跟随远程工作目录。
-- 支持远程目录浏览、路径面包屑、隐藏文件切换、刷新、进入目录和返回上级。
-- 支持上传、下载、新建目录、删除、重命名。
-- 上传下载通过后端流式传输，并向前端推送进度、完成和失败事件。
-- 传输队列支持进度展示、失败重试和清除已完成任务。
+- 本地：Rust PTY + xterm.js，支持默认 shell / 指定 shell、resize、复制粘贴、链接、搜索、分屏。
+- SSH：密码 / 私钥认证、系统钥匙串、每次询问、Host Key 确认、断线状态和手动重连。
+- 终端拥有独立标签栏，新建、关闭、隐藏 / 显示不影响编辑器。
+- SSH 终端在共享 SSH 连接上打开独立 shell channel。
 
-### 工作区与详情面板
+### Git
 
-- 左侧主侧栏包含 Sessions 和 Hosts 两个页签。
-- Sessions 支持会话分组、排序、拖拽重排、自定义分组、重命名和关闭。
-- Hosts 支持远程主机分组、排序、拖拽、编辑、删除和连接。
-- 中间主工作区支持本地终端、SSH 终端和独立文件管理器标签。
-- 右侧详情面板包含 Info、Files、Git、Outline、Transfers 五个视图。
-- Files 视图对本地终端显示本地目录，对 SSH 终端显示远程目录。
-- Git 视图显示本地终端工作目录的分支、暂存、未暂存和未跟踪文件。
-- Outline 视图记录当前终端已输入命令，支持跳转到对应缓冲区位置。
-- Transfers 视图显示 SFTP 上传下载队列。
+- 左侧 Source Control：
+  - status（porcelain v2）；
+  - staged / unstaged / untracked 分组；
+  - 文件 Diff；
+  - stage / unstage / discard；
+  - commit；
+  - 分支切换；
+  - fetch / pull / push；
+  - ahead / behind。
+- 本地 Git 直接调用本机 CLI。
+- 远程 Git 通过共享 SSH 执行远端 CLI，参数逐个 POSIX 引用，`GIT_TERMINAL_PROMPT=0`。
+- 网络操作失败时保留终端降级入口，用户可以在终端输入凭据。
 
-### 命令面板、搜索与分屏
+### Git Graph
 
-- 命令面板支持前缀范围：连接、视图、当前目录、打开应用和动作。
-- 支持从命令面板打开本地 shell、已保存连接、快速连接、设置窗口和详情视图。
-- 支持当前目录复制、Finder reveal 和用外部应用打开；外部应用打开目前只支持 macOS。
-- 终端搜索支持当前标签和全部标签，支持大小写、全词、正则和选区范围。
-- 终端支持两窗格分屏，方向包括左、右、上、下；当前不是任意多窗格树。
+- 中央标签展示 `git log --all --topo-order` 的 DAG。
+- 支持：
+  - 分支 / tag 装饰；
+  - 提交主题、作者、日期；
+  - 父提交详情；
+  - 分页加载；
+  - merge / fork lane 布局；
+  - 分页缺失父提交时绘制到当前页底部。
+- Graph 是只读视图，不在首版提供 rebase / cherry-pick / interactive 操作。
 
-### 设置与多窗口
+### SSH local port forwarding
 
-- Settings 独立窗口包含 General、Appearance、Terminal、Connections、Keyboard、About 六个区段。
-- Connections 独立窗口用于管理远程连接，并可请求主窗口打开连接。
-- 设置和连接配置通过 `puck:config-changed` 事件在窗口间同步。
-- macOS 提供原生菜单栏入口，常用菜单动作会转发到主窗口处理。
+- 等价 `ssh -L`：
+  - 只监听 `127.0.0.1` 或 `::1`；
+  - 本地端口可填 `0` 自动分配；
+  - 目标 host 从 SSH server 视角解析，支持远端 `localhost` 与域名；
+  - 每个本地 TCP 连接独立 direct-tcpip channel；
+  - stop 同步回收 listener 与全部 relay；
+  - SSH 断开时自动停止并释放租约。
 
-## 3. 当前明确限制
+### 设置与连接
 
-- FTP / FTPS 在连接类型中保留以便后续扩展，但连接表单中已禁用并标注「即将支持」，无法创建或连接。
-- SSH Agent、ProxyJump、端口转发、目录同步、远程文件预览和远程文件编辑暂未实现。
-- 传输任务支持失败重试，但取消、暂停、恢复还不是完整能力。
-- 快捷键已有固定实现和只读说明，但暂不支持用户自定义。
-- `open_path_in_app` 目前仅支持 macOS，非 macOS 平台会返回“不支持”错误。
-- `hosts_layout` 前端持久化 key 尚未被 Rust 配置区段白名单接纳，主机分组布局暂不承诺跨重启可靠持久化。
-- 当前没有独立测试脚本或测试文件，主要依赖构建检查和手动验收。
+- Connections 只支持 SSH / SFTP。
+- Settings / Connections 独立窗口。
+- 跨窗口通过 `puck:config-changed` 同步。
+- 历史 FTP / FTPS / RDP / VNC 配置在 rehydrate 时过滤，不再显示“即将支持”。
+
+## 3. 明确边界
+
+**永不做：**
+
+- LSP / 语义语言服务 / 语言 worker；
+- 插件系统与运行时扩展 API；
+- 调试器与任务系统；
+- IDE 级重构 / 定义跳转 / 跨文件诊断。
+
+**当前不做：**
+
+- Tree-sitter：Monaco Monarch 高亮已可用；Tree-sitter 只是未来可选高亮增强。
+- SSH remote forward（`-R`）与 dynamic / SOCKS forward（`-D`）。
+- SSH Agent、ProxyJump、目录同步。
+- 用户自定义快捷键。
+
+**已删除：**
+
+- FTP / FTPS 协议类型与占位。
+- RDP / VNC 远程桌面骨架、类型、命令、证书 UI 和 i18n namespace。
 
 ## 4. 主要用户流程
 
-### 打开本地终端
+### 本地代码工作流
 
-1. 用户启动应用。
-2. 应用根据设置决定是否自动打开默认本地终端。
-3. 用户可以从左侧添加按钮、命令面板或 macOS 菜单打开默认 shell 或指定 shell。
-4. xterm.js 将用户输入转发给 Rust PTY，并渲染后端输出。
-5. 工作目录变化会更新标题、右侧 Files / Git 面板和当前目录命令。
+1. 通过 Workspace 切换器打开本地目录。
+2. 左侧 Files 浏览文件，双击打开编辑器。
+3. 底部终端默认在 Workspace 根目录启动。
+4. 编辑器保存后本地 watcher 触发文件树与 Git 面板静默刷新。
+5. Git 面板执行 stage / commit / push；Graph 查看全分支历史。
 
-### 打开 SSH 终端
+### 远程代码工作流
 
-1. 用户在 Hosts 中创建或选择 SSH 连接，也可以使用快速连接。
-2. 如选择保存密码或私钥口令，敏感信息写入系统钥匙串；如选择每次询问，则只在当前连接尝试中临时使用。
-3. 首次连接新主机时，用户确认 host key。
-4. 连接成功后打开远程 shell 标签。
-5. 断开后展示状态，用户可以手动重连。
-
-### 使用 SFTP 文件管理
-
-1. 用户从 SSH / SFTP profile 打开文件管理器，或在 SSH 终端右侧 Files 面板浏览远程目录。
-2. 应用建立独立 SFTP 会话。
-3. 用户浏览目录并执行上传、下载、新建目录、删除、重命名。
-4. 传输任务进入队列，显示进度、完成或失败状态。
-
-### 使用命令面板
-
-1. 用户通过 `Cmd/Ctrl + Shift + P` 打开命令面板。
-2. 用户选择范围，例如连接、视图、当前目录或打开应用。
-3. 命令面板执行打开终端、连接远程、切换面板、搜索、复制路径等操作。
+1. 打开 SSH Workspace，后端建立 Workspace 基础 SSH 租约。
+2. 首次连接由 RemoteWorkspaceConnection 处理凭据与 Host Key。
+3. Files 通过 SFTP channel 浏览并编辑远端文件。
+4. Git 命令通过短期 SSH exec channel 在远端执行。
+5. Ports 添加 local forward，把远端服务映射到本机 loopback。
+6. 关闭 Workspace 时先停止 forwards，再释放基础租约；终端 / SFTP / Git 各自释放自己的租约，最后一个释放者断开 SSH。
 
 ## 5. 术语
 
 | 术语 | 定义 |
 | --- | --- |
-| Profile | 可复用的连接配置，包括协议、主机、端口、用户名、认证方式、默认目录等 |
-| Ephemeral Profile | 快速连接创建的临时 Profile，不持久化，最后一个引用会话关闭后清理凭据 |
-| Session | 运行中的终端或文件连接实例，对应一个前端标签和一个后端资源 |
-| Credential | 密码、私钥口令等敏感信息，通过系统钥匙串保存或当前连接临时传递 |
-| Terminal Pane | 承载 xterm.js 实例的终端区域 |
-| File Manager | 独立 SFTP 远程文件浏览和操作界面 |
-| Detail Files Panel | 右侧详情面板中的轻量文件浏览视图，可显示本地或远程目录 |
-| Transfer Queue | 上传下载任务列表，接收后端进度事件 |
-| Known Hosts | 已信任的 SSH 主机密钥记录 |
-| Command Outline | 根据终端输入记录的命令列表，可跳转到终端缓冲区位置 |
+| Workspace | 一个本地目录或 SSH 远端目录，是 Files / Git / Ports / 编辑器 / 终端的共同上下文 |
+| Workspace Lease | 活动远程 Workspace 持有的基础 SSH 连接租约 |
+| Owner ID | 终端、SFTP、Graph、Tunnel 等使用者持有的共享 SSH 租约标识 |
+| Open Generation | 每次 SSH 打开尝试的编号，用于丢弃迟到的旧连接 |
+| Profile | SSH / SFTP 连接配置，不含明文密码 |
+| Session | 运行中的终端或 SFTP 逻辑会话 |
+| Document | Monaco 编辑器中的本地 / 远程文件 |
+| Known Hosts | 已信任的 SSH 主机密钥 |

@@ -12,7 +12,12 @@ import type {
   GitNetworkErrorKind,
   GitNetworkResult,
   GitStatusResult,
+  GitGraphCommit,
 } from "@/types/workspace";
+
+function gitCommand(local: string, remote: string, connectionId?: string): string {
+  return connectionId ? remote : local;
+}
 
 const NETWORK_ERROR_KINDS = new Set([
   "auth",
@@ -36,18 +41,27 @@ function parseGitNetworkResult(value: unknown): GitNetworkResult {
 }
 
 /** Fetches all remotes with pruning. / 拉取全部远端并清理已删除引用。 */
-export function gitFetch(path: string): Promise<GitNetworkResult> {
-  return invoke<unknown>("git_fetch", { path }).then(parseGitNetworkResult);
+export function gitFetch(path: string, connectionId?: string): Promise<GitNetworkResult> {
+  return invoke<unknown>(gitCommand("git_fetch", "remote_git_fetch", connectionId), {
+    path,
+    connectionId,
+  }).then(parseGitNetworkResult);
 }
 
 /** Fast-forward only pull. / 仅快进的拉取。 */
-export function gitPull(path: string): Promise<GitNetworkResult> {
-  return invoke<unknown>("git_pull", { path }).then(parseGitNetworkResult);
+export function gitPull(path: string, connectionId?: string): Promise<GitNetworkResult> {
+  return invoke<unknown>(gitCommand("git_pull", "remote_git_pull", connectionId), {
+    path,
+    connectionId,
+  }).then(parseGitNetworkResult);
 }
 
 /** Pushes the current branch (auto-publishes without upstream). / 推送当前分支（无 upstream 时自动发布）。 */
-export function gitPush(path: string): Promise<GitNetworkResult> {
-  return invoke<unknown>("git_push", { path }).then(parseGitNetworkResult);
+export function gitPush(path: string, connectionId?: string): Promise<GitNetworkResult> {
+  return invoke<unknown>(gitCommand("git_push", "remote_git_push", connectionId), {
+    path,
+    connectionId,
+  }).then(parseGitNetworkResult);
 }
 
 function parseGitFileStatus(value: unknown) {
@@ -101,8 +115,11 @@ function parseGitStatusResult(value: unknown): GitStatusResult {
 }
 
 /** Reads the aggregate status of a local git workspace. / 读取本地 git 工作区的聚合状态。 */
-export async function gitStatus(path: string): Promise<GitStatusResult> {
-  const result = await invoke<unknown>("git_status", { path });
+export async function gitStatus(path: string, connectionId?: string): Promise<GitStatusResult> {
+  const result = await invoke<unknown>(
+    gitCommand("git_status", "remote_git_status", connectionId),
+    { path, connectionId },
+  );
   return parseGitStatusResult(result);
 }
 
@@ -115,44 +132,64 @@ export async function gitBlobContent(
   path: string,
   file: string,
   revision: "index" | "head",
+  connectionId?: string,
 ): Promise<string | null> {
-  const result = await invoke<unknown>("git_blob_content", {
-    path,
-    file,
-    revision,
-  });
+  const result = await invoke<unknown>(
+    gitCommand("git_blob_content", "remote_git_blob_content", connectionId),
+    { path, file, revision, connectionId },
+  );
   return typeof result === "string" ? result : null;
 }
 
 /** Stages the given workspace-relative files. / 暂存指定的工作区相对路径文件。 */
-export function gitStage(path: string, files: string[]): Promise<void> {
-  return invoke("git_stage", { path, files });
+export function gitStage(path: string, files: string[], connectionId?: string): Promise<void> {
+  return invoke(gitCommand("git_stage", "remote_git_stage", connectionId), {
+    path,
+    files,
+    connectionId,
+  });
 }
 
 /** Unstages the given files. / 取消暂存指定文件。 */
-export function gitUnstage(path: string, files: string[]): Promise<void> {
-  return invoke("git_unstage", { path, files });
+export function gitUnstage(path: string, files: string[], connectionId?: string): Promise<void> {
+  return invoke(gitCommand("git_unstage", "remote_git_unstage", connectionId), {
+    path,
+    files,
+    connectionId,
+  });
 }
 
 /**
  * Discards unstaged worktree modifications for tracked files.
  * 放弃已跟踪文件未暂存的工作区修改（调用方必须先与用户确认）。
  */
-export function gitDiscard(path: string, files: string[]): Promise<void> {
-  return invoke("git_discard", { path, files });
+export function gitDiscard(path: string, files: string[], connectionId?: string): Promise<void> {
+  return invoke(gitCommand("git_discard", "remote_git_discard", connectionId), {
+    path,
+    files,
+    connectionId,
+  });
 }
 
 /** Commits the staged changes with the given message. / 以给定信息提交已暂存变更。 */
-export function gitCommit(path: string, message: string): Promise<void> {
-  return invoke("git_commit", { path, message });
+export function gitCommit(path: string, message: string, connectionId?: string): Promise<void> {
+  return invoke(gitCommand("git_commit", "remote_git_commit", connectionId), {
+    path,
+    message,
+    connectionId,
+  });
 }
 
 /** Reads a simplified local commit history. / 读取本地仓库的简洁提交历史。 */
 export async function gitLog(
   path: string,
   limit = 20,
+  connectionId?: string,
 ): Promise<GitCommitEntry[]> {
-  const result = await invoke<unknown>("git_log", { path, limit });
+  const result = await invoke<unknown>(
+    gitCommand("git_log", "remote_git_log", connectionId),
+    { path, limit, connectionId },
+  );
   if (!Array.isArray(result)) {
     throw new Error("Invalid git log response");
   }
@@ -168,9 +205,49 @@ export async function gitLog(
   });
 }
 
+/** Reads one page of DAG commits for the graph view. / 分页读取提交图 DAG 数据。 */
+export async function gitGraph(
+  path: string,
+  limit = 200,
+  skip = 0,
+  connectionId?: string,
+): Promise<GitGraphCommit[]> {
+  const result = await invoke<unknown>(
+    gitCommand("git_graph", "remote_git_graph", connectionId),
+    { path, limit, skip, connectionId },
+  );
+  if (!Array.isArray(result)) throw new Error("Invalid git graph response");
+  return result.flatMap((entry) => {
+    if (!isRecord(entry)) return [];
+    if (
+      typeof entry.hash !== "string" ||
+      typeof entry.shortHash !== "string" ||
+      typeof entry.author !== "string" ||
+      typeof entry.date !== "string" ||
+      typeof entry.subject !== "string" ||
+      !Array.isArray(entry.parents) ||
+      !Array.isArray(entry.refs)
+    ) {
+      return [];
+    }
+    return [{
+      hash: entry.hash,
+      shortHash: entry.shortHash,
+      author: entry.author,
+      date: entry.date,
+      subject: entry.subject,
+      parents: entry.parents.filter((value): value is string => typeof value === "string"),
+      refs: entry.refs.filter((value): value is string => typeof value === "string"),
+    }];
+  });
+}
+
 /** Lists local branches with the current one marked. / 列出本地分支并标记当前检出分支。 */
-export async function gitBranches(path: string): Promise<GitBranchEntry[]> {
-  const result = await invoke<unknown>("git_branches", { path });
+export async function gitBranches(path: string, connectionId?: string): Promise<GitBranchEntry[]> {
+  const result = await invoke<unknown>(
+    gitCommand("git_branches", "remote_git_branches", connectionId),
+    { path, connectionId },
+  );
   if (!Array.isArray(result)) {
     throw new Error("Invalid git branches response");
   }
@@ -185,6 +262,10 @@ export async function gitBranches(path: string): Promise<GitBranchEntry[]> {
 }
 
 /** Checks out a branch; git refuses when the worktree conflicts. / 切换分支；工作区冲突时 git 拒绝并透出错误。 */
-export function gitCheckout(path: string, branch: string): Promise<void> {
-  return invoke("git_checkout", { path, branch });
+export function gitCheckout(path: string, branch: string, connectionId?: string): Promise<void> {
+  return invoke(gitCommand("git_checkout", "remote_git_checkout", connectionId), {
+    path,
+    branch,
+    connectionId,
+  });
 }

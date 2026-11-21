@@ -1,76 +1,33 @@
-import { toast } from "sonner";
-import i18n from "@/i18n";
-import type { ConnectionProfile } from "@/types/connection";
-import type { Session } from "@/types/connection";
+/**
+ * Opens a saved profile as the active workspace.
+ *
+ * 打开保存的连接配置并切换到对应 Workspace。SSH 会同时创建一个 Workspace
+ * 终端；SFTP 只打开远程文件工作区，由用户按需创建终端。
+ */
+import type { ConnectionProfile, Session } from "@/types/connection";
 import {
-  isImplementedRemoteProtocol,
-  isRemoteDesktopProtocol,
-} from "@/lib/connection-protocol";
-import { openRemoteDesktopSession } from "@/lib/remote-desktop-session";
-import { buildProfileSessionRequest } from "@/lib/open-connection-profile";
-import { prepareProfileConnection } from "@/lib/resolve-connection-credential";
-import { requestSessionReconnect } from "@/lib/reconnect-session";
-import { useSessionStore } from "@/stores/session-store";
-import { useShellUiStore } from "@/stores/shell-ui-store";
+  createWorkspaceTerminal,
+  openRemoteWorkspace,
+  waitForRemoteWorkspaceReady,
+} from "@/lib/workspace-actions";
+import { useWorkspaceStore } from "@/stores/workspace-store";
 
-/** Opens or focuses a saved profile session and switches to the sessions tab. */
 export async function openProfileSession(
   profile: ConnectionProfile,
 ): Promise<Session | null> {
-  // Remote desktop profiles live in the workbench, not the session tabs.
-  // 远程桌面配置进入工作台标签，而不是会话标签栏。
-  if (isRemoteDesktopProtocol(profile.protocol)) {
-    openRemoteDesktopSession(profile);
-    return null;
-  }
-
-  if (
-    profile.protocol !== "local" &&
-    !isImplementedRemoteProtocol(profile.protocol)
-  ) {
-    toast.error(i18n.t("connections:protocolNotSupported.title"), {
-      description: i18n.t("connections:protocolNotSupported.description"),
-    });
-    return null;
-  }
-
-  const request = buildProfileSessionRequest(profile);
-  const sessionState = useSessionStore.getState();
-
-  useShellUiStore.getState().showSessionPanel();
-
-  if (request.profileId) {
-    const existing = sessionState.sessions.find(
-      (session) =>
-        session.profileId === request.profileId &&
-        session.kind === request.kind,
-    );
-
-    if (existing) {
-      sessionState.setActiveSession(existing.id);
-
-      if (
-        existing.status === "connected" ||
-        existing.status === "creating" ||
-        existing.status === "reconnecting"
-      ) {
-        return existing;
-      }
-
-      const ready = await prepareProfileConnection(profile);
-      if (!ready) {
-        return null;
-      }
-
-      requestSessionReconnect(existing);
-      return existing;
+  if (profile.protocol === "ssh" || profile.protocol === "sftp") {
+    openRemoteWorkspace(profile);
+    if (profile.protocol === "ssh" && (await waitForRemoteWorkspaceReady())) {
+      await createWorkspaceTerminal();
     }
-  }
-
-  const ready = await prepareProfileConnection(profile);
-  if (!ready) {
     return null;
   }
 
-  return sessionState.addSession(request);
+  if (profile.protocol === "local") {
+    useWorkspaceStore.getState().openLocalWorkspace("~");
+    await createWorkspaceTerminal();
+    return null;
+  }
+
+  return null;
 }

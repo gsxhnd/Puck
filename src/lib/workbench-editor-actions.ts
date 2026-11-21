@@ -7,12 +7,9 @@
  */
 import i18n from "@/i18n";
 import { toast } from "sonner";
-import { invoke } from "@tauri-apps/api/core";
 import { getEditorDocumentManager } from "@/editor/editor-document-manager";
 import { releaseEditorSftpSession } from "@/editor/remote-session-registry";
-import { forgetRemoteDesktopSession } from "@/lib/remote-desktop-session";
 import { parsePuckError } from "@/lib/puck-error";
-import { useRemoteDesktopCertStore } from "@/stores/remote-desktop-cert-store";
 import { useWorkbenchStore } from "@/stores/workbench-store";
 
 /**
@@ -66,19 +63,6 @@ export function closeTabWithConfirm(tabId: string): void {
     if (doc?.meta.source === "remote" && doc.meta.sessionId) {
       releaseEditorSftpSession(doc.meta.sessionId);
     }
-  }
-
-  // Best-effort backend cleanup for remote desktop tabs; the skeleton backend
-  // already removes the session on failure.
-  // 远程桌面标签的后端清理（尽力而为）；骨架后端在失败时已自行清理。
-  if (tab?.kind === "remoteDesktop") {
-    void invoke("stop_remote_desktop", { sessionId: tab.sessionId }).catch(
-      () => {
-        // Ignore stop failures. 忽略停止失败。
-      },
-    );
-    forgetRemoteDesktopSession(tab.sessionId);
-    useRemoteDesktopCertStore.getState().clearPrompt(tab.sessionId);
   }
 
   useWorkbenchStore.getState().closeTab(tabId);

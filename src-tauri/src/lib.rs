@@ -16,7 +16,8 @@ mod git;
 mod known_hosts;
 #[cfg(target_os = "macos")]
 mod macos_menu;
-mod remote_desktop;
+mod port_forward;
+mod remote_git;
 mod runtime;
 mod session;
 mod settings_window;
@@ -24,9 +25,7 @@ mod sftp;
 mod shell;
 mod ssh;
 mod sync_mutex;
-mod system_monitor;
 mod terminal;
-mod transfer;
 mod utf8_stream;
 mod workspace;
 mod watch;
@@ -118,7 +117,7 @@ pub fn run() {
     {
         builder = builder
             .enable_macos_default_menu(false)
-            .menu(|app| macos_menu::build_app_menu(app))
+            .menu(macos_menu::build_app_menu)
             .on_menu_event(|app, event| {
                 macos_menu::handle_menu_event(app, event);
             });
@@ -143,12 +142,13 @@ pub fn run() {
             terminal::close_session,
             ssh::open_ssh_terminal,
             ssh::reconnect_ssh_terminal,
+            ssh::ensure_ssh_connection,
+            ssh::release_ssh_connection,
             sftp::open_file_connection,
             sftp::list_remote_dir,
             sftp::mkdir_remote,
             sftp::delete_remote,
             sftp::rename_remote,
-            sftp::start_transfer,
             sftp::read_remote_file_command,
             sftp::write_remote_file_command,
             credential::save_credential,
@@ -178,6 +178,9 @@ pub fn run() {
             connections_window::open_connections_window,
 
             workspace::list_local_dir,
+            workspace::mkdir_local,
+            workspace::delete_local,
+            workspace::rename_local,
             workspace::read_local_file,
             workspace::write_local_file,
             git::git_status,
@@ -187,21 +190,31 @@ pub fn run() {
             git::git_discard,
             git::git_commit,
             git::git_log,
+            git::git_graph,
             git::git_branches,
             git::git_checkout,
             git::git_fetch,
             git::git_pull,
             git::git_push,
+            remote_git::remote_git_status,
+            remote_git::remote_git_blob_content,
+            remote_git::remote_git_stage,
+            remote_git::remote_git_unstage,
+            remote_git::remote_git_discard,
+            remote_git::remote_git_commit,
+            remote_git::remote_git_log,
+            remote_git::remote_git_graph,
+            remote_git::remote_git_branches,
+            remote_git::remote_git_checkout,
+            remote_git::remote_git_fetch,
+            remote_git::remote_git_pull,
+            remote_git::remote_git_push,
             watch::start_workspace_watch,
             watch::stop_workspace_watch,
-            remote_desktop::start_remote_desktop,
-            remote_desktop::stop_remote_desktop,
-            remote_desktop::list_remote_desktop_sessions,
-            remote_desktop::trust_rdp_host,
-            remote_desktop::is_rdp_host_trusted,
             workspace::open_path_in_app,
-            system_monitor::get_system_stats,
-            system_monitor::get_remote_system_stats,
+            port_forward::start_local_port_forward,
+            port_forward::stop_local_port_forward,
+            port_forward::list_local_port_forwards,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

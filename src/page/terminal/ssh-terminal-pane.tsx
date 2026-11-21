@@ -36,13 +36,10 @@ import {
 import { applyTerminalFont, applyTerminalTheme } from "@/lib/apply-terminal-appearance";
 import { buildTerminalOptions } from "@/lib/terminal-options";
 import { registerTerminal, unregisterTerminal } from "@/lib/terminal-registry";
-import { trackTerminalCommandInput } from "@/lib/track-terminal-command";
-import { useCommandOutlineStore } from "@/stores/command-outline-store";
 import { bindTerminalBell } from "@/lib/terminal-bell";
 import { bindCopyOnSelect } from "@/lib/terminal-copy-on-select";
 import { RECONNECT_SESSION_EVENT } from "@/lib/reconnect-session";
 import { useSessionPrivilegesStore } from "@/stores/session-privileges-store";
-import { useShellUiStore } from "@/stores/shell-ui-store";
 import {
   clearConnectionSecrets,
   markConnectionEstablished,
@@ -104,7 +101,6 @@ export function SshTerminalPane({
 
   const tRef = useRef(t);
   tRef.current = t;
-  const commandInputRef = useRef({ buffer: "" });
   const connectRef = useRef<(cols: number, rows: number) => Promise<void>>(
     async () => {},
   );
@@ -139,7 +135,6 @@ export function SshTerminalPane({
     registerTerminal(sessionId, terminal, searchAddon);
 
     const dataDisposable = terminal.onData((data) => {
-      trackTerminalCommandInput(sessionId, terminal, data, commandInputRef.current);
       void writeTerminal(sessionId, data);
     });
     const resizeDisposable = terminal.onResize(({ cols, rows }) => {
@@ -176,7 +171,13 @@ export function SshTerminalPane({
       }
 
       void openSshTerminal({
-        ...profileToSshRequest(sessionId, liveProfile, cols, rows),
+        ...profileToSshRequest(
+          sessionId,
+          liveProfile,
+          cols,
+          rows,
+          useSessionStore.getState().sessions.find((item) => item.id === sessionId)?.cwd,
+        ),
         ...secrets,
       });
     };
@@ -212,7 +213,6 @@ export function SshTerminalPane({
       const unlistenStatusFn = await onSessionStatus((event) => {
         if (event.sessionId !== sessionId || disposed) return;
         if (event.errorCode === "host_key_unknown" && event.hostKey) {
-          useShellUiStore.getState().showSessionPanel();
           setHostKeyPrompt(event.hostKey);
           setPendingConnect({
             cols: Math.max(terminal.cols, 2),
@@ -297,9 +297,10 @@ export function SshTerminalPane({
       unlistenData?.();
       unlistenExit?.();
       unlistenStatus?.();
-      if (openedRef.current) {
-        void closeBackendSession(sessionId);
-      }
+      // Always notify the backend, including the creating phase. The backend uses
+      // an open generation so a late handshake cannot register a stale session.
+      // 即使仍在 creating 阶段也通知后端关闭；后端用 generation 防止迟到连接注册。
+      void closeBackendSession(sessionId);
       void closeSftpExplorerSession(sessionId);
       const sessionStillOpen = useSessionStore
         .getState()
@@ -314,8 +315,6 @@ export function SshTerminalPane({
       fitAddonRef.current = null;
       openedRef.current = false;
       unregisterTerminal(sessionId);
-      commandInputRef.current.buffer = "";
-      useCommandOutlineStore.getState().removeSession(sessionId);
     };
   }, [
     profileId,

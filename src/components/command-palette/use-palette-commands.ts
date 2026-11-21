@@ -1,15 +1,19 @@
+/**
+ * Workspace-scoped command palette commands.
+ *
+ * 以 Workspace 为中心的命令面板：连接打开 Workspace，视图切换 Files / Git /
+ * Ports 与终端，路径命令作用于 Workspace root，而不是某个终端的临时 cwd。
+ */
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
+  CableIcon,
   CopyIcon,
   FilePlusIcon,
   FolderOpenIcon,
   FolderSearchIcon,
   GitBranchIcon,
-  InfoIcon,
-  ListTreeIcon,
   PanelLeftIcon,
-  PanelRightIcon,
   PlugZapIcon,
   PlusIcon,
   RotateCwIcon,
@@ -18,7 +22,6 @@ import {
   ServerIcon,
   SettingsIcon,
   SquareTerminalIcon,
-  UploadIcon,
   XIcon,
   ZapIcon,
 } from "lucide-react";
@@ -32,20 +35,24 @@ import {
 } from "@/lib/workbench-editor-actions";
 import { reloadAppWindow } from "@/lib/reload-app-window";
 import { openSettingsWindow } from "@/lib/open-settings-window";
+import { openConnectionsWindow } from "@/lib/open-connections-window";
 import { openProfileSession } from "@/lib/open-profile-session";
-import { getSessionPathDisplay } from "@/lib/session-display";
-import { activeWorkspaceCwd } from "@/lib/use-active-local-session";
+import {
+  chooseLocalWorkspace,
+  createWorkspaceTerminal,
+} from "@/lib/workspace-actions";
 import { isTauri } from "@/lib/platform";
 import { listShells } from "@/lib/tauri-terminal";
 import { useCommandPaletteStore } from "@/stores/command-palette-store";
 import { useConnectionStore } from "@/stores/connection-store";
-import { useSessionStore } from "@/stores/session-store";
-import { useShellUiStore } from "@/stores/shell-ui-store";
 import { useTerminalSearchStore } from "@/stores/terminal-search-store";
 import { useWorkbenchStore } from "@/stores/workbench-store";
+import {
+  useWorkspaceStore,
+  type WorkspaceSidebarView,
+} from "@/stores/workspace-store";
 import type { ConnectionProfile } from "@/types/connection";
 import type { ShellInfo } from "@/types/shell";
-import type { SecondPanelView } from "@/types/shell-ui";
 import { toast } from "sonner";
 import {
   OPEN_IN_APPS,
@@ -57,31 +64,10 @@ import {
   type PalettePrefixId,
 } from "@/components/command-palette/types";
 
-function openLocalDefaultTerminal() {
-  const { addSession } = useSessionStore.getState();
-  useShellUiStore.getState().showSessionPanel();
-  addSession({
-    kind: "terminal",
-    title: "__local__",
-    protocol: "local",
-    cwd: activeWorkspaceCwd(),
-  });
-}
-
-function openLocalShellTerminal(shell: ShellInfo) {
-  const { addSession } = useSessionStore.getState();
-  useShellUiStore.getState().showSessionPanel();
-  addSession({
-    kind: "terminal",
-    title: shell.name,
-    protocol: "local",
-    shellId: shell.id,
-    shellName: shell.kind,
-  });
-}
-
-function openSavedConnection(profile: ConnectionProfile) {
-  void openProfileSession(profile);
+function filterCommands(commands: PaletteCommand[], filter: string) {
+  const normalized = filter.trim().toLowerCase();
+  if (!normalized) return commands;
+  return commands.filter((command) => matchesPaletteQuery(command, normalized));
 }
 
 function profileConnectLabel(profile: ConnectionProfile): string {
@@ -91,14 +77,8 @@ function profileConnectLabel(profile: ConnectionProfile): string {
   return `${profile.name} — ${user}@${host}${port}`;
 }
 
-function filterCommands(commands: PaletteCommand[], filter: string) {
-  const normalized = filter.trim().toLowerCase();
-  if (!normalized) return commands;
-  return commands.filter((command) => matchesPaletteQuery(command, normalized));
-}
-
 /**
- * Builds the filtered, grouped command list for the current palette prefix scope.
+ * Builds the filtered, grouped command list for the current palette query.
  */
 export function usePaletteCommands(query: string): {
   activePrefix: PalettePrefixId | null;
@@ -107,31 +87,20 @@ export function usePaletteCommands(query: string): {
   flatCommands: PaletteCommand[];
   path: string | null;
 } {
-  const { t } = useTranslation(["commandPalette", "terminal"]);
+  const { t } = useTranslation(["common", "commandPalette", "terminal"]);
   const open = useCommandPaletteStore((state) => state.open);
-
   const profiles = useConnectionStore((state) => state.profiles);
-
-  const sessions = useSessionStore((state) => state.sessions);
-  const activeSessionId = useSessionStore((state) => state.activeSessionId);
-  const activeSession =
-    sessions.find((session) => session.id === activeSessionId) ?? null;
-
-  const primaryPanelOpen = useShellUiStore((state) => state.primaryPanelOpen);
-  const secondPanelOpen = useShellUiStore((state) => state.secondPanelOpen);
-  const secondPanelView = useShellUiStore((state) => state.secondPanelView);
-  const primaryPanelTab = useShellUiStore((state) => state.primaryPanelTab);
-  const togglePrimaryPanel = useShellUiStore((state) => state.togglePrimaryPanel);
-  const toggleSecondPanel = useShellUiStore((state) => state.toggleSecondPanel);
-  const showSecondPanelView = useShellUiStore((state) => state.showSecondPanelView);
-  const showSessionPanel = useShellUiStore((state) => state.showSessionPanel);
-  const setPrimaryPanelTab = useShellUiStore((state) => state.setPrimaryPanelTab);
-  const openHostEditor = useShellUiStore((state) => state.openHostEditor);
+  const workspace = useWorkspaceStore((state) => state.activeWorkspace);
+  const sidebarOpen = useWorkspaceStore((state) => state.sidebarOpen);
+  const sidebarView = useWorkspaceStore((state) => state.sidebarView);
+  const terminalOpen = useWorkspaceStore((state) => state.terminalOpen);
+  const toggleSidebar = useWorkspaceStore((state) => state.toggleSidebar);
+  const toggleTerminal = useWorkspaceStore((state) => state.toggleTerminal);
+  const setSidebarView = useWorkspaceStore((state) => state.setSidebarView);
   const openSearch = useTerminalSearchStore((state) => state.openSearch);
   const hasActiveEditorTab = useWorkbenchStore(
     (state) => state.activeTabId !== null,
   );
-
   const [shells, setShells] = useState<ShellInfo[]>([]);
 
   useEffect(() => {
@@ -141,52 +110,57 @@ export function usePaletteCommands(query: string): {
       .catch(() => setShells([]));
   }, [open]);
 
-  const path =
-    activeSession?.kind === "terminal"
-      ? getSessionPathDisplay(activeSession)
-      : null;
-  const resolvedPath = activeSession?.cwd ?? path ?? null;
-  const terminalActive = activeSession?.kind === "terminal";
+  const path = workspace?.rootPath ?? null;
+  const isLocalWorkspace = workspace?.source === "local";
 
   const scopeCommands = useMemo<PaletteCommand[]>(() => {
     return PALETTE_PREFIXES.filter((prefix) => {
-      if (prefix.id === "cwd" || prefix.id === "open") {
-        return terminalActive && Boolean(resolvedPath);
-      }
+      if (prefix.id === "cwd" || prefix.id === "open") return Boolean(path);
       return true;
     }).map((prefix) => ({
       id: `scope-${prefix.id}`,
       section: "scopes" as const,
       label: t(prefix.labelKey),
-      icon: prefix.id === "connect" ? PlugZapIcon : prefix.id === "view" ? PanelRightIcon : prefix.id === "cwd" ? FolderOpenIcon : prefix.id === "open" ? FolderSearchIcon : ZapIcon,
+      icon: prefix.id === "connect"
+        ? PlugZapIcon
+        : prefix.id === "view"
+          ? PanelLeftIcon
+          : prefix.id === "cwd"
+            ? FolderOpenIcon
+            : prefix.id === "open"
+              ? FolderSearchIcon
+              : ZapIcon,
       keywords: [...prefix.aliases, prefix.id],
       prefixTarget: prefix.id,
       run: () => {},
     }));
-  }, [resolvedPath, t, terminalActive]);
+  }, [path, t]);
 
   const connectCommands = useMemo<PaletteCommand[]>(() => {
-    const localCommands: PaletteCommand[] = [
-      {
-        id: "connect-local-default",
-        section: "terminal",
-        label: t("terminal:localDefault"),
-        icon: SquareTerminalIcon,
-        keywords: ["local", "default", "terminal", "本地", "默认"],
-        run: () => openLocalDefaultTerminal(),
-      },
-      ...shells.map((shell) => ({
-        id: `connect-shell-${shell.id}`,
-        section: "terminal" as const,
-        label: shell.name,
-        icon: SquareTerminalIcon,
-        keywords: [shell.kind, shell.name, "local", "shell"],
-        run: () => openLocalShellTerminal(shell),
-      })),
-    ];
+    const canCreateLocalTerminal = workspace?.source !== "remote";
+    const localCommands: PaletteCommand[] = canCreateLocalTerminal
+      ? [
+          {
+            id: "connect-local-default",
+            section: "terminal",
+            label: t("terminal:localDefault"),
+            icon: SquareTerminalIcon,
+            keywords: ["local", "default", "terminal", "本地", "默认"],
+            run: () => void createWorkspaceTerminal(),
+          },
+          ...shells.map((shell) => ({
+            id: `connect-shell-${shell.id}`,
+            section: "terminal" as const,
+            label: shell.name,
+            icon: SquareTerminalIcon,
+            keywords: [shell.kind, shell.name, "local", "shell"],
+            run: () => void createWorkspaceTerminal(shell),
+          })),
+        ]
+      : [];
 
     const remoteCommands = profiles
-      .filter((profile) => profile.protocol !== "local" && !profile.ephemeral)
+      .filter((profile) => !profile.ephemeral)
       .map((profile) => ({
         id: `connect-${profile.id}`,
         section: "connections" as const,
@@ -195,6 +169,7 @@ export function usePaletteCommands(query: string): {
         keywords: [
           "connect",
           "remote",
+          "workspace",
           "连接",
           profile.name,
           profile.host ?? "",
@@ -202,67 +177,71 @@ export function usePaletteCommands(query: string): {
           profile.protocol,
         ],
         run: () => {
-          openSavedConnection(profile);
+          void openProfileSession(profile);
         },
       }));
 
     return [...localCommands, ...remoteCommands];
-  }, [profiles, shells, t]);
+  }, [profiles, shells, t, workspace?.source]);
 
   const viewCommands = useMemo<PaletteCommand[]>(() => {
-    const viewDetail = (view: SecondPanelView, label: string, icon: PaletteCommand["icon"]) => ({
-      id: `view-details-${view}`,
-      section: "view" as const,
+    const showView = (
+      view: WorkspaceSidebarView,
+      label: string,
+      icon: PaletteCommand["icon"],
+    ): PaletteCommand => ({
+      id: `view-sidebar-${view}`,
+      section: "view",
       label,
       icon,
-      checked: secondPanelOpen && secondPanelView === view,
-      keywords: [view, "details", "view"],
-      run: () => showSecondPanelView(view),
+      checked: sidebarOpen && sidebarView === view,
+      keywords: [view, "workspace", "sidebar"],
+      run: () => setSidebarView(view),
     });
 
     const commands: PaletteCommand[] = [
       {
-        id: "view-toggle-tabs",
+        id: "view-toggle-sidebar",
         section: "view",
-        label: t("commandPalette:commands.toggleTabsPanel"),
+        label: t("common:workspace.toggleSidebar"),
         icon: PanelLeftIcon,
-        shortcut: "⇧⌘L",
-        checked: primaryPanelOpen,
-        keywords: ["tabs", "sidebar", "primary", "view"],
-        run: () => togglePrimaryPanel(),
+        shortcut: "⌘B",
+        checked: sidebarOpen,
+        keywords: ["sidebar", "panel", "侧栏", "view"],
+        run: () => toggleSidebar(),
       },
+      showView("explorer", t("common:workspace.explorer"), FolderOpenIcon),
+      showView("git", t("common:workspace.git"), GitBranchIcon),
+      showView("ports", t("common:workspace.ports"), CableIcon),
       {
-        id: "view-toggle-details",
+        id: "view-toggle-terminal",
         section: "view",
-        label: t("commandPalette:commands.toggleDetailsPanel"),
-        icon: PanelRightIcon,
-        shortcut: "⇧⌘R",
-        checked: secondPanelOpen,
-        keywords: ["details", "second", "right", "view"],
-        run: () => toggleSecondPanel(),
-      },
-      viewDetail("info", t("commandPalette:commands.detailsInfo"), InfoIcon),
-      viewDetail("outline", t("commandPalette:commands.detailsOutline"), ListTreeIcon),
-      viewDetail("files", t("commandPalette:commands.detailsFiles"), FolderOpenIcon),
-      viewDetail("git", t("commandPalette:commands.detailsGit"), GitBranchIcon),
-      viewDetail("transfers", t("commandPalette:commands.detailsTransfers"), UploadIcon),
-      {
-        id: "view-sessions-tab",
-        section: "view",
-        label: t("commandPalette:commands.showSessionsTab"),
+        label: terminalOpen
+          ? t("common:workspace.hideTerminal")
+          : t("common:workspace.showTerminal"),
         icon: SquareTerminalIcon,
-        checked: primaryPanelTab === "sessions",
-        keywords: ["sessions", "tabs", "会话", "view"],
-        run: () => showSessionPanel(),
+        shortcut: "⌘J",
+        checked: terminalOpen,
+        keywords: ["terminal", "bottom", "panel", "终端", "view"],
+        run: () => toggleTerminal(),
       },
       {
-        id: "view-hosts-tab",
+        id: "view-find",
         section: "view",
-        label: t("commandPalette:commands.showHostsTab"),
-        icon: ServerIcon,
-        checked: primaryPanelTab === "hosts",
-        keywords: ["hosts", "remote", "远程主机", "view"],
-        run: () => setPrimaryPanelTab("hosts"),
+        label: t("commandPalette:commands.find"),
+        icon: SearchIcon,
+        shortcut: "⌘F",
+        keywords: ["search", "find", "view"],
+        run: () => openSearch("tab"),
+      },
+      {
+        id: "view-find-all",
+        section: "view",
+        label: t("commandPalette:commands.findInAllTabs"),
+        icon: SearchIcon,
+        shortcut: "⇧⌘F",
+        keywords: ["search", "find", "all", "view"],
+        run: () => openSearch("all"),
       },
       {
         id: "view-settings",
@@ -275,87 +254,46 @@ export function usePaletteCommands(query: string): {
       },
     ];
 
-    if (terminalActive) {
-      commands.push(
-        {
-          id: "view-find",
-          section: "view",
-          label: t("commandPalette:commands.find"),
-          icon: SearchIcon,
-          shortcut: "⌘F",
-          keywords: ["search", "find", "view"],
-          run: () => openSearch("tab"),
-        },
-        {
-          id: "view-find-all",
-          section: "view",
-          label: t("commandPalette:commands.findInAllTabs"),
-          icon: SearchIcon,
-          shortcut: "⇧⌘F",
-          keywords: ["search", "find", "all", "view"],
-          run: () => openSearch("all"),
-        },
-        {
-          id: "view-jump-outline",
-          section: "view",
-          label: t("commandPalette:commands.jumpToOutline"),
-          icon: ListTreeIcon,
-          shortcut: "⌘J",
-          keywords: ["jump", "outline", "view"],
-          run: () => {
-            showSecondPanelView("outline");
-            window.dispatchEvent(new CustomEvent("puck:focus-outline"));
-          },
-        },
-      );
-    }
-
     return commands;
   }, [
     openSearch,
-    primaryPanelTab,
-    primaryPanelOpen,
-    secondPanelOpen,
-    secondPanelView,
-    setPrimaryPanelTab,
-    showSessionPanel,
-    showSecondPanelView,
+    setSidebarView,
+    sidebarOpen,
+    sidebarView,
     t,
-    terminalActive,
-    togglePrimaryPanel,
-    toggleSecondPanel,
+    terminalOpen,
+    toggleSidebar,
+    toggleTerminal,
   ]);
 
   const cwdCommands = useMemo<PaletteCommand[]>(() => {
-    if (!terminalActive) return [];
+    if (!workspace || !path) return [];
 
     return [
-      {
-        id: "cwd-reveal",
-        section: "workingDirectory",
-        label: t("commandPalette:commands.revealInFinder"),
-        icon: FolderSearchIcon,
-        disabled: !resolvedPath || !isTauri(),
-        keywords: ["finder", "reveal", "cwd", "dir"],
-        run: async () => {
-          if (!resolvedPath) return;
-          try {
-            await revealItemInDir(resolvedPath);
-          } catch {
-            toast.error(t("terminal:titleMenu.revealFailed"));
-          }
-        },
-      },
       {
         id: "cwd-copy-path",
         section: "workingDirectory",
         label: t("commandPalette:commands.copyPath"),
         icon: CopyIcon,
-        disabled: !path,
-        keywords: ["copy", "path", "cwd", "dir"],
+        keywords: ["copy", "path", "workspace", "dir"],
         run: async () => {
-          if (!path) return;
           await navigator.clipboard.writeText(path);
+        },
+      },
+      {
+        id: "cwd-reveal",
+        section: "workingDirectory",
+        label: t("commandPalette:commands.revealInFinder"),
+        icon: FolderSearchIcon,
+        disabled: !isLocalWorkspace || !isTauri(),
+        keywords: ["finder", "reveal", "workspace", "dir"],
+        run: async () => {
+          if (!isLocalWorkspace) return;
+          try {
+            await revealItemInDir(path);
+          } catch {
+            toast.error(t("terminal:titleMenu.revealFailed"));
+          }
         },
       },
       {
@@ -363,16 +301,16 @@ export function usePaletteCommands(query: string): {
         section: "workingDirectory",
         label: t("commandPalette:commands.openIn"),
         icon: FolderOpenIcon,
-        disabled: !resolvedPath,
-        keywords: ["open", "editor", "finder", "cwd"],
+        disabled: !isLocalWorkspace,
+        keywords: ["open", "editor", "finder", "workspace"],
         prefixTarget: "open",
         run: () => {},
       },
     ];
-  }, [path, resolvedPath, t, terminalActive]);
+  }, [isLocalWorkspace, path, t, workspace]);
 
   const openCommands = useMemo<PaletteCommand[]>(() => {
-    if (!resolvedPath) return [];
+    if (!path || !isLocalWorkspace) return [];
 
     return OPEN_IN_APPS.map((app) => ({
       id: `open-in-${app.id}`,
@@ -382,13 +320,13 @@ export function usePaletteCommands(query: string): {
       keywords: [app.id, "open"],
       run: async () => {
         try {
-          await openPathInApp(resolvedPath, app.id);
+          await openPathInApp(path, app.id);
         } catch {
           toast.error(t("terminal:titleMenu.openInFailed"));
         }
       },
     }));
-  }, [resolvedPath, t]);
+  }, [isLocalWorkspace, path, t]);
 
   const actionCommands = useMemo<PaletteCommand[]>(() => {
     return [
@@ -401,12 +339,20 @@ export function usePaletteCommands(query: string): {
         run: () => reloadAppWindow(),
       },
       {
+        id: "action-open-workspace",
+        section: "actions",
+        label: t("common:workspace.openLocal"),
+        icon: FolderOpenIcon,
+        keywords: ["open", "workspace", "folder", "打开", "目录", "action"],
+        run: () => void chooseLocalWorkspace(),
+      },
+      {
         id: "action-new-terminal",
         section: "actions",
         label: t("commandPalette:commands.newLocalTerminal"),
         icon: SquareTerminalIcon,
-        keywords: ["terminal", "local", "new", "终端", "本地", "action"],
-        run: () => openLocalDefaultTerminal(),
+        keywords: ["terminal", "new", "workspace", "终端", "action"],
+        run: () => void createWorkspaceTerminal(),
       },
       {
         id: "action-connect",
@@ -423,9 +369,7 @@ export function usePaletteCommands(query: string): {
         label: t("commandPalette:commands.quickConnect"),
         icon: ZapIcon,
         keywords: ["quick", "connect", "ssh", "快速连接", "action"],
-        run: () => {
-          window.dispatchEvent(new CustomEvent("puck:quick-connect"));
-        },
+        run: () => void openConnectionsWindow(),
       },
       {
         id: "action-new-connection",
@@ -433,7 +377,7 @@ export function usePaletteCommands(query: string): {
         label: t("commandPalette:commands.newConnection"),
         icon: PlusIcon,
         keywords: ["connection", "host", "remote", "新建连接", "action"],
-        run: () => openHostEditor(null),
+        run: () => void openConnectionsWindow(),
       },
       {
         id: "action-open-file",
@@ -472,7 +416,7 @@ export function usePaletteCommands(query: string): {
         run: () => closeActiveTab(),
       },
     ];
-  }, [closeActiveTab, hasActiveEditorTab, openHostEditor, saveActiveEditorTab, t]);
+  }, [hasActiveEditorTab, t]);
 
   const commandsByPrefix = useMemo(
     () =>
@@ -498,7 +442,9 @@ export function usePaletteCommands(query: string): {
       return scopeCommands;
     }
 
-    return scopeCommands.filter((command) => matchesPaletteQuery(command, normalized));
+    return scopeCommands.filter((command) =>
+      matchesPaletteQuery(command, normalized),
+    );
   }, [commandsByPrefix, parsed.active, parsed.filter, parsed.prefix, query, scopeCommands]);
 
   const groupedCommands = useMemo(() => {
@@ -513,10 +459,9 @@ export function usePaletteCommands(query: string): {
 
   const sectionOrder = useMemo<CommandSection[]>(() => {
     if (!parsed.active) {
-      return flatCommands.length > 0 ? ["scopes"] : ["scopes"];
+      return ["scopes"];
     }
 
-    const sections: CommandSection[] = [];
     const order: CommandSection[] = [
       "terminal",
       "connections",
@@ -525,14 +470,9 @@ export function usePaletteCommands(query: string): {
       "openIn",
       "view",
     ];
-
-    for (const section of order) {
-      if (flatCommands.some((command) => command.section === section)) {
-        sections.push(section);
-      }
-    }
-
-    return sections.length > 0 ? sections : ["scopes"];
+    return order.filter((section) =>
+      flatCommands.some((command) => command.section === section),
+    );
   }, [flatCommands, parsed.active]);
 
   return {

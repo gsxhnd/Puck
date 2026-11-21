@@ -1,8 +1,13 @@
+/**
+ * Terminal-only workspace rendering with optional split layout.
+ *
+ * 终端区域渲染：支持当前 Workspace 的本地 / SSH 终端栈与两窗格分屏。文件浏览
+ * 已迁移到 Workspace Explorer，不再作为终端 Session 类型存在。
+ */
 import { useSessionStore } from "@/stores/session-store";
 import { useTerminalSplitStore } from "@/stores/terminal-split-store";
 import { TerminalPane } from "@/page/terminal/terminal-pane";
 import { SshTerminalPane } from "@/page/terminal/ssh-terminal-pane";
-import { FileManager } from "@/page/files/file-manager";
 import { TerminalSearchBar } from "@/page/terminal/terminal-search-bar";
 import {
   collectPaneSessionIds,
@@ -18,6 +23,8 @@ import {
 
 type TerminalWorkspaceProps = {
   activeSessionId: string | null;
+  /** Restrict the rendered stack and split tree to one workspace. */
+  workspaceId?: string;
 };
 
 function SessionPane({
@@ -35,20 +42,8 @@ function SessionPane({
     state.sessions.find((item) => item.id === sessionId),
   );
 
-  if (!session) {
+  if (!session || session.kind !== "terminal") {
     return null;
-  }
-
-  if (session.kind === "files") {
-    return (
-      <FileManager
-        sessionId={session.id}
-        profileId={session.profileId}
-        active={visible}
-        focused={focused}
-        layout={layout}
-      />
-    );
   }
 
   if (session.protocol === "ssh") {
@@ -100,10 +95,7 @@ function SplitTree({
   }
 
   return (
-    <ResizablePanelGroup
-      orientation={node.orientation}
-      className="h-full"
-    >
+    <ResizablePanelGroup orientation={node.orientation} className="h-full">
       <ResizablePanel
         id={splitNodePanelId(node.first)}
         defaultSize={50}
@@ -133,27 +125,37 @@ function SplitTree({
   );
 }
 
-export function TerminalWorkspace({ activeSessionId }: TerminalWorkspaceProps) {
-  const sessions = useSessionStore((state) => state.sessions);
+export function TerminalWorkspace({
+  activeSessionId,
+  workspaceId,
+}: TerminalWorkspaceProps) {
+  const allSessions = useSessionStore((state) => state.sessions);
   const setActiveSession = useSessionStore((state) => state.setActiveSession);
   const splitLayout = useTerminalSplitStore((state) => state.layout);
+  const sessions = allSessions.filter(
+    (session) =>
+      session.kind === "terminal" &&
+      (workspaceId
+        ? workspaceId === "__unscoped__"
+          ? !session.workspaceId
+          : session.workspaceId === workspaceId
+        : true),
+  );
 
   const activeSession =
     sessions.find((session) => session.id === activeSessionId) ?? null;
-  const showSearch = activeSession?.kind === "terminal";
-
   const splitPaneIds =
     splitLayout != null ? collectPaneSessionIds(splitLayout.root) : [];
 
   if (
     splitLayout &&
-    activeSession?.kind === "terminal" &&
+    activeSession &&
     layoutContainsSession(splitLayout, activeSession.id) &&
     splitPaneIds.every((id) => sessions.some((session) => session.id === id))
   ) {
     return (
       <div className="relative h-full min-h-0 flex-1 overflow-hidden">
-        {showSearch ? <TerminalSearchBar /> : null}
+        <TerminalSearchBar />
         <SplitTree
           node={splitLayout.root}
           activeSessionId={activeSessionId}
@@ -175,51 +177,30 @@ export function TerminalWorkspace({ activeSessionId }: TerminalWorkspaceProps) {
     );
   }
 
-  const localTerminalSessions = sessions.filter(
-    (session) =>
-      session.kind === "terminal" &&
-      (!session.protocol || session.protocol === "local"),
-  );
-  const sshTerminalSessions = sessions.filter(
-    (session) => session.kind === "terminal" && session.protocol === "ssh",
-  );
-  const fileSessions = sessions.filter((session) => session.kind === "files");
-
   return (
     <div className="relative min-h-0 flex-1 overflow-hidden">
-      {showSearch ? <TerminalSearchBar /> : null}
-      {localTerminalSessions.map((session) => (
-        <TerminalPane
-          key={session.id}
-          sessionId={session.id}
-          shellId={session.shellId}
-          active={session.id === activeSessionId}
-          focused={session.id === activeSessionId}
-          layout="stack"
-        />
-      ))}
-
-      {sshTerminalSessions.map((session) => (
-        <SshTerminalPane
-          key={session.id}
-          sessionId={session.id}
-          profileId={session.profileId}
-          active={session.id === activeSessionId}
-          focused={session.id === activeSessionId}
-          layout="stack"
-        />
-      ))}
-
-      {fileSessions.map((session) => (
-        <FileManager
-          key={session.id}
-          sessionId={session.id}
-          profileId={session.profileId}
-          active={session.id === activeSessionId}
-          focused={session.id === activeSessionId}
-          layout="stack"
-        />
-      ))}
+      <TerminalSearchBar />
+      {sessions.map((session) =>
+        session.protocol === "ssh" ? (
+          <SshTerminalPane
+            key={session.id}
+            sessionId={session.id}
+            profileId={session.profileId}
+            active={session.id === activeSessionId}
+            focused={session.id === activeSessionId}
+            layout="stack"
+          />
+        ) : (
+          <TerminalPane
+            key={session.id}
+            sessionId={session.id}
+            shellId={session.shellId}
+            active={session.id === activeSessionId}
+            focused={session.id === activeSessionId}
+            layout="stack"
+          />
+        ),
+      )}
     </div>
   );
 }

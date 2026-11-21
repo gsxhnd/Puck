@@ -13,6 +13,7 @@ use crate::error::{HostKeyPrompt, PuckError, PuckResult};
 #[derive(Debug, Clone)]
 pub struct StoredSshProfile {
     pub connection_id: String,
+    pub lease_id: String,
     pub host: String,
     pub port: u16,
     pub username: String,
@@ -38,7 +39,7 @@ pub fn emit_session_status(app: &AppHandle, event: SessionStatusEvent) {
 }
 
 pub fn emit_connection_error(app: &AppHandle, session_id: String, error: PuckError) {
-    let payload = error.to_payload();
+    let payload = error.into_payload();
     if let Some(host_key) = payload.host_key {
         emit_session_status(
             app,
@@ -100,27 +101,11 @@ pub struct SessionManager {
 }
 
 pub struct SftpSessionEntry {
+    pub connection_id: String,
+    pub lease_id: String,
     pub cwd: String,
     pub command_tx: tokio::sync::mpsc::UnboundedSender<SftpCommand>,
-    pub transfer_tx: tokio::sync::mpsc::UnboundedSender<SftpTransferCommand>,
     pub io_task: tokio::task::JoinHandle<()>,
-    pub transfer_io_task: tokio::task::JoinHandle<()>,
-}
-
-pub enum SftpTransferCommand {
-    Upload {
-        transfer_id: String,
-        local_path: String,
-        remote_path: String,
-        app: AppHandle,
-    },
-    Download {
-        transfer_id: String,
-        local_path: String,
-        remote_path: String,
-        app: AppHandle,
-    },
-    Shutdown,
 }
 
 pub enum SftpCommand {
@@ -288,6 +273,13 @@ impl SessionManager {
         Ok(())
     }
 
+    pub fn sftp_connection_lease(&self, session_id: &str) -> Option<(String, String)> {
+        let sessions = self.sftp_sessions.lock().ok()?;
+        sessions
+            .get(session_id)
+            .map(|entry| (entry.connection_id.clone(), entry.lease_id.clone()))
+    }
+
     pub fn sftp_cwd(&self, session_id: &str) -> Option<String> {
         let sessions = self.sftp_sessions.lock().ok()?;
         sessions.get(session_id).map(|entry| entry.cwd.clone())
@@ -313,23 +305,11 @@ impl SessionManager {
         sessions.get(session_id).map(|entry| entry.command_tx.clone())
     }
 
-    pub fn sftp_transfer_tx(
-        &self,
-        session_id: &str,
-    ) -> Option<tokio::sync::mpsc::UnboundedSender<SftpTransferCommand>> {
-        let sessions = self.sftp_sessions.lock().ok()?;
-        sessions
-            .get(session_id)
-            .map(|entry| entry.transfer_tx.clone())
-    }
-
     pub fn close_sftp(&self, session_id: &str) -> Option<SftpSessionEntry> {
         let mut sessions = lock_or_recover(&self.sftp_sessions);
         let entry = sessions.remove(session_id)?;
         let _ = entry.command_tx.send(SftpCommand::Shutdown);
-        let _ = entry.transfer_tx.send(SftpTransferCommand::Shutdown);
         entry.io_task.abort();
-        entry.transfer_io_task.abort();
         Some(entry)
     }
 }

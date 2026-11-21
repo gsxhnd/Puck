@@ -10,10 +10,10 @@ import {
 } from "@/page/settings/settings-primitives";
 
 /**
- * General settings: language, startup behavior, panel visibility, reset.
+ * General settings: language, startup behavior, and reset.
  *
- * 「通用」设置区段：界面语言、启动时打开本地终端、主/次面板默认可见性，
- * 以及一键恢复默认设置。
+ * 「通用」设置区段：界面语言、启动时打开本地终端，以及一键恢复默认设置。
+ * Workspace 侧栏与终端布局由主窗口实时状态持久化，不在此重复配置。
  */
 export function GeneralSettingsSection() {
   const { t } = useTranslation(["settings", "common"]);
@@ -21,17 +21,9 @@ export function GeneralSettingsSection() {
   const openLocalOnStart = useAppSettingsStore(
     (state) => state.openLocalTerminalOnStart,
   );
-  const primaryPanelOpen = useAppSettingsStore((state) => state.primaryPanelOpen);
-  const secondPanelOpen = useAppSettingsStore((state) => state.secondPanelOpen);
   const setLanguage = useAppSettingsStore((state) => state.setLanguage);
   const setOpenLocalOnStart = useAppSettingsStore(
     (state) => state.setOpenLocalTerminalOnStart,
-  );
-  const setPrimaryPanelOpen = useAppSettingsStore(
-    (state) => state.setPrimaryPanelOpen,
-  );
-  const setSecondPanelOpen = useAppSettingsStore(
-    (state) => state.setSecondPanelOpen,
   );
   const resetSettings = useAppSettingsStore((state) => state.reset);
 
@@ -63,24 +55,6 @@ export function GeneralSettingsSection() {
           <Switch
             checked={openLocalOnStart}
             onCheckedChange={setOpenLocalOnStart}
-          />
-        </SettingsRow>
-        <SettingsRow
-          title={t("settings:general.showPrimaryPanel")}
-          description={t("settings:general.showPrimaryPanelDescription")}
-        >
-          <Switch
-            checked={primaryPanelOpen}
-            onCheckedChange={setPrimaryPanelOpen}
-          />
-        </SettingsRow>
-        <SettingsRow
-          title={t("settings:general.showSecondPanel")}
-          description={t("settings:general.showSecondPanelDescription")}
-        >
-          <Switch
-            checked={secondPanelOpen}
-            onCheckedChange={setSecondPanelOpen}
           />
         </SettingsRow>
         <SettingsRow

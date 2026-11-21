@@ -1,7 +1,7 @@
 /**
  * Persistent CRUD store for saved connection profiles.
  *
- * 已保存连接配置（SSH/SFTP/FTP 等）的持久化 store，提供新增、更新、删除、
+ * 已保存连接配置（SSH/SFTP）的持久化 store，提供新增、更新、删除、
  * 复制、查询等操作。rehydrate 时优先采用磁盘数据（含空列表），不注入示例连接。
  */
 import { create } from "zustand";
@@ -10,6 +10,7 @@ import {
   CONNECTIONS_PERSIST_KEY,
   connectionPersistStorage,
 } from "@/lib/connection-persist-storage";
+import { isSupportedRemoteProtocol } from "@/lib/connection-protocol";
 import {
   type ConnectionProfile,
   createConnectionProfile,
@@ -100,7 +101,9 @@ export const useConnectionStore = create<ConnectionStore>()(
           return {
             ...current,
             profiles: stored.profiles.filter(
-              (profile) => profile.protocol !== "local",
+              (profile) =>
+                profile.protocol !== "local" &&
+                isSupportedRemoteProtocol(profile.protocol),
             ),
           };
         }

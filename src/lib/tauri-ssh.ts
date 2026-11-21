@@ -15,6 +15,7 @@ export type SshConnectRequest = {
   privateKeyPath?: string;
   password?: string;
   passphrase?: string;
+  cwd?: string;
   cols: number;
   rows: number;
 };
@@ -79,6 +80,7 @@ export function profileToSshRequest(
   profile: ConnectionProfile,
   cols: number,
   rows: number,
+  cwd?: string,
 ): SshConnectRequest {
   return {
     sessionId,
@@ -88,6 +90,7 @@ export function profileToSshRequest(
     username: profile.username ?? "",
     authMethod: profile.authMethod ?? "password",
     privateKeyPath: profile.privateKeyPath,
+    cwd: cwd ?? profile.defaultDirectory,
     cols,
     rows,
   };
@@ -148,6 +151,20 @@ export async function trustSshHostKey(prompt: HostKeyPrompt): Promise<KnownHostR
 
 export function openSshTerminal(request: SshConnectRequest): Promise<void> {
   return invoke("open_ssh_terminal", { request });
+}
+
+export function ensureSharedSshConnection(
+  request: SshConnectRequest,
+  ownerId: string,
+): Promise<void> {
+  return invoke("ensure_ssh_connection", { request, ownerId });
+}
+
+export function releaseSharedSshConnection(
+  connectionId: string,
+  ownerId: string,
+): Promise<void> {
+  return invoke("release_ssh_connection", { connectionId, ownerId });
 }
 
 export function reconnectSshTerminal(

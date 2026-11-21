@@ -3,6 +3,7 @@ use std::process::Command;
 
 use serde::Serialize;
 
+use crate::atomic_file::atomic_write;
 use crate::error::{PuckError, PuckResult};
 
 #[derive(Clone, Serialize)]
@@ -80,13 +81,61 @@ fn list_local_dir_inner(path: &str, show_hidden: bool) -> PuckResult<Vec<LocalFi
 }
 
 fn to_invoke_error(error: PuckError) -> String {
-    let payload = error.to_payload();
+    let payload = error.into_payload();
     serde_json::to_string(&payload).unwrap_or(payload.message)
 }
 
 #[tauri::command]
 pub fn list_local_dir(path: String, show_hidden: Option<bool>) -> Result<Vec<LocalFileEntry>, String> {
     list_local_dir_inner(&path, show_hidden.unwrap_or(false)).map_err(to_invoke_error)
+}
+
+fn mkdir_local_inner(path: &str) -> PuckResult<()> {
+    let resolved = resolve_path(path)?;
+    std::fs::create_dir_all(&resolved).map_err(PuckError::from)?;
+    Ok(())
+}
+
+fn delete_local_inner(path: &str) -> PuckResult<()> {
+    let resolved = resolve_path(path)?;
+    if resolved.parent().is_none() {
+        return Err(PuckError::config("Refusing to delete a filesystem root"));
+    }
+
+    if resolved.is_dir() {
+        std::fs::remove_dir_all(&resolved).map_err(PuckError::from)?;
+    } else {
+        std::fs::remove_file(&resolved).map_err(PuckError::from)?;
+    }
+    Ok(())
+}
+
+fn rename_local_inner(old_path: &str, new_path: &str) -> PuckResult<()> {
+    let source = resolve_path(old_path)?;
+    let target = resolve_path(new_path)?;
+    if source == target {
+        return Ok(());
+    }
+    if target.exists() {
+        return Err(PuckError::config("Target path already exists"));
+    }
+    std::fs::rename(&source, &target).map_err(PuckError::from)?;
+    Ok(())
+}
+
+#[tauri::command]
+pub fn mkdir_local(path: String) -> Result<(), String> {
+    mkdir_local_inner(&path).map_err(to_invoke_error)
+}
+
+#[tauri::command]
+pub fn delete_local(path: String) -> Result<(), String> {
+    delete_local_inner(&path).map_err(to_invoke_error)
+}
+
+#[tauri::command]
+pub fn rename_local(old_path: String, new_path: String) -> Result<(), String> {
+    rename_local_inner(&old_path, &new_path).map_err(to_invoke_error)
 }
 
 #[tauri::command]
@@ -116,7 +165,7 @@ fn write_local_file_inner(path: &str, content: &str) -> PuckResult<()> {
         return Err(PuckError::config("Path is a directory"));
     }
 
-    std::fs::write(&resolved, content.as_bytes()).map_err(PuckError::from)?;
+    atomic_write(&resolved, content).map_err(PuckError::config)?;
     Ok(())
 }
 

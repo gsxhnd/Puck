@@ -1,7 +1,7 @@
 {
   "app": {
-    "name": "Puck Terminal",
-    "tagline": "终端与文件传输工作台"
+    "name": "Puck",
+    "tagline": "轻量级本地与远程代码工作台"
   },
   "actions": {
     "newTerminal": "新建终端",
@@ -21,7 +21,6 @@
   "nav": {
     "connections": "连接",
     "sessions": "会话",
-    "transferQueue": "传输队列",
     "commandPalette": "命令面板",
     "primaryPanel": "一级面板",
     "mainPanel": "主面板",
@@ -38,11 +37,7 @@
   "protocol": {
     "local": "本地",
     "ssh": "SSH",
-    "sftp": "SFTP",
-    "ftp": "FTP",
-    "ftps": "FTPS",
-    "rdp": "RDP",
-    "vnc": "VNC"
+    "sftp": "SFTP"
   },
   "empty": {
     "noConnections": "暂无连接配置",
@@ -59,6 +54,58 @@
     "maximize": "最大化",
     "restore": "还原",
     "close": "关闭"
+  },
+  "workspace": {
+    "open": "打开工作区",
+    "openLocal": "打开本地目录",
+    "openRemote": "打开 SSH 工作区",
+    "manageConnections": "管理 SSH 连接",
+    "missingProfile": "该工作区的 SSH 连接配置已不存在",
+    "noRemoteProfiles": "暂无 SSH 连接，请先新建",
+    "recent": "最近打开",
+    "explorer": "文件",
+    "newFile": "新建文件",
+    "newFolder": "新建目录",
+    "newFileName": "新文件名",
+    "newFolderName": "新目录名",
+    "rename": "重命名",
+    "renamePrompt": "重命名为",
+    "delete": "删除",
+    "deleteConfirm": "确定删除「{{name}}」？此操作不可撤销。",
+    "git": "Git",
+    "ports": "端口",
+    "terminal": "工作区终端",
+    "welcomeTitle": "打开一个工作区",
+    "welcomeDescription": "编辑本地项目，或通过 SSH 在同一窗口中使用远端文件、终端和 Git。",
+    "editorEmptyTitle": "没有打开的编辑器",
+    "editorEmptyDescription": "从左侧文件树选择文件，或打开一个终端开始工作。",
+    "toggleSidebar": "切换侧栏",
+    "hideTerminal": "隐藏终端",
+    "showTerminal": "显示终端",
+    "portsRemoteOnly": "请先打开 SSH 工作区，再配置本地端口转发。",
+    "portsLoading": "正在准备端口转发能力…",
+    "portsDisconnected": "SSH 连接尚未就绪，连接成功后可管理端口转发。",
+    "noForwards": "暂无端口转发。将远端服务安全地映射到本机 loopback 地址。",
+    "addPort": "添加端口转发",
+    "portDescription": "仅监听本机 127.0.0.1，目标地址从 SSH 服务器视角解析。",
+    "localPort": "本地端口",
+    "localPortHint": "填写 0 可自动分配空闲端口",
+    "remoteHost": "远端目标主机",
+    "remotePort": "远端目标端口",
+    "startPort": "启动转发",
+    "startingPort": "正在启动…",
+    "stopPort": "停止转发",
+    "copyAddress": "复制本地地址",
+    "addressCopied": "已复制本地地址",
+    "portInvalid": "请输入有效的主机与端口（本地 0–65535，远端 1–65535）",
+    "graph": "提交图",
+    "graphEmpty": "当前仓库没有提交记录",
+    "graphLoading": "正在加载…",
+    "graphLoadMore": "加载更多提交",
+    "graphCommit": "提交",
+    "graphAuthor": "作者",
+    "graphParents": "父提交",
+    "graphRemotePending": "远程 Git Graph 将在共享 SSH 连接接入后可用。"
   },
   "errorBoundary": {
     "title": "应用出现错误",

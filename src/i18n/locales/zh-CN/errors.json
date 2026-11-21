@@ -11,6 +11,5 @@
   "file_error": "文件操作失败",
   "git_error": "Git 操作失败",
   "config_write_error": "配置写入失败",
-  "remote_command_failed": "远程命令执行失败",
-  "transfer_failed": "文件传输失败"
+  "remote_command_failed": "远程命令执行失败"
 }

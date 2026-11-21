@@ -5,7 +5,9 @@ use serde::Serialize;
 use tauri::{AppHandle, Emitter};
 
 use crate::error::puck_err;
+use crate::runtime::runtime;
 use crate::session::{SessionKind, SessionManager, TerminalBackend};
+use crate::ssh::{cancel_ssh_open, release_shared_ssh};
 use crate::shell::{find_shell, ShellInfo};
 use crate::utf8_stream::Utf8StreamDecoder;
 
@@ -102,12 +104,11 @@ pub fn open_local_terminal(
     // an invalid path silently falls back to the shell default (home).
     // 请求的工作目录可解析时以该目录启动 shell；无效路径静默回退到默认
     //（home）目录，不阻断终端创建。
-    if let Some(cwd) = cwd.as_deref() {
-        if let Ok(resolved) = crate::workspace::resolve_path(cwd) {
-            if resolved.is_dir() {
-                command.cwd(resolved);
-            }
-        }
+    if let Some(cwd) = cwd.as_deref()
+        && let Ok(resolved) = crate::workspace::resolve_path(cwd)
+        && resolved.is_dir()
+    {
+        command.cwd(resolved);
     }
 
     let child = pair
@@ -202,9 +203,23 @@ pub fn resize_terminal(session_id: String, cols: u16, rows: u16) -> Result<(), S
 
 #[tauri::command]
 pub fn close_session(app: AppHandle, session_id: String) -> Result<(), String> {
+    cancel_ssh_open(&session_id);
     let manager = SessionManager::global();
+    let terminal_profile = manager.ssh_profile(&session_id);
+    let sftp_connection_lease = manager.sftp_connection_lease(&session_id);
     let closed_terminal = manager.close_terminal(&session_id);
     let closed_sftp = manager.close_sftp(&session_id).is_some();
+
+    if let Some(profile) = terminal_profile {
+        runtime().spawn(async move {
+            release_shared_ssh(&profile.connection_id, &profile.lease_id).await;
+        });
+    }
+    if let Some((connection_id, lease_id)) = sftp_connection_lease {
+        runtime().spawn(async move {
+            release_shared_ssh(&connection_id, &lease_id).await;
+        });
+    }
 
     if closed_terminal {
         let _ = app.emit(

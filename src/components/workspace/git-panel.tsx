@@ -16,6 +16,7 @@ import {
   ChevronDownIcon,
   DownloadIcon,
   GitBranchIcon,
+  GitForkIcon,
   RefreshCwIcon,
   Undo2Icon,
   UploadIcon,
@@ -38,6 +39,13 @@ import {
 } from "@/lib/tauri-git";
 import { writeTerminal } from "@/lib/tauri-terminal";
 import { readLocalFile } from "@/lib/tauri-workspace";
+import { readRemoteFile } from "@/lib/tauri-sftp";
+import {
+  ensureSftpExplorerSession,
+  explorerSftpSessionId,
+} from "@/lib/sftp-explorer-session";
+import { useConnectionStore } from "@/stores/connection-store";
+import { useSessionStore } from "@/stores/session-store";
 import { fileNameFromPath, guessMonacoLanguage } from "@/lib/editor-params";
 import { useActiveLocalSession } from "@/lib/use-active-local-session";
 import { parsePuckError } from "@/lib/puck-error";
@@ -59,6 +67,7 @@ import type {
   GitFileStatus,
   GitStatusResult,
 } from "@/types/workspace";
+import { useWorkspaceStore, type Workspace } from "@/stores/workspace-store";
 import type { GitNetworkErrorKind } from "@/types/workspace";
 
 function statusLabel(status: string): string {
@@ -132,9 +141,26 @@ function GitSection({
   );
 }
 
-export function GitPanel() {
+export function GitPanel({ workspace }: { workspace?: Workspace } = {}) {
   const { t } = useTranslation("info");
-  const { activeSession, isLocal, workspacePath } = useActiveLocalSession();
+  const localContext = useActiveLocalSession();
+  const activeSession = workspace
+    ? {
+        id: `workspace:${workspace.id}`,
+        kind: "terminal" as const,
+        title: workspace.name,
+        protocol: workspace.source === "remote" ? ("ssh" as const) : ("local" as const),
+        profileId: workspace.profileId,
+        cwd: workspace.rootPath,
+        workspaceId: workspace.id,
+        status: "connected" as const,
+        createdAt: "",
+      }
+    : localContext.activeSession;
+  const isLocal = workspace ? workspace.source === "local" : localContext.isLocal;
+  const workspacePath = workspace?.rootPath ?? localContext.workspacePath;
+  const connectionId = workspace?.source === "remote" ? workspace.profileId : undefined;
+  const remoteStatus = useWorkspaceStore((state) => state.remoteStatus);
   const [status, setStatus] = useState<GitStatusResult | null>(null);
   const [history, setHistory] = useState<GitCommitEntry[]>([]);
   const [branches, setBranches] = useState<GitBranchEntry[]>([]);
@@ -148,15 +174,15 @@ export function GitPanel() {
       if (!silent) setLoading(true);
       setError(null);
       try {
-        const result = await gitStatus(workspacePath);
+        const result = await gitStatus(workspacePath, connectionId);
         setStatus(result);
         // History and branch list failures degrade silently (e.g. a repo with
         // no commits yet); the status area already reports real problems.
         // 历史与分支列表失败时静默降级（例如尚无提交的空仓库）；真正的
         // 状态错误已由 error 区域展示。
         const [logResult, branchResult] = await Promise.all([
-          gitLog(workspacePath).catch(() => []),
-          gitBranches(workspacePath).catch(() => []),
+          gitLog(workspacePath, 20, connectionId).catch(() => []),
+          gitBranches(workspacePath, connectionId).catch(() => []),
         ]);
         setHistory(logResult);
         setBranches(branchResult);
@@ -166,13 +192,13 @@ export function GitPanel() {
         if (!silent) setLoading(false);
       }
     },
-    [workspacePath],
+    [connectionId, workspacePath],
   );
 
   useEffect(() => {
-    if (!isLocal) return;
+    if (!isLocal && (!connectionId || remoteStatus !== "connected")) return;
     void refresh();
-  }, [isLocal, refresh, activeSession?.id]);
+  }, [connectionId, isLocal, refresh, activeSession?.id, remoteStatus]);
 
   // Refresh silently when the workspace changes on disk (e.g. a file saved
   // from the editor), avoiding the loading spinner flicker.
@@ -183,15 +209,27 @@ export function GitPanel() {
 
   const openDiff = useCallback(
     async (file: string, staged: boolean) => {
+      const owningWorkspaceId = activeSession?.workspaceId;
       try {
         const original = staged
-          ? (await gitBlobContent(workspacePath, file, "head")) ?? ""
-          : (await gitBlobContent(workspacePath, file, "index")) ?? "";
-        const modified = staged
-          ? (await gitBlobContent(workspacePath, file, "index")) ?? ""
-          : await readLocalFile(joinWorkspacePath(workspacePath, file));
+          ? (await gitBlobContent(workspacePath, file, "head", connectionId)) ?? ""
+          : (await gitBlobContent(workspacePath, file, "index", connectionId)) ?? "";
+        let modified: string;
+        if (staged) {
+          modified = (await gitBlobContent(workspacePath, file, "index", connectionId)) ?? "";
+        } else if (connectionId && activeSession) {
+          const profile = useConnectionStore.getState().getProfile(connectionId);
+          if (!profile) throw new Error("SSH profile not found");
+          await ensureSftpExplorerSession(activeSession.id, profile);
+          modified = await readRemoteFile(
+            explorerSftpSessionId(activeSession.id),
+            joinWorkspacePath(workspacePath, file),
+          );
+        } else {
+          modified = await readLocalFile(joinWorkspacePath(workspacePath, file));
+        }
 
-        const diffId = `diff:${workspacePath}:${file}:${
+        const diffId = `diff:${connectionId ?? "local"}:${workspacePath}:${file}:${
           staged ? "staged" : "worktree"
         }`;
         setDiffContent(diffId, original, modified);
@@ -201,12 +239,13 @@ export function GitPanel() {
           title: fileNameFromPath(file),
           path: file,
           language: guessMonacoLanguage(file),
+          workspaceId: owningWorkspaceId,
         });
       } catch (err) {
         toast.error(parsePuckError(err).message);
       }
     },
-    [workspacePath],
+    [activeSession?.workspaceId, connectionId, workspacePath],
   );
 
   const runAction = useCallback(
@@ -221,11 +260,24 @@ export function GitPanel() {
     [refresh],
   );
 
+  const openGraph = useCallback(() => {
+    const workspaceId = activeSession?.workspaceId ?? `legacy:${workspacePath}`;
+    useWorkbenchStore.getState().openGitGraphTab({
+      kind: "gitGraph",
+      id: `git-graph:${workspaceId}`,
+      title: "Git Graph",
+      path: workspacePath,
+      source: workspace?.source ?? "local",
+      workspaceId,
+      connectionId,
+    });
+  }, [activeSession?.workspaceId, connectionId, workspace?.source, workspacePath]);
+
   const commit = useCallback(async () => {
     if (!commitMessage.trim() || committing) return;
     setCommitting(true);
     try {
-      await gitCommit(workspacePath, commitMessage);
+      await gitCommit(workspacePath, commitMessage, connectionId);
       setCommitMessage("");
       await refresh();
     } catch (err) {
@@ -233,21 +285,33 @@ export function GitPanel() {
     } finally {
       setCommitting(false);
     }
-  }, [commitMessage, committing, refresh, workspacePath]);
+  }, [commitMessage, committing, connectionId, refresh, workspacePath]);
 
   const switchBranch = useCallback(
     async (branch: string) => {
       await runAction(async () => {
-        await gitCheckout(workspacePath, branch);
+        await gitCheckout(workspacePath, branch, connectionId);
       });
     },
-    [runAction, workspacePath],
+    [connectionId, runAction, workspacePath],
   );
 
   const writeCommandToTerminal = useCallback(
     (command: string) => {
       if (!activeSession) return;
-      void writeTerminal(activeSession.id, command).catch(() => {
+      const sessions = useSessionStore.getState().sessions;
+      const terminal = sessions.some((session) => session.id === activeSession.id)
+        ? activeSession
+        : sessions.find(
+            (session) =>
+              session.kind === "terminal" &&
+              session.workspaceId === activeSession.workspaceId,
+          );
+      if (!terminal) {
+        toast.error(t("gitRetryFailed"));
+        return;
+      }
+      void writeTerminal(terminal.id, command).catch(() => {
         toast.error(t("gitRetryFailed"));
       });
     },
@@ -259,10 +323,10 @@ export function GitPanel() {
       try {
         const result =
           command === "fetch"
-            ? await gitFetch(workspacePath)
+            ? await gitFetch(workspacePath, connectionId)
             : command === "pull"
-              ? await gitPull(workspacePath)
-              : await gitPush(workspacePath);
+              ? await gitPull(workspacePath, connectionId)
+              : await gitPush(workspacePath, connectionId);
 
         if (result.ok) {
           toast.success(doneLabel);
@@ -293,21 +357,13 @@ export function GitPanel() {
         toast.error(parsePuckError(err).message);
       }
     },
-    [refresh, t, workspacePath, writeCommandToTerminal],
+    [connectionId, refresh, t, workspacePath, writeCommandToTerminal],
   );
 
   if (!activeSession || activeSession.kind !== "terminal") {
     return (
       <div className="px-4 py-8 text-center text-sm text-muted-foreground">
         {t("noActiveTerminal")}
-      </div>
-    );
-  }
-
-  if (!isLocal) {
-    return (
-      <div className="px-4 py-8 text-center text-sm text-muted-foreground">
-        {t("gitLocalOnly")}
       </div>
     );
   }
@@ -432,6 +488,15 @@ export function GitPanel() {
           <Button
             variant="ghost"
             size="icon-sm"
+            aria-label="Git Graph"
+            title="Git Graph"
+            onClick={openGraph}
+          >
+            <GitForkIcon />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon-sm"
             aria-label={t("refresh")}
             disabled={loading}
             onClick={() => void refresh()}
@@ -463,7 +528,7 @@ export function GitPanel() {
                       title={t("gitUnstage")}
                       onClick={() =>
                         void runAction(() =>
-                          gitUnstage(workspacePath, [file.path]),
+                          gitUnstage(workspacePath, [file.path], connectionId),
                         )
                       }
                     >
@@ -497,7 +562,7 @@ export function GitPanel() {
                             title={t("gitStage")}
                             onClick={() =>
                               void runAction(() =>
-                                gitStage(workspacePath, [file.path]),
+                                gitStage(workspacePath, [file.path], connectionId),
                               )
                             }
                           >
@@ -513,7 +578,7 @@ export function GitPanel() {
                                 return;
                               }
                               void runAction(() =>
-                                gitDiscard(workspacePath, [file.path]),
+                                gitDiscard(workspacePath, [file.path], connectionId),
                               );
                             }}
                           >
@@ -550,7 +615,7 @@ export function GitPanel() {
                     aria-label={t("gitStage")}
                     title={t("gitStage")}
                     onClick={() =>
-                      void runAction(() => gitStage(workspacePath, [path]))
+                      void runAction(() => gitStage(workspacePath, [path], connectionId))
                     }
                   >
                     <ArrowUpIcon />

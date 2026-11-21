@@ -33,7 +33,7 @@ pub enum PuckError {
 
 impl std::fmt::Display for PuckError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.clone().to_payload().message)
+        write!(f, "{}", self.clone().into_payload().message)
     }
 }
 
@@ -72,7 +72,7 @@ impl PuckError {
         }
     }
 
-    pub fn to_payload(self) -> PuckErrorPayload {
+    pub fn into_payload(self) -> PuckErrorPayload {
         match self {
             Self::Message(message) => PuckErrorPayload {
                 code: "unknown_error".into(),
@@ -127,7 +127,7 @@ impl From<String> for PuckError {
 pub type PuckResult<T> = Result<T, PuckError>;
 
 pub fn puck_err<T>(error: PuckError) -> Result<T, String> {
-    let payload = error.to_payload();
+    let payload = error.into_payload();
     Err(serde_json::to_string(&payload).unwrap_or(payload.message))
 }
 

@@ -13,10 +13,9 @@ import { isTauri } from "@/lib/platform";
 /** Section keys in ~/.config/puck/config.toml */
 export const PUCK_CONFIG_KEYS = {
   appSettings: "app_settings",
-  sidebarLayout: "sidebar_layout",
-  hostsLayout: "hosts_layout",
   sessionPrivileges: "session_privileges",
   shellLayout: "shell_layout",
+  workspaces: "workspaces",
 } as const;
 
 const cache = new Map<string, string | null>();

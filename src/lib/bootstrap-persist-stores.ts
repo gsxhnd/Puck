@@ -10,9 +10,8 @@ import {
 import { useAppSettingsStore } from "@/stores/app-settings-store";
 import { useConnectionStore } from "@/stores/connection-store";
 import { useSessionPrivilegesStore } from "@/stores/session-privileges-store";
-import { useHostsLayoutStore } from "@/stores/hosts-layout-store";
 import { useShellLayoutStore } from "@/stores/shell-layout-store";
-import { useSidebarLayoutStore } from "@/stores/sidebar-layout-store";
+import { useWorkspaceStore } from "@/stores/workspace-store";
 import { toast } from "sonner";
 
 /** Hydrate all persisted stores after on-disk config has been preloaded. */
@@ -35,10 +34,9 @@ export async function bootstrapPersistStores(): Promise<void> {
   await Promise.all([
     useAppSettingsStore.persist.rehydrate(),
     useConnectionStore.persist.rehydrate(),
-    useSidebarLayoutStore.persist.rehydrate(),
-    useHostsLayoutStore.persist.rehydrate(),
     useSessionPrivilegesStore.persist.rehydrate(),
     useShellLayoutStore.persist.rehydrate(),
+    useWorkspaceStore.persist.rehydrate(),
   ]);
 
   const { language, themeMode, colorTheme, uiAppearanceOverrides } =

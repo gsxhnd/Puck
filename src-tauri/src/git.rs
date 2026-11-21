@@ -41,6 +41,21 @@ pub struct GitCommitEntry {
     pub subject: String,
 }
 
+/// One commit with DAG parents and decorative refs for the graph view.
+///
+/// 一条用于提交图的记录：在简洁提交信息上增加父提交哈希和分支/tag 装饰。
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GitGraphCommit {
+    pub hash: String,
+    pub short_hash: String,
+    pub author: String,
+    pub date: String,
+    pub subject: String,
+    pub parents: Vec<String>,
+    pub refs: Vec<String>,
+}
+
 /// One local branch entry.
 ///
 /// 一条本地分支记录：名称、短哈希与是否为当前检出分支。
@@ -299,7 +314,7 @@ async fn workspace_dir(path: &str) -> PuckResult<PathBuf> {
 }
 
 fn to_invoke_error(error: PuckError) -> String {
-    let payload = error.to_payload();
+    let payload = error.into_payload();
     serde_json::to_string(&payload).unwrap_or(payload.message)
 }
 
@@ -469,6 +484,85 @@ pub async fn git_log(
         .map_err(to_invoke_error)
 }
 
+/// Parses graph log fields, keeping subject text and decorations unambiguous.
+///
+/// 解析提交图日志。字段使用 US、记录使用 RS 分隔，提交主题中的逗号、竖线
+/// 或中文不会影响父提交和 refs 的解析。
+pub fn parse_graph_log(output: &str) -> Vec<GitGraphCommit> {
+    output
+        .split('\u{1e}')
+        .filter(|record| !record.trim().is_empty())
+        .map(|record| {
+            let mut fields = record.split('\u{1f}');
+            let hash = fields.next().unwrap_or("").trim().to_string();
+            let short_hash = fields.next().unwrap_or("").trim().to_string();
+            let author = fields.next().unwrap_or("").trim().to_string();
+            let date = fields.next().unwrap_or("").trim().to_string();
+            let subject = fields.next().unwrap_or("").trim_end().to_string();
+            let parents = fields
+                .next()
+                .unwrap_or("")
+                .split_whitespace()
+                .map(str::to_string)
+                .collect();
+            let refs = fields
+                .next()
+                .unwrap_or("")
+                .split(',')
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+                .map(str::to_string)
+                .collect();
+            GitGraphCommit {
+                hash,
+                short_hash,
+                author,
+                date,
+                subject,
+                parents,
+                refs,
+            }
+        })
+        .collect()
+}
+
+async fn git_graph_inner(
+    path: &str,
+    limit: u32,
+    skip: u32,
+) -> PuckResult<Vec<GitGraphCommit>> {
+    let cwd = workspace_dir(path).await?;
+    let limit_string = limit.clamp(1, 500).to_string();
+    let skip_string = skip.to_string();
+    let output = run_git_trimmed(
+        &[
+            "log",
+            "--all",
+            "--topo-order",
+            "--max-count",
+            &limit_string,
+            "--skip",
+            &skip_string,
+            "--date=iso-local",
+            "--pretty=format:%H%x1f%h%x1f%an%x1f%ad%x1f%s%x1f%P%x1f%D%x1e",
+        ],
+        &cwd,
+    )
+    .await?;
+    Ok(parse_graph_log(&output))
+}
+
+#[tauri::command]
+pub async fn git_graph(
+    path: String,
+    limit: Option<u32>,
+    skip: Option<u32>,
+) -> Result<Vec<GitGraphCommit>, String> {
+    git_graph_inner(&path, limit.unwrap_or(200), skip.unwrap_or(0))
+        .await
+        .map_err(to_invoke_error)
+}
+
 /// Parses `git branch --format=%(refname:short)%00%(HEAD)%00%(objectname:short)`
 /// output.
 ///
@@ -587,10 +681,10 @@ async fn git_network_inner(
             message: None,
         }),
         Err(error) => {
-            // to_payload consumes the error, so clone first and keep the
+            // into_payload consumes the error, so clone first and keep the
             // original for the non-network rethrow path.
-            // to_payload 会消耗 error，先 clone 保留原值供非网络错误重新抛出。
-            let payload = error.clone().to_payload();
+            // into_payload 会消耗 error，先 clone 保留原值供非网络错误重新抛出。
+            let payload = error.clone().into_payload();
             match classify_network_error(&payload.message) {
                 Some(kind) => Ok(GitNetworkResult {
                     ok: false,
@@ -758,6 +852,19 @@ mod tests {
     #[test]
     fn empty_log_parses_to_empty_list() {
         assert!(parse_log("").is_empty());
+    }
+
+    #[test]
+    fn graph_log_preserves_parents_refs_and_subject() {
+        let output = "abc123\u{1f}abc\u{1f}Alice\u{1f}2026-11-18 10:00:00 +0800\u{1f}merge, 中文主题\u{1f}def456 ghi789\u{1f}HEAD -> main, origin/main, tag: v1.0\u{1e}";
+        let entries = parse_graph_log(output);
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].subject, "merge, 中文主题");
+        assert_eq!(entries[0].parents, vec!["def456", "ghi789"]);
+        assert_eq!(
+            entries[0].refs,
+            vec!["HEAD -> main", "origin/main", "tag: v1.0"]
+        );
     }
 
     #[test]
@@ -1107,12 +1214,12 @@ mod tests {
             // 无效远端的失败被归类为 network 错误而不是硬命令错误。
             let broken = run_git_trimmed(
                 &["fetch", "broken-remote"],
-                &local_dir.as_path(),
+                local_dir.as_path(),
             )
             .await;
             assert!(broken.is_err());
             if let Err(error) = &broken {
-                let payload = error.clone().to_payload();
+                let payload = error.clone().into_payload();
                 assert_eq!(
                     classify_network_error(&payload.message),
                     Some("network")

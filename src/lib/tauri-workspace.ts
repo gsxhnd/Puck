@@ -42,6 +42,18 @@ export async function listLocalDir(
   return parseLocalFileEntries(result);
 }
 
+export function mkdirLocal(path: string): Promise<void> {
+  return invoke("mkdir_local", { path });
+}
+
+export function deleteLocal(path: string): Promise<void> {
+  return invoke("delete_local", { path });
+}
+
+export function renameLocal(oldPath: string, newPath: string): Promise<void> {
+  return invoke("rename_local", { oldPath, newPath });
+}
+
 export async function readLocalFile(path: string): Promise<string> {
   const result = await invoke<unknown>("read_local_file", { path });
   if (typeof result !== "string") {

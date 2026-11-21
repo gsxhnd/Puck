@@ -15,6 +15,25 @@ import { closeSession } from "@/lib/tauri-terminal";
 
 const EXPLORER_SUFFIX = "__explorer";
 const EDITOR_PREFIX = "editor:";
+const inflightSessions = new Map<string, Promise<void>>();
+
+function ensureSessionOnce(
+  sessionId: string,
+  profile: ConnectionProfile,
+): Promise<void> {
+  const existing = inflightSessions.get(sessionId);
+  if (existing) return existing;
+
+  const promise = (async () => {
+    try {
+      await openSftpSession(sessionId, profile);
+    } finally {
+      inflightSessions.delete(sessionId);
+    }
+  })();
+  inflightSessions.set(sessionId, promise);
+  return promise;
+}
 
 export function explorerSftpSessionId(terminalSessionId: string): string {
   return `${terminalSessionId}${EXPLORER_SUFFIX}`;
@@ -69,7 +88,7 @@ export async function ensureSftpExplorerSession(
   terminalSessionId: string,
   profile: ConnectionProfile,
 ): Promise<void> {
-  await ensureSftpSession(explorerSftpSessionId(terminalSessionId), profile);
+  await ensureSessionOnce(explorerSftpSessionId(terminalSessionId), profile);
 }
 
 /**
@@ -80,7 +99,7 @@ export async function ensureSftpExplorerSession(
  * 只是 session id 不同（`editor:<connectionId>` 由编辑器独占，explorer 关闭
  * 不影响正在编辑的远程文档）。
  */
-export async function ensureSftpSession(
+async function openSftpSession(
   sessionId: string,
   profile: ConnectionProfile,
 ): Promise<void> {
@@ -108,6 +127,13 @@ export async function ensureSftpSession(
   });
   await connected;
   markConnectionEstablished(profile.id, "sftp", ["ssh", "sftp"]);
+}
+
+export function ensureSftpSession(
+  sessionId: string,
+  profile: ConnectionProfile,
+): Promise<void> {
+  return ensureSessionOnce(sessionId, profile);
 }
 
 export async function closeSftpExplorerSession(

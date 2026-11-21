@@ -9,9 +9,6 @@
 /** Which backend an editor document lives on. / 编辑器文档所在端：本地文件系统或 SFTP 远程。 */
 export type DocumentSource = "local" | "remote";
 
-/** Which backend a remote desktop session talks to. / 远程桌面会话使用的图形协议。 */
-export type RemoteDesktopProtocol = "rdp" | "vnc";
-
 /**
  * Metadata for an editor document (never holds full text content).
  *
@@ -56,14 +53,6 @@ export type DiffTab = {
   language: string;
 };
 
-/** A graphical remote desktop tab (RDP/VNC). / 图形远程桌面标签（RDP/VNC）。 */
-export type RemoteDesktopTab = {
-  kind: "remoteDesktop";
-  tabId: string;
-  sessionId: string;
-  protocol: RemoteDesktopProtocol;
-};
-
 /** The welcome/start tab. / 欢迎起始页标签。 */
 export type WelcomeTab = {
   kind: "welcome";
@@ -75,5 +64,4 @@ export type WorkbenchTab =
   | TerminalTab
   | EditorTab
   | DiffTab
-  | RemoteDesktopTab
   | WelcomeTab;
