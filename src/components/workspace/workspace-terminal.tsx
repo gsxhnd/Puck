@@ -9,6 +9,10 @@ import { useTranslation } from "react-i18next";
 import {
   ChevronDownIcon,
   ChevronUpIcon,
+  PanelBottomIcon,
+  PanelLeftIcon,
+  PanelRightIcon,
+  PanelTopIcon,
   PlusIcon,
   SquareTerminalIcon,
   XIcon,
@@ -16,9 +20,17 @@ import {
 import { createWorkspaceTerminal, toggleTerminalPanel } from "@/lib/workspace-actions";
 import { cn } from "@/lib/utils";
 import { useSessionStore } from "@/stores/session-store";
+import { useShellLayoutStore, type TerminalSide } from "@/stores/shell-layout-store";
 import { useWorkspaceStore } from "@/stores/workspace-store";
 import { TerminalWorkspace } from "@/page/terminal/terminal-workspace";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 function terminalTitle(session: {
   customTitle?: string;
@@ -31,10 +43,31 @@ function terminalTitle(session: {
   return session.shellName ?? "local";
 }
 
+const TERMINAL_SIDE_ITEMS: Array<{
+  side: TerminalSide;
+  icon: typeof PanelBottomIcon;
+  labelKey: string;
+}> = [
+  { side: "bottom", icon: PanelBottomIcon, labelKey: "common:workspace.terminalSideBottom" },
+  { side: "right", icon: PanelRightIcon, labelKey: "common:workspace.terminalSideRight" },
+  { side: "top", icon: PanelTopIcon, labelKey: "common:workspace.terminalSideTop" },
+  { side: "left", icon: PanelLeftIcon, labelKey: "common:workspace.terminalSideLeft" },
+];
+
+function TerminalSideIcon({ side }: { side: TerminalSide }) {
+  const item =
+    TERMINAL_SIDE_ITEMS.find((entry) => entry.side === side) ??
+    TERMINAL_SIDE_ITEMS[0];
+  const Icon = item?.icon ?? PanelBottomIcon;
+  return <Icon />;
+}
+
 export function WorkspaceTerminal() {
   const { t } = useTranslation(["common", "terminal"]);
   const workspace = useWorkspaceStore((state) => state.activeWorkspace);
   const terminalOpen = useWorkspaceStore((state) => state.terminalOpen);
+  const terminalSide = useShellLayoutStore((state) => state.terminalSide);
+  const setTerminalSide = useShellLayoutStore((state) => state.setTerminalSide);
   const sessions = useSessionStore((state) => state.sessions);
   const activeSessionId = useSessionStore((state) => state.activeSessionId);
   const setActiveSession = useSessionStore((state) => state.setActiveSession);
@@ -103,6 +136,35 @@ export function WorkspaceTerminal() {
         >
           <PlusIcon />
         </Button>
+        {terminalOpen ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  aria-label={t("common:workspace.terminalSide")}
+                  title={t("common:workspace.terminalSide")}
+                >
+                  <TerminalSideIcon side={terminalSide} />
+                </Button>
+              }
+            />
+            <DropdownMenuContent align="end" className="w-40">
+              <DropdownMenuRadioGroup
+                value={terminalSide}
+                onValueChange={(value) => setTerminalSide(value as TerminalSide)}
+              >
+                {TERMINAL_SIDE_ITEMS.map((item) => (
+                  <DropdownMenuRadioItem key={item.side} value={item.side}>
+                    <item.icon />
+                    {t(item.labelKey)}
+                  </DropdownMenuRadioItem>
+                ))}
+              </DropdownMenuRadioGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : null}
         <Button
           variant="ghost"
           size="icon-xs"

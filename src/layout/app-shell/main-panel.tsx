@@ -67,7 +67,8 @@ export function MainPanel() {
   const splitSession = useTerminalSplitStore((state) => state.splitSession);
   const syncSplit = useTerminalSplitStore((state) => state.syncWithSessions);
   const setLayout = useShellLayoutStore((state) => state.setLayout);
-  const verticalLayout = useMemo(
+  const terminalSide = useShellLayoutStore((state) => state.terminalSide);
+  const editorTerminalLayout = useMemo(
     () => useShellLayoutStore.getState().getVerticalLayout(),
     [],
   );
@@ -116,30 +117,53 @@ export function MainPanel() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [activeSession, activeSessionId, openSearch, splitSession, toggleSidebar]);
 
+  // The terminal island docks on any side of the editor; the split stays
+  // resizable in every orientation.
+  // 终端岛可停靠在编辑器的任意一侧，四种方位下分隔条都可拖拽调整大小。
+  const terminalIsHorizontal = terminalSide === "left" || terminalSide === "right";
+  const terminalFirst = terminalSide === "left" || terminalSide === "top";
+
+  const editorPanel = (
+    <ResizablePanel
+      id="editor"
+      defaultSize="68%"
+      minSize={terminalIsHorizontal ? 280 : 120}
+      className="min-h-0"
+    >
+      <div className="island flex h-full min-h-0 flex-col bg-shell-main">
+        <WorkbenchTabArea>
+          <EditorEmptyState />
+        </WorkbenchTabArea>
+      </div>
+    </ResizablePanel>
+  );
+
+  const terminalPanel = terminalOpen ? (
+    <ResizablePanel
+      id="terminal"
+      defaultSize="32%"
+      minSize={terminalIsHorizontal ? 240 : 120}
+      collapsible
+      className="min-h-0"
+    >
+      <div className="island h-full bg-shell-main">
+        <WorkspaceTerminal />
+      </div>
+    </ResizablePanel>
+  ) : null;
+
   return (
     <div className="h-full min-h-0">
       <ResizablePanelGroup
         id="workspace-main"
-        orientation="vertical"
-        defaultLayout={verticalLayout}
+        orientation={terminalIsHorizontal ? "horizontal" : "vertical"}
+        defaultLayout={editorTerminalLayout}
         onLayoutChanged={setLayout}
-        className="gap-2"
+        className="gap-1.5"
       >
-        <ResizablePanel id="editor" defaultSize="68%" minSize={120} className="min-h-0">
-          <div className="island flex h-full min-h-0 flex-col bg-shell-main">
-            <WorkbenchTabArea>
-              <EditorEmptyState />
-            </WorkbenchTabArea>
-          </div>
-        </ResizablePanel>
+        {terminalFirst ? terminalPanel : editorPanel}
         {terminalOpen ? <ResizableHandle /> : null}
-        {terminalOpen ? (
-          <ResizablePanel id="terminal" defaultSize="32%" minSize={120} collapsible className="min-h-0">
-            <div className="island h-full bg-shell-main">
-              <WorkspaceTerminal />
-            </div>
-          </ResizablePanel>
-        ) : null}
+        {terminalFirst ? editorPanel : terminalPanel}
       </ResizablePanelGroup>
     </div>
   );

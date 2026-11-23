@@ -109,14 +109,14 @@ export function AppShell() {
     >
       <AppHeader />
 
-      <div className="min-h-0 flex-1 px-2 py-2">
+      <div className="min-h-0 flex-1 px-1.5 py-1.5">
         <ResizablePanelGroup
           id="app-shell"
           orientation="horizontal"
           // The gap only applies while the sidebar is open; a collapsed panel
           // stays mounted at zero width and must not leave phantom space.
           // 侧栏展开时才有间隙；折叠面板仍挂载为 0 宽，不能留下幻影空隙。
-          className={cn("h-full", sidebarOpen && "gap-2")}
+          className={cn("h-full", sidebarOpen && "gap-1.5")}
           defaultLayout={horizontalLayout}
           onLayoutChanged={setLayout}
         >

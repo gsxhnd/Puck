@@ -13,6 +13,17 @@ import {
 
 export type ShellLayout = Record<string, number>;
 
+/** Where the terminal island docks relative to the editor. 终端岛的停靠方位。 */
+export type TerminalSide = "bottom" | "left" | "right" | "top";
+
+export const DEFAULT_TERMINAL_SIDE: TerminalSide = "bottom";
+
+function migrateStoredTerminalSide(value: unknown): TerminalSide {
+  return value === "left" || value === "right" || value === "top"
+    ? value
+    : DEFAULT_TERMINAL_SIDE;
+}
+
 function migrateStoredLayout(layout: ShellLayout): ShellLayout {
   const { left, right, primary, second, main, ...rest } = layout;
   const migrated: ShellLayout = { ...rest };
@@ -31,7 +42,9 @@ function migrateStoredLayout(layout: ShellLayout): ShellLayout {
 
 type ShellLayoutStore = {
   layout: ShellLayout | null;
+  terminalSide: TerminalSide;
   setLayout: (layout: ShellLayout) => void;
+  setTerminalSide: (side: TerminalSide) => void;
   getHorizontalLayout: () => ShellLayout;
   getVerticalLayout: () => ShellLayout;
 };
@@ -73,11 +86,14 @@ export const useShellLayoutStore = create<ShellLayoutStore>()(
   persist(
     (set, get) => ({
       layout: null,
+      terminalSide: DEFAULT_TERMINAL_SIDE,
 
       setLayout: (layout) =>
         set((state) => ({
           layout: { ...state.layout, ...migrateStoredLayout(layout) },
         })),
+
+      setTerminalSide: (terminalSide) => set({ terminalSide }),
 
       getHorizontalLayout: () => {
         const layout = get().layout ?? DEFAULT_LAYOUT;
@@ -103,13 +119,17 @@ export const useShellLayoutStore = create<ShellLayoutStore>()(
       name: PUCK_CONFIG_KEYS.shellLayout,
       storage: shellLayoutStorage,
       skipHydration: true,
-      partialize: (state) => ({ layout: state.layout }),
+      partialize: (state) => ({
+        layout: state.layout,
+        terminalSide: state.terminalSide,
+      }),
       merge: (persisted, current) => {
         const state = persisted as Partial<ShellLayoutStore> | undefined;
         if (!state?.layout) return current;
         return {
           ...current,
           layout: migrateStoredLayout(state.layout),
+          terminalSide: migrateStoredTerminalSide(state.terminalSide),
         };
       },
     },
