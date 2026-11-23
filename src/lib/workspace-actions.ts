@@ -82,6 +82,37 @@ export function activateRecentWorkspace(workspace: Workspace): boolean {
   return true;
 }
 
+/**
+ * Toggles the terminal panel visibility.
+ *
+ * 切换终端面板。收起时直接隐藏；展开时若当前 Workspace 已有终端则聚焦最近
+ * 一个，否则创建一个默认终端，保证面板展开后始终有可用内容。
+ */
+export function toggleTerminalPanel(): void {
+  const workspaceState = useWorkspaceStore.getState();
+  if (workspaceState.terminalOpen) {
+    workspaceState.setTerminalOpen(false);
+    return;
+  }
+  const workspace = workspaceState.activeWorkspace;
+  const existing = useSessionStore
+    .getState()
+    .sessions.filter(
+      (session) =>
+        session.kind === "terminal" &&
+        (workspace
+          ? session.workspaceId === workspace.id
+          : !session.workspaceId),
+    );
+  const last = existing[existing.length - 1];
+  if (last) {
+    workspaceState.setTerminalOpen(true);
+    useSessionStore.getState().setActiveSession(last.id);
+    return;
+  }
+  void createWorkspaceTerminal();
+}
+
 export async function createWorkspaceTerminal(
   shell?: Pick<ShellInfo, "id" | "name" | "kind">,
 ): Promise<void> {

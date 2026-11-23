@@ -13,7 +13,7 @@ import {
   SquareTerminalIcon,
   XIcon,
 } from "lucide-react";
-import { createWorkspaceTerminal } from "@/lib/workspace-actions";
+import { createWorkspaceTerminal, toggleTerminalPanel } from "@/lib/workspace-actions";
 import { cn } from "@/lib/utils";
 import { useSessionStore } from "@/stores/session-store";
 import { useWorkspaceStore } from "@/stores/workspace-store";
@@ -35,7 +35,6 @@ export function WorkspaceTerminal() {
   const { t } = useTranslation(["common", "terminal"]);
   const workspace = useWorkspaceStore((state) => state.activeWorkspace);
   const terminalOpen = useWorkspaceStore((state) => state.terminalOpen);
-  const toggleTerminal = useWorkspaceStore((state) => state.toggleTerminal);
   const sessions = useSessionStore((state) => state.sessions);
   const activeSessionId = useSessionStore((state) => state.activeSessionId);
   const setActiveSession = useSessionStore((state) => state.setActiveSession);
@@ -58,9 +57,8 @@ export function WorkspaceTerminal() {
   }, [activeSessionId, activeWorkspaceSession, setActiveSession]);
 
   return (
-    <section className="flex h-full min-h-0 flex-col bg-shell-main" aria-label={t("common:workspace.terminal")}>
+    <section className="flex h-full min-h-0 flex-col" aria-label={t("common:workspace.terminal")}>
       <div className="flex h-9 shrink-0 items-center gap-1 border-b border-border/60 px-2">
-        <SquareTerminalIcon className="size-3.5 shrink-0 text-muted-foreground" />
         <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
           {terminalOpen
             ? workspaceSessions.map((session) => {
@@ -110,7 +108,7 @@ export function WorkspaceTerminal() {
           size="icon-xs"
           aria-label={terminalOpen ? t("common:workspace.hideTerminal") : t("common:workspace.showTerminal")}
           title={terminalOpen ? t("common:workspace.hideTerminal") : t("common:workspace.showTerminal")}
-          onClick={toggleTerminal}
+          onClick={toggleTerminalPanel}
         >
           {terminalOpen ? <ChevronDownIcon /> : <ChevronUpIcon />}
         </Button>

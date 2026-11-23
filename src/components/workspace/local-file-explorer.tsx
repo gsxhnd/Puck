@@ -7,9 +7,16 @@ import {
   FilePlusIcon,
   FolderPlusIcon,
   RefreshCwIcon,
+  SearchIcon,
   SquareTerminalIcon,
+  XIcon,
 } from "lucide-react";
-import { FileTree, type FileTreeEntry } from "@/components/workspace/file-tree";
+import {
+  FileTree,
+  FileSearchResults,
+  type FileTreeEntry,
+  type FileTreeMenuLabels,
+} from "@/components/workspace/file-tree";
 import {
   deleteLocal,
   listLocalDir,
@@ -24,9 +31,11 @@ import { openFileInWorkbench } from "@/lib/open-in-workbench";
 import { shortenPath } from "@/lib/session-display";
 import { cdTerminalSession } from "@/lib/terminal-cd";
 import { useWorkspaceWatch } from "@/hooks/use-workspace-watch";
+import { useFileNameSearch } from "@/hooks/use-file-name-search";
 import { useSessionStore } from "@/stores/session-store";
 import type { Session } from "@/types/connection";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Tooltip,
@@ -62,6 +71,7 @@ export function LocalFileExplorerPanel({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showHidden, setShowHidden] = useState(false);
+  const [query, setQuery] = useState("");
 
   useEffect(() => {
     setCwd((current) => (current === workspacePath ? current : workspacePath));
@@ -145,14 +155,24 @@ export function LocalFileExplorerPanel({
     [showHidden],
   );
 
+  const searchListDir = useCallback(
+    async (path: string) => {
+      const list = await listLocalDir(path, showHidden);
+      return toTreeEntries(list);
+    },
+    [showHidden],
+  );
+
+  const search = useFileNameSearch({ root: cwd, query, listDir: searchListDir });
+
   const createEntry = useCallback(
-    async (kind: "file" | "directory") => {
+    async (kind: "file" | "directory", dirPath: string = cwd) => {
       const label = kind === "file"
         ? t("common:workspace.newFileName")
         : t("common:workspace.newFolderName");
       const name = window.prompt(label);
       if (!name?.trim()) return;
-      const path = joinLocalPath(cwd, name.trim());
+      const path = joinLocalPath(dirPath, name.trim());
       try {
         if (kind === "file") {
           await writeLocalFile(path, "");
@@ -198,6 +218,24 @@ export function LocalFileExplorerPanel({
       }
     },
     [refresh, t],
+  );
+
+  const menuLabels = useMemo<FileTreeMenuLabels>(
+    () => ({
+      open: t("common:actions.open"),
+      copyPath: t("common:workspace.copyPath"),
+      newFile: t("common:workspace.newFile"),
+      newFolder: t("common:workspace.newFolder"),
+      pathCopied: t("common:workspace.pathCopied"),
+    }),
+    [t],
+  );
+
+  const openInWorkbench = useCallback(
+    (path: string) => {
+      openFileInWorkbench({ path, source: "local" });
+    },
+    [],
   );
 
   return (
@@ -300,26 +338,68 @@ export function LocalFileExplorerPanel({
         </Button>
       </div>
 
+      <div className="relative border-b border-border/60 px-2 py-1.5">
+        <SearchIcon className="pointer-events-none absolute left-3.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder={t("common:workspace.searchPlaceholder")}
+          className="h-7 pl-7 pr-7 text-xs md:text-xs"
+        />
+        {query ? (
+          <button
+            type="button"
+            aria-label={t("common:actions.close")}
+            className="absolute right-3.5 top-1/2 -translate-y-1/2 rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+            onClick={() => setQuery("")}
+          >
+            <XIcon className="size-3.5" />
+          </button>
+        ) : null}
+      </div>
+
       {error ? (
         <div className="px-3 py-2 text-xs text-destructive">{error}</div>
       ) : null}
 
       <ScrollArea className="min-h-0 flex-1">
-        <FileTree
-          entries={entries}
-          loading={loading}
-          emptyLabel={t("emptyDirectory")}
-          cacheKey={`${activeSession.id}:${cwd}:${showHidden}`}
-          loadChildren={loadChildren}
-          onEnterDirectory={navigateTo}
-          onOpenFile={(path) => {
-            openFileInWorkbench({ path, source: "local" });
-          }}
-          onRename={(entry) => void renameEntry(entry)}
-          onDelete={(entry) => void deleteEntry(entry)}
-          renameLabel={t("common:workspace.rename")}
-          deleteLabel={t("common:workspace.delete")}
-        />
+        {query.trim() ? (
+          <FileSearchResults
+            results={search.results}
+            rootPath={cwd}
+            searching={search.searching}
+            truncated={search.truncated}
+            emptyLabel={t("common:workspace.searchNoResults")}
+            truncatedLabel={t("common:workspace.searchTruncated")}
+            onEnterDirectory={(path) => {
+              navigateTo(path);
+              setQuery("");
+            }}
+            onOpenFile={openInWorkbench}
+            onRename={(entry) => void renameEntry(entry)}
+            onDelete={(entry) => void deleteEntry(entry)}
+            onCreateIn={(kind, dirPath) => void createEntry(kind, dirPath)}
+            menuLabels={menuLabels}
+            renameLabel={t("common:workspace.rename")}
+            deleteLabel={t("common:workspace.delete")}
+          />
+        ) : (
+          <FileTree
+            entries={entries}
+            loading={loading}
+            emptyLabel={t("emptyDirectory")}
+            cacheKey={`${activeSession.id}:${cwd}:${showHidden}`}
+            loadChildren={loadChildren}
+            onEnterDirectory={navigateTo}
+            onOpenFile={openInWorkbench}
+            onRename={(entry) => void renameEntry(entry)}
+            onDelete={(entry) => void deleteEntry(entry)}
+            onCreateIn={(kind, dirPath) => void createEntry(kind, dirPath)}
+            menuLabels={menuLabels}
+            renameLabel={t("common:workspace.rename")}
+            deleteLabel={t("common:workspace.delete")}
+          />
+        )}
       </ScrollArea>
 
       <div className="border-t border-border/60 px-3 py-1.5 text-xs text-muted-foreground">

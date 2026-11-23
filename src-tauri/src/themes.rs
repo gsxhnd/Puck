@@ -12,19 +12,25 @@ use crate::config::config_dir;
 
 pub const BUILTIN_COLOR_THEME_ID: &str = "default";
 
+/// Accent themes shipped with the app. 只保留三个强调色主题。
 const SEED_THEMES: &[(&str, &str)] = &[
-    ("zinc", include_str!("../resources/themes/zinc.css")),
     ("slate", include_str!("../resources/themes/slate.css")),
-    ("stone", include_str!("../resources/themes/stone.css")),
-    ("rose", include_str!("../resources/themes/rose.css")),
-    ("blue", include_str!("../resources/themes/blue.css")),
-    ("green", include_str!("../resources/themes/green.css")),
-    ("violet", include_str!("../resources/themes/violet.css")),
     (
         "catppuccin",
         include_str!("../resources/themes/catppuccin.css"),
     ),
     ("nord", include_str!("../resources/themes/nord.css")),
+];
+
+/// Seed ids removed from the built-in set; their files are cleaned up on
+/// init so old installs no longer list them. 旧种子主题在初始化时删除。
+const REMOVED_SEED_THEMES: &[&str] = &[
+    "zinc",
+    "stone",
+    "rose",
+    "blue",
+    "green",
+    "violet",
 ];
 
 /// Summary returned to the frontend theme picker.
@@ -56,6 +62,13 @@ pub fn ensure_themes_initialized() {
     let dir = themes_dir();
     if fs::create_dir_all(&dir).is_err() {
         return;
+    }
+
+    // Remove seed themes that are no longer shipped so existing installs stop
+    // listing them. Custom themes with other ids are untouched.
+    // 删除不再内置的旧种子主题文件；用户自建的其他主题不受影响。
+    for id in REMOVED_SEED_THEMES {
+        let _ = fs::remove_file(dir.join(format!("{id}.css")));
     }
 
     for (id, css) in SEED_THEMES {

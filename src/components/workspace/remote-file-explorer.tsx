@@ -7,8 +7,15 @@ import {
   FilePlusIcon,
   FolderPlusIcon,
   RefreshCwIcon,
+  SearchIcon,
+  XIcon,
 } from "lucide-react";
-import { FileTree, type FileTreeEntry } from "@/components/workspace/file-tree";
+import {
+  FileTree,
+  FileSearchResults,
+  type FileTreeEntry,
+  type FileTreeMenuLabels,
+} from "@/components/workspace/file-tree";
 import {
   deleteRemote,
   listRemoteDir,
@@ -28,6 +35,7 @@ import {
 import { openFileInWorkbench } from "@/lib/open-in-workbench";
 import { shortenPath } from "@/lib/session-display";
 import { cdTerminalSession } from "@/lib/terminal-cd";
+import { useFileNameSearch } from "@/hooks/use-file-name-search";
 import {
   breadcrumbPath,
   buildBreadcrumbs,
@@ -36,6 +44,7 @@ import {
   sortRemoteEntries,
 } from "@/lib/remote-path";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Tooltip,
@@ -95,6 +104,7 @@ export function RemoteFileExplorerPanel({
   const [connecting, setConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showHidden, setShowHidden] = useState(false);
+  const [query, setQuery] = useState("");
 
   useEffect(() => {
     setCwd((current) => (current === terminalCwd ? current : terminalCwd));
@@ -171,15 +181,31 @@ export function RemoteFileExplorerPanel({
     [activeSession.id, profile, showHidden, sftpSessionId, t],
   );
 
+  const searchListDir = useCallback(
+    async (path: string) => {
+      if (!profile) {
+        throw new Error(t("filesRemoteNoProfile"));
+      }
+      await ensureSftpExplorerSession(activeSession.id, profile);
+      const list = await listRemoteDir(sftpSessionId, path);
+      return toTreeEntries(
+        filterRemoteEntries(sortRemoteEntries(list), showHidden),
+      );
+    },
+    [activeSession.id, profile, showHidden, sftpSessionId, t],
+  );
+
+  const search = useFileNameSearch({ root: cwd, query, listDir: searchListDir });
+
   const createEntry = useCallback(
-    async (kind: "file" | "directory") => {
+    async (kind: "file" | "directory", dirPath: string = cwd) => {
       if (!profile) return;
       const label = kind === "file"
         ? t("common:workspace.newFileName")
         : t("common:workspace.newFolderName");
       const name = window.prompt(label);
       if (!name?.trim()) return;
-      const path = joinRemotePath(cwd, name.trim());
+      const path = joinRemotePath(dirPath, name.trim());
       try {
         await ensureSftpExplorerSession(activeSession.id, profile);
         if (kind === "file") {
@@ -239,6 +265,30 @@ export function RemoteFileExplorerPanel({
       </div>
     );
   }
+
+  const menuLabels: FileTreeMenuLabels = {
+    open: t("common:actions.open"),
+    copyPath: t("common:workspace.copyPath"),
+    newFile: t("common:workspace.newFile"),
+    newFolder: t("common:workspace.newFolder"),
+    pathCopied: t("common:workspace.pathCopied"),
+  };
+
+  const openInWorkbench = (path: string) => {
+    void (async () => {
+      try {
+        await ensureSftpExplorerSession(activeSession.id, profile);
+        openFileInWorkbench({
+          path,
+          source: "remote",
+          sessionId: sftpSessionId,
+          profile,
+        });
+      } catch (err) {
+        setError(parsePuckError(err).message);
+      }
+    })();
+  };
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -325,38 +375,68 @@ export function RemoteFileExplorerPanel({
         </Button>
       </div>
 
+      <div className="relative border-b border-border/60 px-2 py-1.5">
+        <SearchIcon className="pointer-events-none absolute left-3.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder={t("common:workspace.searchPlaceholder")}
+          className="h-7 pl-7 pr-7 text-xs md:text-xs"
+        />
+        {query ? (
+          <button
+            type="button"
+            aria-label={t("common:actions.close")}
+            className="absolute right-3.5 top-1/2 -translate-y-1/2 rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+            onClick={() => setQuery("")}
+          >
+            <XIcon className="size-3.5" />
+          </button>
+        ) : null}
+      </div>
+
       {error ? (
         <div className="px-3 py-2 text-xs text-destructive">{error}</div>
       ) : null}
 
       <ScrollArea className="min-h-0 flex-1">
-        <FileTree
-          entries={entries}
-          loading={loading || connecting}
-          emptyLabel={t("emptyDirectory")}
-          cacheKey={`${activeSession.id}:${cwd}:${showHidden}`}
-          loadChildren={loadChildren}
-          onEnterDirectory={navigateTo}
-          onOpenFile={(path) => {
-            void (async () => {
-              try {
-                await ensureSftpExplorerSession(activeSession.id, profile);
-                openFileInWorkbench({
-                  path,
-                  source: "remote",
-                  sessionId: sftpSessionId,
-                  profile,
-                });
-              } catch (err) {
-                setError(parsePuckError(err).message);
-              }
-            })();
-          }}
-          onRename={(entry) => void renameEntry(entry)}
-          onDelete={(entry) => void deleteEntry(entry)}
-          renameLabel={t("common:workspace.rename")}
-          deleteLabel={t("common:workspace.delete")}
-        />
+        {query.trim() ? (
+          <FileSearchResults
+            results={search.results}
+            rootPath={cwd}
+            searching={search.searching}
+            truncated={search.truncated}
+            emptyLabel={t("common:workspace.searchNoResults")}
+            truncatedLabel={t("common:workspace.searchTruncated")}
+            onEnterDirectory={(path) => {
+              navigateTo(path);
+              setQuery("");
+            }}
+            onOpenFile={openInWorkbench}
+            onRename={(entry) => void renameEntry(entry)}
+            onDelete={(entry) => void deleteEntry(entry)}
+            onCreateIn={(kind, dirPath) => void createEntry(kind, dirPath)}
+            menuLabels={menuLabels}
+            renameLabel={t("common:workspace.rename")}
+            deleteLabel={t("common:workspace.delete")}
+          />
+        ) : (
+          <FileTree
+            entries={entries}
+            loading={loading || connecting}
+            emptyLabel={t("emptyDirectory")}
+            cacheKey={`${activeSession.id}:${cwd}:${showHidden}`}
+            loadChildren={loadChildren}
+            onEnterDirectory={navigateTo}
+            onOpenFile={openInWorkbench}
+            onRename={(entry) => void renameEntry(entry)}
+            onDelete={(entry) => void deleteEntry(entry)}
+            onCreateIn={(kind, dirPath) => void createEntry(kind, dirPath)}
+            menuLabels={menuLabels}
+            renameLabel={t("common:workspace.rename")}
+            deleteLabel={t("common:workspace.delete")}
+          />
+        )}
       </ScrollArea>
 
       <div className="border-t border-border/60 px-3 py-1.5 text-xs text-muted-foreground">

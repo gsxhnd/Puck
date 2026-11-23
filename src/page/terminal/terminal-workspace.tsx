@@ -177,8 +177,13 @@ export function TerminalWorkspace({
     );
   }
 
+  // h-full is required: the parent (WorkspaceTerminal) is a block container,
+  // and stack panes are absolutely positioned, so without it the height
+  // collapses to 0 and the terminal renders nothing.
+  // 必须使用 h-full：父级 WorkspaceTerminal 是块级容器，栈式面板又都是绝对
+  // 定位，缺少 h-full 时高度塌陷为 0，终端将完全不可见。
   return (
-    <div className="relative min-h-0 flex-1 overflow-hidden">
+    <div className="relative h-full min-h-0 flex-1 overflow-hidden">
       <TerminalSearchBar />
       {sessions.map((session) =>
         session.protocol === "ssh" ? (

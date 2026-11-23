@@ -92,11 +92,6 @@
   );
 }
 
-[data-app-shell][data-primary-panel-open="true"] .main-panel-root {
-  width: calc(100% + var(--primary-panel-width, 0px));
-  margin-left: calc(-1 * var(--primary-panel-width, 0px));
-}
-
 [data-app-shell] [data-slot="resizable-handle"] {
   position: relative;
   z-index: 20;
@@ -238,6 +233,15 @@ html[data-window-chrome="macos-tauri"] [data-app-shell] {
   width: 100%;
   padding: var(--terminal-padding-y, 8px) var(--terminal-padding-x, 10px);
   background-color: var(--background);
+}
+
+/* Island mode: each shell region floats as a rounded card over the tinted
+   window base; gaps between islands show the base background.
+   孤岛模式：各区域为圆角卡片，浮于带色底的窗口背景之上，卡片间隙露出底色。 */
+.island {
+  overflow: hidden;
+  border-radius: var(--radius-xl);
+  border: 1px solid color-mix(in oklch, var(--border) 65%, transparent);
 }
 
 @layer base {

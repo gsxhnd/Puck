@@ -7,6 +7,7 @@
  */
 import { create } from "zustand";
 import { cleanupEphemeralProfileIfUnused } from "@/lib/ephemeral-connection";
+import { useWorkspaceStore } from "@/stores/workspace-store";
 import {
   type ConnectionProtocol,
   type Session,
@@ -94,6 +95,43 @@ function createSession(
   };
 }
 
+function sameTerminalScope(session: Session, workspaceId?: string): boolean {
+  return workspaceId ? session.workspaceId === workspaceId : !session.workspaceId;
+}
+
+/**
+ * Collapses the terminal panel once the active workspace has no terminals left.
+ *
+ * 当前 Workspace 的最后一个终端被关闭（手动或进程退出）时自动收起终端面板，
+ * 避免留下一个空的终端区域。
+ */
+function collapseTerminalPanelIfEmpty(
+  closed: Session,
+  remaining: Session[],
+): void {
+  if (closed.kind !== "terminal") return;
+  const workspaceState = useWorkspaceStore.getState();
+  if (!workspaceState.terminalOpen) return;
+  const active = workspaceState.activeWorkspace;
+  // Only react to the workspace the user is looking at; a background
+  // workspace losing its last terminal must not hide another workspace's
+  // terminals.
+  // 只响应当前正在查看的 Workspace；后台 Workspace 的终端退出不应隐藏其他
+  // Workspace 的终端。
+  const scopeMatches = closed.workspaceId
+    ? closed.workspaceId === active?.id
+    : !active;
+  if (!scopeMatches) return;
+  const hasRemainingTerminal = remaining.some(
+    (session) =>
+      session.kind === "terminal" &&
+      sameTerminalScope(session, closed.workspaceId),
+  );
+  if (!hasRemainingTerminal) {
+    workspaceState.setTerminalOpen(false);
+  }
+}
+
 export const useSessionStore = create<SessionStore>()((set, get) => ({
   sessions: [],
   activeSessionId: null,
@@ -121,11 +159,10 @@ export const useSessionStore = create<SessionStore>()((set, get) => ({
     return get().addSession(partial);
   },
   closeSession: (id) => {
-    let closedProfileId: string | undefined;
+    let closedSession: Session | undefined;
     let remainingSessions: Session[] = [];
     set((state) => {
-      const closed = state.sessions.find((session) => session.id === id);
-      closedProfileId = closed?.profileId;
+      closedSession = state.sessions.find((session) => session.id === id);
       const sessions = state.sessions.filter((session) => session.id !== id);
       remainingSessions = sessions;
       const activeSessionId =
@@ -134,8 +171,14 @@ export const useSessionStore = create<SessionStore>()((set, get) => ({
           : state.activeSessionId;
       return { sessions, activeSessionId };
     });
-    if (closedProfileId) {
-      void cleanupEphemeralProfileIfUnused(closedProfileId, remainingSessions);
+    if (closedSession) {
+      collapseTerminalPanelIfEmpty(closedSession, remainingSessions);
+    }
+    if (closedSession?.profileId) {
+      void cleanupEphemeralProfileIfUnused(
+        closedSession.profileId,
+        remainingSessions,
+      );
     }
   },
   setActiveSession: (id) => {

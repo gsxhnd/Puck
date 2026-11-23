@@ -111,7 +111,17 @@ export function TerminalPane({
     let disposed = false;
 
     const fitTerminal = () => {
-      fitAddon.fit();
+      try {
+        fitAddon.fit();
+      } catch {
+        // The panel may not have a measurable size during workspace/layout
+        // hydration. Start with a safe PTY size and let ResizeObserver fit it.
+        // 面板在布局 hydrate 期间可能没有尺寸；先使用安全 PTY 尺寸，之后由
+        // ResizeObserver 自动调整。
+      }
+      if (terminal.cols <= 1 || terminal.rows <= 1) {
+        return { cols: 80, rows: 24 };
+      }
       return { cols: terminal.cols, rows: terminal.rows };
     };
 
@@ -184,7 +194,11 @@ export function TerminalPane({
 
     const resizeObserver = new ResizeObserver(() => {
       if (!openedRef.current) return;
-      fitTerminal();
+      try {
+        fitTerminal();
+      } catch {
+        return;
+      }
       void resizeTerminal(sessionId, terminal.cols, terminal.rows);
     });
     resizeObserver.observe(container);

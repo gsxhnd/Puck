@@ -276,16 +276,28 @@ export function SshTerminalPane({
       unlistenExit = unlistenExitFn;
       unlistenStatus = unlistenStatusFn;
 
-      fitAddon.fit();
+      try {
+        fitAddon.fit();
+      } catch {
+        // The panel may not have a measurable size yet; start SSH with safe
+        // dimensions and let ResizeObserver send the real size.
+        // 面板尺寸可能尚未就绪；先使用安全尺寸建立 SSH，再由 ResizeObserver 调整。
+      }
       if (!disposed) {
-        void connect(Math.max(terminal.cols, 2), Math.max(terminal.rows, 2));
+        const cols = terminal.cols > 1 ? terminal.cols : 80;
+        const rows = terminal.rows > 1 ? terminal.rows : 24;
+        void connect(cols, rows);
       }
     })();
 
     const resizeObserver = new ResizeObserver(() => {
       if (!openedRef.current) return;
-      fitAddon.fit();
-      void resizeTerminal(sessionId, terminal.cols, terminal.rows);
+      try {
+        fitAddon.fit();
+        void resizeTerminal(sessionId, terminal.cols, terminal.rows);
+      } catch {
+        // Ignore transient zero-size layout frames. / 忽略瞬时零尺寸布局帧。
+      }
     });
     resizeObserver.observe(container);
 

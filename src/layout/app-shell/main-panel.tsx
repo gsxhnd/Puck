@@ -9,26 +9,15 @@ import { useTranslation } from "react-i18next";
 import {
   FileCode2Icon,
   FolderOpenIcon,
-  PanelBottomIcon,
-  PanelLeftIcon,
-  SearchIcon,
-  SettingsIcon,
   SquareTerminalIcon,
 } from "lucide-react";
 import { WorkbenchTabArea } from "@/components/workbench/workbench-tab-area";
 import { WorkspaceTerminal } from "@/components/workspace/workspace-terminal";
-import { WorkspaceStatusBar } from "@/components/workspace/workspace-status-bar";
-import { PanelHeader } from "@/layout/app-shell/panel-header";
-import { WindowControls } from "@/layout/app-shell/window-controls";
-import { chooseLocalWorkspace, createWorkspaceTerminal } from "@/lib/workspace-actions";
-import { openSettingsWindow } from "@/lib/open-settings-window";
-import { getPlatform } from "@/lib/platform";
-import { useCommandPaletteStore } from "@/stores/command-palette-store";
+import { chooseLocalWorkspace, createWorkspaceTerminal, toggleTerminalPanel } from "@/lib/workspace-actions";
 import { useSessionStore } from "@/stores/session-store";
 import { useShellLayoutStore } from "@/stores/shell-layout-store";
 import { useTerminalSearchStore } from "@/stores/terminal-search-store";
 import { useTerminalSplitStore } from "@/stores/terminal-split-store";
-import { useWorkbenchStore, workbenchTabsForWorkspace } from "@/stores/workbench-store";
 import { useWorkspaceStore } from "@/stores/workspace-store";
 import { Button } from "@/components/ui/button";
 import {
@@ -69,25 +58,17 @@ function EditorEmptyState() {
 }
 
 export function MainPanel() {
-  const { t } = useTranslation("common");
-  const workspace = useWorkspaceStore((state) => state.activeWorkspace);
-  const sidebarOpen = useWorkspaceStore((state) => state.sidebarOpen);
   const toggleSidebar = useWorkspaceStore((state) => state.toggleSidebar);
   const terminalOpen = useWorkspaceStore((state) => state.terminalOpen);
-  const toggleTerminal = useWorkspaceStore((state) => state.toggleTerminal);
-  const tabCount = useWorkbenchStore((state) =>
-    workbenchTabsForWorkspace(state.tabs, workspace?.id).length,
-  );
   const sessions = useSessionStore((state) => state.sessions);
   const activeSessionId = useSessionStore((state) => state.activeSessionId);
   const activeSession = sessions.find((session) => session.id === activeSessionId) ?? null;
-  const openPalette = useCommandPaletteStore((state) => state.openPalette);
   const openSearch = useTerminalSearchStore((state) => state.openSearch);
   const splitSession = useTerminalSplitStore((state) => state.splitSession);
   const syncSplit = useTerminalSplitStore((state) => state.syncWithSessions);
   const setLayout = useShellLayoutStore((state) => state.setLayout);
-  const defaultLayout = useMemo(
-    () => useShellLayoutStore.getState().getDefaultLayout(),
+  const verticalLayout = useMemo(
+    () => useShellLayoutStore.getState().getVerticalLayout(),
     [],
   );
 
@@ -101,7 +82,7 @@ export function MainPanel() {
       const key = event.key.toLowerCase();
       if (key === "j") {
         event.preventDefault();
-        toggleTerminal();
+        toggleTerminalPanel();
         return;
       }
       if (key === "b") {
@@ -133,85 +114,33 @@ export function MainPanel() {
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [activeSession, activeSessionId, openSearch, splitSession, toggleSidebar, toggleTerminal]);
+  }, [activeSession, activeSessionId, openSearch, splitSession, toggleSidebar]);
 
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden bg-shell-main">
-      <PanelHeader
-        macosInset={!sidebarOpen}
-        leading={
-          <div className="window-title-bar-interactive flex items-center gap-0.5">
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label={t("workspace.toggleSidebar")}
-              title={t("workspace.toggleSidebar")}
-              onClick={toggleSidebar}
-            >
-              <PanelLeftIcon />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label={t("nav.commandPalette")}
-              title={t("nav.commandPalette")}
-              onClick={() => openPalette()}
-            >
-              <SearchIcon />
-            </Button>
-            {workspace ? (
-              <span className="ml-2 truncate text-xs text-muted-foreground">
-                {workspace.source === "remote" ? "SSH · " : ""}{workspace.name}
-              </span>
-            ) : null}
+    <div className="h-full min-h-0">
+      <ResizablePanelGroup
+        id="workspace-main"
+        orientation="vertical"
+        defaultLayout={verticalLayout}
+        onLayoutChanged={setLayout}
+        className="gap-2"
+      >
+        <ResizablePanel id="editor" defaultSize="68%" minSize={120} className="min-h-0">
+          <div className="island flex h-full min-h-0 flex-col bg-shell-main">
+            <WorkbenchTabArea>
+              <EditorEmptyState />
+            </WorkbenchTabArea>
           </div>
-        }
-        trailing={
-          <div className="window-title-bar-interactive flex items-center gap-0.5">
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label={terminalOpen ? t("workspace.hideTerminal") : t("workspace.showTerminal")}
-              title={terminalOpen ? t("workspace.hideTerminal") : t("workspace.showTerminal")}
-              onClick={toggleTerminal}
-            >
-              <PanelBottomIcon />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label={t("actions.settings")}
-              title={t("actions.settings")}
-              onClick={() => void openSettingsWindow()}
-            >
-              <SettingsIcon />
-            </Button>
-            {getPlatform() !== "macos" ? <WindowControls /> : null}
-          </div>
-        }
-      />
-
-      <div className="min-h-0 flex-1">
-        <ResizablePanelGroup
-          id="workspace-main"
-          orientation="vertical"
-          defaultLayout={defaultLayout}
-          onLayoutChanged={setLayout}
-        >
-          <ResizablePanel id="editor" defaultSize={600} minSize={120} className="min-h-0">
-            <div className="flex h-full min-h-0 flex-col">
-              {tabCount > 0 ? <WorkbenchTabArea /> : <EditorEmptyState />}
+        </ResizablePanel>
+        {terminalOpen ? <ResizableHandle /> : null}
+        {terminalOpen ? (
+          <ResizablePanel id="terminal" defaultSize="32%" minSize={120} collapsible className="min-h-0">
+            <div className="island h-full bg-shell-main">
+              <WorkspaceTerminal />
             </div>
           </ResizablePanel>
-          {terminalOpen ? <ResizableHandle /> : null}
-          {terminalOpen ? (
-            <ResizablePanel id="terminal" defaultSize={280} minSize={120} collapsible className="min-h-0">
-              <WorkspaceTerminal />
-            </ResizablePanel>
-          ) : null}
-        </ResizablePanelGroup>
-      </div>
-      <WorkspaceStatusBar />
+        ) : null}
+      </ResizablePanelGroup>
     </div>
   );
 }

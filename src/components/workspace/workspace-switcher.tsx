@@ -8,7 +8,6 @@ import {
   ChevronDownIcon,
   Clock3Icon,
   FolderOpenIcon,
-  FolderIcon,
   ServerIcon,
   Settings2Icon,
 } from "lucide-react";
@@ -34,6 +33,15 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
+function workspaceInitials(name: string): string {
+  const normalized = name.trim() || "Puck";
+  const segments = normalized.split(/[\\/\s._-]+/).filter(Boolean);
+  if (segments.length >= 2) {
+    return `${segments[0]?.[0] ?? ""}${segments[1]?.[0] ?? ""}`.toUpperCase();
+  }
+  return normalized.slice(0, 2).toUpperCase();
+}
+
 export function WorkspaceSwitcher() {
   const { t } = useTranslation("common");
   const workspace = useWorkspaceStore((state) => state.activeWorkspace);
@@ -45,10 +53,12 @@ export function WorkspaceSwitcher() {
     <DropdownMenu>
       <DropdownMenuTrigger
         render={
-          <Button variant="ghost" size="sm" className="min-w-0 max-w-full justify-start px-2">
-            {workspace?.source === "remote" ? <ServerIcon /> : <FolderIcon />}
+          <Button variant="ghost" size="sm" className="w-full min-w-0 justify-start px-1.5">
+            <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-primary/10 text-[10px] font-semibold text-primary">
+              {workspaceInitials(workspace?.name ?? "Puck")}
+            </span>
             <span className="truncate font-medium">{workspace?.name ?? "Puck"}</span>
-            <ChevronDownIcon className="shrink-0 opacity-60" data-icon="inline-end" />
+            <ChevronDownIcon className="ml-auto shrink-0 opacity-60" data-icon="inline-end" />
           </Button>
         }
       />

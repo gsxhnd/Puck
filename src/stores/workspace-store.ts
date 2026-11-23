@@ -39,7 +39,7 @@ type WorkspaceStore = {
   closeWorkspace: () => void;
   setSidebarView: (view: WorkspaceSidebarView) => void;
   toggleSidebar: () => void;
-  toggleTerminal: () => void;
+  setSidebarOpen: (open: boolean) => void;
   setTerminalOpen: (open: boolean) => void;
 };
 
@@ -117,7 +117,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
       closeWorkspace: () => set({ activeWorkspace: null }),
       setSidebarView: (sidebarView) => set({ sidebarView, sidebarOpen: true }),
       toggleSidebar: () => set((state) => ({ sidebarOpen: !state.sidebarOpen })),
-      toggleTerminal: () => set((state) => ({ terminalOpen: !state.terminalOpen })),
+      setSidebarOpen: (sidebarOpen) => set({ sidebarOpen }),
       setTerminalOpen: (terminalOpen) => set({ terminalOpen }),
     }),
     {

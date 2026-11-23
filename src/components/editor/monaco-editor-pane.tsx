@@ -46,7 +46,7 @@ export function MonacoEditorPane({
         lineNumbers: "on",
         scrollBeyondLastLine: false,
         wordWrap: "on",
-        tabSize: 2,
+        tabSize: 4,
         renderWhitespace: "selection",
       });
 

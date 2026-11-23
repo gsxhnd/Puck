@@ -3,6 +3,7 @@
  *
  * 主工作区侧栏：提供 Explorer、Git、Ports 三个同级视图以及工作区切换入口。
  */
+import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import {
   CableIcon,
@@ -15,10 +16,9 @@ import { WorkspaceSwitcher } from "@/components/workspace/workspace-switcher";
 import { GitPanel } from "@/components/workspace/git-panel";
 import { PortsPanel } from "@/components/workspace/ports-panel";
 import { chooseLocalWorkspace, openRemoteWorkspace } from "@/lib/workspace-actions";
-import { cn } from "@/lib/utils";
 import { useConnectionStore } from "@/stores/connection-store";
 import { useWorkspaceStore, type WorkspaceSidebarView } from "@/stores/workspace-store";
-import { PanelHeader } from "@/layout/app-shell/panel-header";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 
 const views = [
@@ -67,42 +67,53 @@ export function WorkspaceSidebar() {
   const workspace = useWorkspaceStore((state) => state.activeWorkspace);
   const view = useWorkspaceStore((state) => state.sidebarView);
   const setView = useWorkspaceStore((state) => state.setSidebarView);
+  // Port forwarding is SSH-only, so the Ports tab disappears for local
+  // workspaces. 端口转发仅限 SSH，本地工作区不显示端口 tab。
+  const isRemote = workspace?.source === "remote";
+
+  useEffect(() => {
+    if (view === "ports" && !isRemote) {
+      setView("explorer");
+    }
+  }, [isRemote, setView, view]);
 
   return (
-    <aside className="flex h-full min-h-0 flex-col bg-shell-primary">
-      <PanelHeader macosInset leading={<WorkspaceSwitcher />} className="border-b border-border/40 px-1" />
-      <div className="flex h-10 shrink-0 items-center gap-1 border-b border-border/40 px-2">
-        {views.map((item) => {
-          const selected = view === item.id;
-          return (
-            <button
-              key={item.id}
-              type="button"
-              aria-pressed={selected}
-              title={t(item.labelKey)}
-              className={cn(
-                "flex h-7 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-md px-1 text-[11px]",
-                selected
-                  ? "bg-muted text-foreground"
-                  : "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
-              )}
-              onClick={() => setView(item.id as WorkspaceSidebarView)}
-            >
-              <item.icon className="size-3.5 shrink-0" />
-              <span className="truncate">{t(item.labelKey)}</span>
-            </button>
-          );
-        })}
+    <aside className="flex h-full min-h-0 flex-col">
+      {/* Workspace switching lives here instead of the window header strip. */}
+      {/* 工作区切换入口位于侧栏顶部，而不是窗口标题条。 */}
+      <div className="flex h-9 shrink-0 items-center border-b border-border/40 px-1.5">
+        <WorkspaceSwitcher />
       </div>
-      {workspace ? (
-        <div className="flex min-h-0 flex-1 flex-col">
-          {view === "explorer" ? <WorkspaceExplorer /> : null}
-          {view === "git" ? <GitPanel workspace={workspace} /> : null}
-          {view === "ports" ? <PortsPanel /> : null}
-        </div>
-      ) : (
-        <NoWorkspace />
-      )}
+      <Tabs
+        value={view}
+        onValueChange={(value) => setView(value as WorkspaceSidebarView)}
+        className="min-h-0 flex-1 gap-0"
+      >
+        <TabsList className="mx-2 mt-2 w-full shrink-0">
+          {views
+            .filter((item) => item.id !== "ports" || isRemote)
+            .map((item) => (
+              <TabsTrigger
+                key={item.id}
+                value={item.id}
+                title={t(item.labelKey)}
+                className="h-7 gap-1.5 px-1 text-[11px]"
+              >
+                <item.icon className="size-3.5 shrink-0" />
+                <span className="min-w-0 truncate">{t(item.labelKey)}</span>
+              </TabsTrigger>
+            ))}
+        </TabsList>
+        {workspace ? (
+          <div className="min-h-0 flex-1">
+            {view === "explorer" ? <WorkspaceExplorer /> : null}
+            {view === "git" ? <GitPanel workspace={workspace} /> : null}
+            {view === "ports" ? <PortsPanel /> : null}
+          </div>
+        ) : (
+          <NoWorkspace />
+        )}
+      </Tabs>
     </aside>
   );
 }

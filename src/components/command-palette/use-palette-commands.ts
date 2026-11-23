@@ -40,6 +40,7 @@ import { openProfileSession } from "@/lib/open-profile-session";
 import {
   chooseLocalWorkspace,
   createWorkspaceTerminal,
+  toggleTerminalPanel,
 } from "@/lib/workspace-actions";
 import { isTauri } from "@/lib/platform";
 import { listShells } from "@/lib/tauri-terminal";
@@ -95,7 +96,6 @@ export function usePaletteCommands(query: string): {
   const sidebarView = useWorkspaceStore((state) => state.sidebarView);
   const terminalOpen = useWorkspaceStore((state) => state.terminalOpen);
   const toggleSidebar = useWorkspaceStore((state) => state.toggleSidebar);
-  const toggleTerminal = useWorkspaceStore((state) => state.toggleTerminal);
   const setSidebarView = useWorkspaceStore((state) => state.setSidebarView);
   const openSearch = useTerminalSearchStore((state) => state.openSearch);
   const hasActiveEditorTab = useWorkbenchStore(
@@ -223,7 +223,7 @@ export function usePaletteCommands(query: string): {
         shortcut: "⌘J",
         checked: terminalOpen,
         keywords: ["terminal", "bottom", "panel", "终端", "view"],
-        run: () => toggleTerminal(),
+        run: () => toggleTerminalPanel(),
       },
       {
         id: "view-find",
@@ -263,7 +263,6 @@ export function usePaletteCommands(query: string): {
     t,
     terminalOpen,
     toggleSidebar,
-    toggleTerminal,
   ]);
 
   const cwdCommands = useMemo<PaletteCommand[]>(() => {

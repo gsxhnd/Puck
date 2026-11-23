@@ -5,7 +5,7 @@
  * 标签，以及切换侧栏 / 终端区域。
  */
 import { openConnectionsWindow } from "@/lib/open-connections-window";
-import { createWorkspaceTerminal } from "@/lib/workspace-actions";
+import { createWorkspaceTerminal, toggleTerminalPanel } from "@/lib/workspace-actions";
 import { closeActiveSessionTab } from "@/lib/terminal-split-sessions";
 import { closeActiveTab } from "@/lib/workbench-editor-actions";
 import { useCommandPaletteStore } from "@/stores/command-palette-store";
@@ -41,7 +41,7 @@ export function handleMenuAction(action: string) {
       useWorkspaceStore.getState().toggleSidebar();
       break;
     case "toggle_terminal":
-      useWorkspaceStore.getState().toggleTerminal();
+      toggleTerminalPanel();
       break;
     case "find":
       useTerminalSearchStore.getState().openSearch("tab");

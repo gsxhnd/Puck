@@ -21,20 +21,31 @@ function migrateStoredLayout(layout: ShellLayout): ShellLayout {
   if (resolvedPrimary !== undefined) migrated.primary = resolvedPrimary;
   if (resolvedSecond !== undefined) migrated.second = resolvedSecond;
   if (main !== undefined) migrated.main = main;
+  // The legacy three-pane layout stored only primary/main/second. The new
+  // vertical editor/terminal group must never receive those stale values.
+  // 旧三栏布局只保存 primary/main/second；新的上下编辑器/终端分组不能复用。
+  if (migrated.editor === undefined) migrated.editor = DEFAULT_EDITOR;
+  if (migrated.terminal === undefined) migrated.terminal = DEFAULT_TERMINAL;
   return migrated;
 }
 
 type ShellLayoutStore = {
   layout: ShellLayout | null;
   setLayout: (layout: ShellLayout) => void;
-  getDefaultLayout: () => ShellLayout;
+  getHorizontalLayout: () => ShellLayout;
+  getVerticalLayout: () => ShellLayout;
 };
 
+const DEFAULT_PRIMARY = 22;
+const DEFAULT_MAIN = 78;
+const DEFAULT_EDITOR = 68;
+const DEFAULT_TERMINAL = 32;
+
 const DEFAULT_LAYOUT: ShellLayout = {
-  primary: 22,
-  main: 78,
-  editor: 68,
-  terminal: 32,
+  primary: DEFAULT_PRIMARY,
+  main: DEFAULT_MAIN,
+  editor: DEFAULT_EDITOR,
+  terminal: DEFAULT_TERMINAL,
 };
 
 const shellLayoutStorage = createJSONStorage(() => ({
@@ -68,7 +79,25 @@ export const useShellLayoutStore = create<ShellLayoutStore>()(
           layout: { ...state.layout, ...migrateStoredLayout(layout) },
         })),
 
-      getDefaultLayout: () => get().layout ?? DEFAULT_LAYOUT,
+      getHorizontalLayout: () => {
+        const layout = get().layout ?? DEFAULT_LAYOUT;
+        const primary = layout.primary;
+        const main = layout.main;
+        return {
+          primary: typeof primary === "number" ? primary : DEFAULT_PRIMARY,
+          main: typeof main === "number" ? main : DEFAULT_MAIN,
+        };
+      },
+
+      getVerticalLayout: () => {
+        const layout = get().layout ?? DEFAULT_LAYOUT;
+        const editor = layout.editor;
+        const terminal = layout.terminal;
+        return {
+          editor: typeof editor === "number" ? editor : DEFAULT_EDITOR,
+          terminal: typeof terminal === "number" ? terminal : DEFAULT_TERMINAL,
+        };
+      },
     }),
     {
       name: PUCK_CONFIG_KEYS.shellLayout,
